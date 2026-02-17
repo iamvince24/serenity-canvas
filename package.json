@@ -2,7 +2,7 @@
   "name": "serenity-canvas",
   "private": true,
   "version": "0.0.0",
-  "description": "優雅的視覺化白板工具",
+  "description": "An elegant visual whiteboard tool.",
   "type": "module",
   "scripts": {
     "dev": "vite",
