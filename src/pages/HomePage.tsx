@@ -3,17 +3,11 @@ import { Header } from "../components/layout/Header";
 
 export function HomePage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FAFAF8] text-[#1C1C1A]">
+    <div className="layered-calm-bg relative min-h-screen overflow-hidden text-foreground">
       <Header />
 
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 bg-[#8B9D8312]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[45vh] bg-[linear-gradient(to_bottom,transparent,#FAFAF8_90%)]"
-      />
+      <div aria-hidden className="layered-calm-wash" />
+      <div aria-hidden className="layered-calm-mask" />
 
       <main className="relative z-10 mt-14 flex min-h-[calc(100vh-56px)] items-center justify-center px-6">
         <section className="mx-auto flex max-w-3xl -translate-y-12 flex-col items-center text-center md:-translate-y-16">
@@ -24,7 +18,7 @@ export function HomePage() {
             Find Clarity in Calm
           </h1>
 
-          <p className="animate-serenity-in animation-delay-80 mt-6 max-w-xl text-base leading-[1.625] text-[#6B6B66]">
+          <p className="text-body animate-serenity-in animation-delay-80 mt-6 max-w-xl text-foreground-muted">
             Serenity Canvas helps you turn scattered ideas into clear direction
             through a quiet, layered workspace.
           </p>
