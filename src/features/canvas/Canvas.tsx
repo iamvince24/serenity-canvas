@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -25,6 +26,7 @@ type StageSize = {
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 1.05;
+const WHEEL_GESTURE_IDLE_MS = 120;
 
 function getWindowSize(): StageSize {
   return {
@@ -51,6 +53,44 @@ function getEventTargetAsHTMLElement(
   return target instanceof HTMLElement ? target : null;
 }
 
+function findCardScrollHost(
+  target: EventTarget | null,
+  boundary: HTMLElement,
+): HTMLElement | null {
+  let currentElement: HTMLElement | null = null;
+  if (target instanceof HTMLElement) {
+    currentElement = target;
+  } else if (target instanceof Node) {
+    currentElement = target.parentElement;
+  }
+
+  while (currentElement && currentElement !== boundary) {
+    if (currentElement.dataset.cardScrollHost === "true") {
+      return currentElement;
+    }
+
+    currentElement = currentElement.parentElement;
+  }
+
+  return null;
+}
+
+function canScrollVertically(element: HTMLElement, deltaY: number): boolean {
+  if (element.scrollHeight <= element.clientHeight) {
+    return false;
+  }
+
+  if (deltaY < 0) {
+    return element.scrollTop > 0;
+  }
+
+  if (deltaY > 0) {
+    return element.scrollTop + element.clientHeight < element.scrollHeight;
+  }
+
+  return false;
+}
+
 function isSlashEscapeHandled(event: KeyboardEvent): boolean {
   return (
     (event as KeyboardEvent & { __serenitySlashEscapeHandled?: boolean })
@@ -71,6 +111,13 @@ export function Canvas() {
   const [overlayContainer, setOverlayContainer] =
     useState<HTMLDivElement | null>(null);
   const [autoFocusNodeId, setAutoFocusNodeId] = useState<string | null>(null);
+  const wheelGestureRef = useRef<{
+    mode: "pan" | "content" | null;
+    lastTimestamp: number;
+  }>({
+    mode: null,
+    lastTimestamp: 0,
+  });
 
   const handleContainerRef = useCallback((element: HTMLDivElement | null) => {
     setOverlayContainer(element);
@@ -266,6 +313,29 @@ export function Canvas() {
     }
 
     const handleWheel = (event: WheelEvent) => {
+      const isPinchZoom = event.ctrlKey;
+      const wheelGesture = wheelGestureRef.current;
+      if (
+        event.timeStamp - wheelGesture.lastTimestamp >
+        WHEEL_GESTURE_IDLE_MS
+      ) {
+        wheelGesture.mode = null;
+      }
+      wheelGesture.lastTimestamp = event.timeStamp;
+
+      if (!isPinchZoom && wheelGesture.mode === null) {
+        const scrollHost = findCardScrollHost(event.target, overlayContainer);
+        const shouldScrollContent =
+          !!scrollHost && canScrollVertically(scrollHost, event.deltaY);
+        wheelGesture.mode = shouldScrollContent ? "content" : "pan";
+      }
+
+      if (!isPinchZoom && wheelGesture.mode === "content") {
+        // Keep the current gesture inside card content scrolling.
+        return;
+      }
+
+      wheelGesture.mode = "pan";
       event.preventDefault();
 
       const storeState = useCanvasStore.getState();
@@ -275,7 +345,6 @@ export function Canvas() {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
       };
-      const isPinchZoom = event.ctrlKey;
 
       if (!isPinchZoom) {
         setViewport({

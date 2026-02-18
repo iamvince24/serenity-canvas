@@ -14,6 +14,7 @@ export type TextNode = {
   y: number;
   width: number;
   height: number;
+  heightMode: "auto" | "fixed";
   content_markdown: string;
   color: string;
 };

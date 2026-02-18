@@ -217,7 +217,7 @@ export function CardEditor({
     editorProps: {
       attributes: {
         class:
-          "card-editor__content min-h-full w-full text-[16px] leading-[1.4] text-[#1C1C1A] outline-none",
+          "card-editor__content w-full text-[16px] leading-[1.4] text-[#1C1C1A] outline-none",
       },
     },
     onBlur: ({ editor: editorInstance }: { editor: CardEditorInstance }) => {
@@ -290,8 +290,8 @@ export function CardEditor({
   }, [commitEditorContent, editor]);
 
   return (
-    <div className="card-editor h-full w-full px-4 py-4">
-      <EditorContent editor={editor} className="h-full w-full" />
+    <div className="card-editor w-full px-4 py-4">
+      <EditorContent editor={editor} className="w-full" />
     </div>
   );
 }

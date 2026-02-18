@@ -83,6 +83,8 @@
   --border: #e5e3df;
   --border-strong: #d1cfc9;
   --divider: #f0eeea;
+  --resize-edge-hit: 16px;
+  --resize-corner-hit: 20px;
 
   --background: var(--canvas);
   --card: var(--elevated);
@@ -329,7 +331,9 @@
     height: 28px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 10px;
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -340,6 +344,7 @@
   }
 
   .card-widget:hover .card-widget__handle,
+  .card-widget--selected .card-widget__handle,
   .card-widget:focus-within .card-widget__handle {
     opacity: 1;
   }
@@ -348,8 +353,135 @@
     cursor: grabbing;
   }
 
+  .card-widget__handle-grip {
+    flex: 1 1 auto;
+    text-align: center;
+    letter-spacing: 0.24em;
+    pointer-events: none;
+  }
+
+  .card-widget__settings {
+    position: relative;
+    z-index: 20;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .card-widget__settings-button {
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--foreground-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      color 120ms ease;
+  }
+
+  .card-widget__settings-button:hover {
+    background-color: var(--surface);
+    color: var(--foreground);
+  }
+
+  .card-widget__settings-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 138px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    background: var(--popover);
+    box-shadow: 0 10px 24px rgb(20 20 18 / 14%);
+  }
+
+  .card-widget__settings-item {
+    width: 100%;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--foreground);
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 13px;
+    line-height: 1.25;
+    cursor: pointer;
+    transition: background-color 120ms ease;
+  }
+
+  .card-widget__settings-item:hover {
+    background: var(--surface);
+  }
+
+  .card-widget__resize-handle {
+    position: absolute;
+    z-index: 15;
+    background: transparent;
+    touch-action: none;
+  }
+
+  .card-widget__resize-handle--width {
+    top: 0;
+    right: 0;
+    width: var(--resize-edge-hit);
+    height: 100%;
+    cursor: ew-resize;
+  }
+
+  .card-widget__resize-handle--width-left {
+    top: 0;
+    left: 0;
+    width: var(--resize-edge-hit);
+    height: 100%;
+    cursor: ew-resize;
+  }
+
+  .card-widget__resize-handle--height {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: var(--resize-edge-hit);
+    cursor: ns-resize;
+  }
+
+  .card-widget__resize-handle--corner {
+    width: var(--resize-corner-hit);
+    height: var(--resize-corner-hit);
+    z-index: 16;
+  }
+
+  .card-widget__resize-handle--corner-top-left {
+    left: 0;
+    top: 0;
+    cursor: nwse-resize;
+  }
+
+  .card-widget__resize-handle--corner-top-right {
+    right: 0;
+    top: 0;
+    cursor: nesw-resize;
+  }
+
+  .card-widget__resize-handle--corner-bottom-left {
+    left: 0;
+    bottom: 0;
+    cursor: nesw-resize;
+  }
+
+  .card-widget__resize-handle--corner-bottom-right {
+    right: 0;
+    bottom: 0;
+    cursor: nwse-resize;
+  }
+
   .card-editor__content {
-    min-height: 100%;
+    min-height: 1.4em;
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: break-word;

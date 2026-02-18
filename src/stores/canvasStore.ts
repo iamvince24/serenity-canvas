@@ -11,7 +11,9 @@ type CanvasActions = {
   setViewport: (viewport: ViewportState) => void;
   addNode: (node: TextNode) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
+  updateNodeSize: (id: string, width: number, height: number) => void;
   updateNodeContent: (id: string, contentMarkdown: string) => void;
+  setNodeHeightMode: (id: string, mode: "auto" | "fixed") => void;
   dispatch: (event: InteractionEvent) => void;
   deleteNode: (id: string) => void;
   deleteSelectedNodes: () => void;
@@ -65,6 +67,25 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       };
     });
   },
+  updateNodeSize: (id, width, height) => {
+    set((state) => {
+      const node = state.nodes[id];
+      if (!node) {
+        return state;
+      }
+
+      return {
+        nodes: {
+          ...state.nodes,
+          [id]: {
+            ...node,
+            width,
+            height,
+          },
+        },
+      };
+    });
+  },
   updateNodeContent: (id, contentMarkdown) => {
     set((state) => {
       const node = state.nodes[id];
@@ -82,6 +103,24 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
           [id]: {
             ...node,
             content_markdown: contentMarkdown,
+          },
+        },
+      };
+    });
+  },
+  setNodeHeightMode: (id, mode) => {
+    set((state) => {
+      const node = state.nodes[id];
+      if (!node || node.heightMode === mode) {
+        return state;
+      }
+
+      return {
+        nodes: {
+          ...state.nodes,
+          [id]: {
+            ...node,
+            heightMode: mode,
           },
         },
       };
