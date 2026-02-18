@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { CanvasNode } from "./CanvasNode";
 import { InteractionEvent, InteractionState } from "./stateMachine";
+import { CardEditorOverlay } from "./CardEditorOverlay";
+import { CardPreviewOverlay } from "./CardPreviewOverlay";
+import { createTextNodeCenteredAt } from "./nodeFactory";
 
 type StageSize = {
   width: number;
@@ -25,12 +28,33 @@ function getWindowSize(): StageSize {
 export function Canvas() {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
+  const editingNodeId = useCanvasStore((state) => state.editingNodeId);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const setViewport = useCanvasStore((state) => state.setViewport);
+  const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
+  const stopEditing = useCanvasStore((state) => state.stopEditing);
   const dispatch = useCanvasStore((state) => state.dispatch);
   const selectNode = useCanvasStore((state) => state.selectNode);
+  const addNode = useCanvasStore((state) => state.addNode);
 
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
+  const [overlayContainer, setOverlayContainer] =
+    useState<HTMLDivElement | null>(null);
+
+  const editingNode = editingNodeId ? nodes[editingNodeId] : null;
+  const handleContainerRef = useCallback((element: HTMLDivElement | null) => {
+    setOverlayContainer(element);
+  }, []);
+  const handleEditorCommit = useCallback(
+    (markdown: string) => {
+      if (!editingNodeId) {
+        return;
+      }
+
+      updateNodeContent(editingNodeId, markdown);
+    },
+    [editingNodeId, updateNodeContent],
+  );
 
   useEffect(() => {
     const handleResize = () => {
@@ -48,6 +72,12 @@ export function Canvas() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        const state = useCanvasStore.getState();
+        if (state.interactionState === InteractionState.Editing) {
+          // Overlay handles Escape so editor can commit before unmount.
+          return;
+        }
+
         dispatch(InteractionEvent.ESCAPE);
         return;
       }
@@ -86,6 +116,11 @@ export function Canvas() {
   }, [dispatch]);
 
   const handleWheel = (event: KonvaEventObject<WheelEvent>) => {
+    const storeState = useCanvasStore.getState();
+    if (storeState.interactionState === InteractionState.Editing) {
+      return;
+    }
+
     event.evt.preventDefault();
 
     const stage = event.target.getStage();
@@ -98,7 +133,7 @@ export function Canvas() {
       return;
     }
 
-    const currentViewport = useCanvasStore.getState().viewport;
+    const currentViewport = storeState.viewport;
     // On trackpad: ctrlKey indicates pinch gesture.
     // No ctrlKey means two-finger same-direction move, treated as panning.
     const isPinchZoom = event.evt.ctrlKey;
@@ -175,13 +210,43 @@ export function Canvas() {
     }
   };
 
+  const handleStageDoubleClick = (
+    event: KonvaEventObject<MouseEvent | TouchEvent>,
+  ) => {
+    const storeState = useCanvasStore.getState();
+    if (storeState.interactionState === InteractionState.Editing) {
+      return;
+    }
+
+    const stage = event.target.getStage();
+    if (!stage || event.target !== stage) {
+      return;
+    }
+
+    const pointer = stage.getPointerPosition();
+    if (!pointer) {
+      return;
+    }
+
+    const currentViewport = storeState.viewport;
+    const canvasX = (pointer.x - currentViewport.x) / currentViewport.zoom;
+    const canvasY = (pointer.y - currentViewport.y) / currentViewport.zoom;
+    const node = createTextNodeCenteredAt(canvasX, canvasY);
+
+    addNode(node);
+    selectNode(node.id);
+  };
+
   // Disable stage drag when a node interaction (drag, edit…) is already in progress.
   const isStageDraggable =
     interactionState === InteractionState.Idle ||
     interactionState === InteractionState.Panning;
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-canvas">
+    <div
+      ref={handleContainerRef}
+      className="relative h-screen w-screen overflow-hidden bg-canvas"
+    >
       <Stage
         width={stageSize.width}
         height={stageSize.height}
@@ -197,6 +262,8 @@ export function Canvas() {
         onMouseUp={handlePointerUp}
         onTouchStart={handlePointerDown}
         onTouchEnd={handlePointerUp}
+        onDblClick={handleStageDoubleClick}
+        onDblTap={handleStageDoubleClick}
       >
         <Layer>
           {Object.values(nodes).map((node) => (
@@ -204,6 +271,25 @@ export function Canvas() {
           ))}
         </Layer>
       </Stage>
+
+      {overlayContainer ? (
+        <CardPreviewOverlay
+          container={overlayContainer}
+          nodes={nodes}
+          viewport={viewport}
+          editingNodeId={editingNodeId}
+        />
+      ) : null}
+
+      {overlayContainer && editingNode ? (
+        <CardEditorOverlay
+          container={overlayContainer}
+          node={editingNode}
+          viewport={viewport}
+          onCommit={handleEditorCommit}
+          onRequestClose={stopEditing}
+        />
+      ) : null}
     </div>
   );
 }

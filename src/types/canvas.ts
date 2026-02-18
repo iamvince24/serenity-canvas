@@ -14,7 +14,7 @@ export type TextNode = {
   y: number;
   width: number;
   height: number;
-  content: string;
+  content_markdown: string;
   color: string;
 };
 
@@ -23,4 +23,5 @@ export type CanvasState = {
   viewport: ViewportState;
   nodes: Record<string, TextNode>;
   selectedNodeIds: string[];
+  editingNodeId: string | null;
 };

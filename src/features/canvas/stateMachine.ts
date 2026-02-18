@@ -14,6 +14,7 @@ export type InteractionState =
 export const InteractionEvent = {
   NODE_POINTER_DOWN: "node-pointer-down",
   NODE_POINTER_UP: "node-pointer-up",
+  NODE_DOUBLE_CLICK: "node-double-click",
   NODE_DRAG_START: "node-drag-start",
   NODE_DRAG_END: "node-drag-end",
   STAGE_POINTER_DOWN: "stage-pointer-down",
@@ -42,6 +43,7 @@ function stayOn(
   return {
     [InteractionEvent.NODE_POINTER_DOWN]: state,
     [InteractionEvent.NODE_POINTER_UP]: state,
+    [InteractionEvent.NODE_DOUBLE_CLICK]: state,
     [InteractionEvent.NODE_DRAG_START]: state,
     [InteractionEvent.NODE_DRAG_END]: state,
     [InteractionEvent.STAGE_POINTER_DOWN]: state,
@@ -69,6 +71,7 @@ export const transitions: Record<
     ...stayOn(InteractionState.Idle),
     [InteractionEvent.NODE_POINTER_DOWN]: InteractionState.Dragging,
     [InteractionEvent.NODE_DRAG_START]: InteractionState.Dragging,
+    [InteractionEvent.NODE_DOUBLE_CLICK]: InteractionState.Editing,
     [InteractionEvent.STAGE_POINTER_DOWN]: InteractionState.Panning,
     [InteractionEvent.PAN_START]: InteractionState.Panning,
     [InteractionEvent.BOX_SELECT_START]: InteractionState.BoxSelecting,
@@ -78,6 +81,7 @@ export const transitions: Record<
   },
   [InteractionState.Dragging]: {
     ...stayOn(InteractionState.Dragging),
+    [InteractionEvent.NODE_DOUBLE_CLICK]: InteractionState.Editing,
     [InteractionEvent.NODE_POINTER_UP]: InteractionState.Idle,
     [InteractionEvent.NODE_DRAG_END]: InteractionState.Idle,
     [InteractionEvent.ESCAPE]: InteractionState.Idle,
