@@ -9,9 +9,11 @@ import {
   type FocusEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { getCardColorStyle } from "../../constants/colors";
 import { useCanvasStore } from "../../stores/canvasStore";
 import type { TextNode } from "../../types/canvas";
 import { CardEditor } from "./CardEditor";
+import { ColorPicker } from "./ColorPicker";
 import { DEFAULT_NODE_HEIGHT, HANDLE_BAR_HEIGHT } from "./constants";
 import {
   CornerResizeHandle,
@@ -39,6 +41,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const settingsRootRef = useRef<HTMLDivElement | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [focusAtEndSignal, setFocusAtEndSignal] = useState(0);
 
@@ -47,24 +50,24 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const isSettingsVisible = isSettingsOpen;
   const shouldShowResizeHandles = !isEditing;
 
-  const cardStyle = useMemo<CSSProperties>(
-    () => ({
+  const cardStyle = useMemo<CSSProperties>(() => {
+    const colorStyle = getCardColorStyle(node.color);
+    return {
       position: "absolute",
       left: `${node.x}px`,
       top: `${node.y}px`,
       width: `${node.width}px`,
       height: `${node.height}px`,
-      backgroundColor: node.color,
-      border: "1px solid var(--border)",
+      backgroundColor: colorStyle.background,
+      border: `1px solid ${colorStyle.border}`,
       boxShadow: isSelected ? "0 0 0 2px var(--sage)" : "none",
       borderRadius: "10px",
       boxSizing: "border-box",
       overflow: "hidden",
       zIndex: isSelected ? 2 : 1,
       isolation: "isolate",
-    }),
-    [isSelected, node.color, node.height, node.width, node.x, node.y],
-  );
+    };
+  }, [isSelected, node.color, node.height, node.width, node.x, node.y]);
 
   const editorShellStyle = useMemo<CSSProperties>(
     () => ({
@@ -81,8 +84,29 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const handleContentPointerDown = useCallback(() => {
     selectNode(node.id);
     setIsSettingsOpen(false);
-    setFocusAtEndSignal((current) => current + 1);
+    setIsColorPickerOpen(false);
   }, [node.id, selectNode]);
+
+  const handleContentClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest("button, input, label, a, select, textarea")
+      ) {
+        return;
+      }
+
+      if (target instanceof HTMLElement && target.closest(".ProseMirror")) {
+        // Keep native caret placement when user clicks on editor text content.
+        return;
+      }
+
+      // Clicking outside text content (card body blank area) moves caret to end.
+      setFocusAtEndSignal((current) => current + 1);
+    },
+    [],
+  );
 
   const handleCommit = useCallback(
     (markdown: string) => {
@@ -121,6 +145,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const handleFitContent = useCallback(() => {
     setNodeHeightMode(node.id, "auto");
     setIsSettingsOpen(false);
+    setIsColorPickerOpen(false);
     window.requestAnimationFrame(() => {
       measureContentHeight();
     });
@@ -148,7 +173,14 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const handleSettingsButtonClick = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
-      setIsSettingsOpen((current) => !current);
+      setIsSettingsOpen((current) => {
+        const next = !current;
+        if (!next) {
+          setIsColorPickerOpen(false);
+        }
+
+        return next;
+      });
     },
     [],
   );
@@ -170,6 +202,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
       }
 
       setIsSettingsOpen(false);
+      setIsColorPickerOpen(false);
     };
 
     window.addEventListener("mousedown", handleMouseDown);
@@ -260,6 +293,28 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
               >
                 Fit Content
               </button>
+              <button
+                type="button"
+                className="card-widget__settings-item"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsColorPickerOpen((current) => !current);
+                }}
+              >
+                Color
+              </button>
+
+              {isColorPickerOpen ? (
+                <>
+                  <div className="card-widget__settings-divider" />
+                  <ColorPicker
+                    nodeId={node.id}
+                    color={node.color}
+                    onSelectColor={() => setIsColorPickerOpen(false)}
+                  />
+                </>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -270,6 +325,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
         style={editorShellStyle}
         data-card-scroll-host="true"
         onPointerDown={handleContentPointerDown}
+        onClick={handleContentClick}
         onFocusCapture={handleEditorFocusCapture}
         onBlurCapture={handleEditorBlurCapture}
       >

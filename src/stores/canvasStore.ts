@@ -20,6 +20,7 @@ type CanvasActions = {
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeSize: (id: string, width: number, height: number) => void;
   updateNodeContent: (id: string, contentMarkdown: string) => void;
+  updateNodeColor: (id: string, color: CanvasNode["color"]) => void;
   setNodeHeightMode: (id: string, mode: NodeHeightMode) => void;
   dispatch: (event: InteractionEvent) => void;
   deleteNode: (id: string) => void;
@@ -113,6 +114,18 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
 
       return {
         nodes: patchNode(state.nodes, id, { contentMarkdown }),
+      };
+    });
+  },
+  updateNodeColor: (id, color) => {
+    set((state) => {
+      const node = state.nodes[id];
+      if (!node || node.color === color) {
+        return state;
+      }
+
+      return {
+        nodes: patchNode(state.nodes, id, { color }),
       };
     });
   },

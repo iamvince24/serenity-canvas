@@ -1,3 +1,4 @@
+import { normalizeNodeColor } from "../../constants/colors";
 import type { CanvasNode, ImageNode, TextNode } from "../../types/canvas";
 
 export type PersistenceTextNode = Omit<TextNode, "contentMarkdown"> & {
@@ -10,13 +11,17 @@ export type PersistenceCanvasNode = PersistenceTextNode | PersistenceImageNode;
 
 export function fromPersistenceNode(node: PersistenceCanvasNode): CanvasNode {
   if (node.type !== "text") {
-    return node;
+    return {
+      ...node,
+      color: normalizeNodeColor(node.color),
+    };
   }
 
   const { content_markdown, ...rest } = node;
   return {
     ...rest,
     contentMarkdown: content_markdown,
+    color: normalizeNodeColor(node.color),
   };
 }
 
@@ -37,11 +42,17 @@ export function migrateLegacyNode(
   node: CanvasNode | PersistenceCanvasNode,
 ): CanvasNode {
   if (node.type !== "text") {
-    return node;
+    return {
+      ...node,
+      color: normalizeNodeColor(node.color),
+    };
   }
 
   if ("contentMarkdown" in node) {
-    return node;
+    return {
+      ...node,
+      color: normalizeNodeColor(node.color),
+    };
   }
 
   return fromPersistenceNode(node);
