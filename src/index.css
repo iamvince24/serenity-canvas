@@ -321,8 +321,31 @@
     background: transparent;
   }
 
-  .card-editor--readonly {
+  .card-widget__handle {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    z-index: 10;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
     user-select: none;
+    touch-action: none;
+    color: var(--foreground-subtle);
+    background: color-mix(in srgb, var(--elevated) 92%, transparent);
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .card-widget:hover .card-widget__handle,
+  .card-widget:focus-within .card-widget__handle {
+    opacity: 1;
+  }
+
+  .card-widget__handle:active {
+    cursor: grabbing;
   }
 
   .card-editor__content {
@@ -461,143 +484,6 @@
   .card-editor__content pre code {
     background: transparent;
     padding: 0;
-  }
-
-  .card-preview__content {
-    min-height: 100%;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: break-word;
-    color: #1c1c1a;
-    font-size: 16px;
-    line-height: 1.4;
-  }
-
-  .card-preview__content p,
-  .card-preview__content h1,
-  .card-preview__content h2,
-  .card-preview__content h3,
-  .card-preview__content h4,
-  .card-preview__content h5,
-  .card-preview__content h6,
-  .card-preview__content blockquote,
-  .card-preview__content ul,
-  .card-preview__content ol,
-  .card-preview__content li,
-  .card-preview__content pre {
-    margin: 0;
-  }
-
-  .card-preview__content > * + * {
-    margin-top: 0.8em;
-  }
-
-  .card-preview__content h1 {
-    font-size: 1.45em;
-    font-weight: 700;
-  }
-
-  .card-preview__content h2 {
-    font-size: 1.25em;
-    font-weight: 700;
-  }
-
-  .card-preview__content h3,
-  .card-preview__content h4,
-  .card-preview__content h5,
-  .card-preview__content h6 {
-    font-size: 1.1em;
-    font-weight: 600;
-  }
-
-  .card-preview__content ul,
-  .card-preview__content ol {
-    padding-left: 1.25em;
-  }
-
-  .card-preview__content ul {
-    list-style: disc;
-  }
-
-  .card-preview__content ol {
-    list-style: decimal;
-  }
-
-  .card-preview__content ul[data-type="taskList"] {
-    padding-left: 0;
-    list-style: none;
-  }
-
-  .card-preview__content li[data-type="taskItem"] {
-    display: flex;
-    align-items: center;
-    gap: 0.45em;
-    list-style: none;
-  }
-
-  .card-preview__content li[data-type="taskItem"] > label {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    margin-top: 0;
-    user-select: none;
-  }
-
-  .card-preview__content li[data-type="taskItem"] > label input {
-    width: 1.15em;
-    height: 1.15em;
-    margin: 0;
-  }
-
-  .card-preview__content li[data-type="taskItem"] > label span {
-    display: none;
-  }
-
-  .card-preview__content li[data-type="taskItem"] > div {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .card-preview__content li[data-type="taskItem"] > div > p {
-    margin: 0;
-  }
-
-  .card-preview__content li + li {
-    margin-top: 0.35em;
-  }
-
-  .card-preview__content blockquote {
-    border-left: 3px solid #cfd6ca;
-    padding-left: 0.75em;
-    color: #4f564a;
-  }
-
-  .card-preview__content pre {
-    border-radius: 6px;
-    background: #f3f4f1;
-    padding: 0.6em 0.75em;
-    white-space: pre-wrap;
-  }
-
-  .card-preview__content code {
-    border-radius: 4px;
-    background: #f3f4f1;
-    padding: 0.05em 0.3em;
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-      "Courier New", monospace;
-    font-size: 0.92em;
-  }
-
-  .card-preview__content pre code {
-    background: transparent;
-    padding: 0;
-  }
-
-  .card-preview__content a {
-    color: #355b8a;
-    text-decoration: underline;
-    text-underline-offset: 2px;
   }
 }
 

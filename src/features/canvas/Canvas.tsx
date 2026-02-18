@@ -2,10 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
-import { CanvasNode } from "./CanvasNode";
+import { CardOverlay } from "./CardOverlay";
 import { InteractionEvent, InteractionState } from "./stateMachine";
-import { CardEditorOverlay } from "./CardEditorOverlay";
-import { CardPreviewOverlay } from "./CardPreviewOverlay";
 import { createTextNodeCenteredAt } from "./nodeFactory";
 
 type StageSize = {
@@ -28,11 +26,8 @@ function getWindowSize(): StageSize {
 export function Canvas() {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
-  const editingNodeId = useCanvasStore((state) => state.editingNodeId);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const setViewport = useCanvasStore((state) => state.setViewport);
-  const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
-  const stopEditing = useCanvasStore((state) => state.stopEditing);
   const dispatch = useCanvasStore((state) => state.dispatch);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const addNode = useCanvasStore((state) => state.addNode);
@@ -40,21 +35,11 @@ export function Canvas() {
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
   const [overlayContainer, setOverlayContainer] =
     useState<HTMLDivElement | null>(null);
+  const [autoFocusNodeId, setAutoFocusNodeId] = useState<string | null>(null);
 
-  const editingNode = editingNodeId ? nodes[editingNodeId] : null;
   const handleContainerRef = useCallback((element: HTMLDivElement | null) => {
     setOverlayContainer(element);
   }, []);
-  const handleEditorCommit = useCallback(
-    (markdown: string) => {
-      if (!editingNodeId) {
-        return;
-      }
-
-      updateNodeContent(editingNodeId, markdown);
-    },
-    [editingNodeId, updateNodeContent],
-  );
 
   useEffect(() => {
     const handleResize = () => {
@@ -72,9 +57,13 @@ export function Canvas() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        const state = useCanvasStore.getState();
-        if (state.interactionState === InteractionState.Editing) {
-          // Overlay handles Escape so editor can commit before unmount.
+        if (event.defaultPrevented) {
+          return;
+        }
+
+        const activeElement = document.activeElement as HTMLElement | null;
+        if (activeElement?.isContentEditable) {
+          activeElement.blur();
           return;
         }
 
@@ -87,10 +76,6 @@ export function Canvas() {
       }
 
       const state = useCanvasStore.getState();
-      if (state.interactionState === InteractionState.Editing) {
-        return;
-      }
-
       const target = event.target as HTMLElement | null;
       if (
         target &&
@@ -115,58 +100,74 @@ export function Canvas() {
     };
   }, [dispatch]);
 
-  const handleWheel = (event: KonvaEventObject<WheelEvent>) => {
-    const storeState = useCanvasStore.getState();
-    if (storeState.interactionState === InteractionState.Editing) {
+  useEffect(() => {
+    if (!overlayContainer) {
       return;
     }
 
-    event.evt.preventDefault();
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
 
-    const stage = event.target.getStage();
-    if (!stage) {
-      return;
-    }
+      const storeState = useCanvasStore.getState();
+      const currentViewport = storeState.viewport;
+      const rect = overlayContainer.getBoundingClientRect();
+      const pointer = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
+      const isPinchZoom = event.ctrlKey;
 
-    const pointer = stage.getPointerPosition();
-    if (!pointer) {
-      return;
-    }
+      if (!isPinchZoom) {
+        setViewport({
+          ...currentViewport,
+          x: currentViewport.x - event.deltaX,
+          y: currentViewport.y - event.deltaY,
+        });
+        return;
+      }
 
-    const currentViewport = storeState.viewport;
-    // On trackpad: ctrlKey indicates pinch gesture.
-    // No ctrlKey means two-finger same-direction move, treated as panning.
-    const isPinchZoom = event.evt.ctrlKey;
+      const oldZoom = currentViewport.zoom;
+      const canvasPoint = {
+        x: (pointer.x - currentViewport.x) / oldZoom,
+        y: (pointer.y - currentViewport.y) / oldZoom,
+      };
 
-    if (!isPinchZoom) {
+      const direction = event.deltaY > 0 ? -1 : 1;
+      const nextZoomRaw =
+        direction > 0 ? oldZoom * ZOOM_STEP : oldZoom / ZOOM_STEP;
+      const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoomRaw));
+
       setViewport({
-        ...currentViewport,
-        x: currentViewport.x - event.evt.deltaX,
-        y: currentViewport.y - event.evt.deltaY,
+        x: pointer.x - canvasPoint.x * nextZoom,
+        y: pointer.y - canvasPoint.y * nextZoom,
+        zoom: nextZoom,
       });
-      return;
-    }
-
-    const oldZoom = currentViewport.zoom;
-    // Convert screen pointer to canvas-space coordinate before zoom.
-    // This lets us zoom around cursor position instead of stage origin.
-    const canvasPoint = {
-      x: (pointer.x - currentViewport.x) / oldZoom,
-      y: (pointer.y - currentViewport.y) / oldZoom,
     };
 
-    const direction = event.evt.deltaY > 0 ? -1 : 1;
-
-    const nextZoomRaw =
-      direction > 0 ? oldZoom * ZOOM_STEP : oldZoom / ZOOM_STEP;
-    const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoomRaw));
-
-    setViewport({
-      x: pointer.x - canvasPoint.x * nextZoom,
-      y: pointer.y - canvasPoint.y * nextZoom,
-      zoom: nextZoom,
+    overlayContainer.addEventListener("wheel", handleWheel, {
+      passive: false,
     });
-  };
+
+    return () => {
+      overlayContainer.removeEventListener("wheel", handleWheel);
+    };
+  }, [overlayContainer, setViewport]);
+
+  useEffect(() => {
+    if (!autoFocusNodeId) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      setAutoFocusNodeId((current) =>
+        current === autoFocusNodeId ? null : current,
+      );
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [autoFocusNodeId]);
 
   const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
     const stage = event.target.getStage();
@@ -229,10 +230,6 @@ export function Canvas() {
     event: KonvaEventObject<MouseEvent | TouchEvent>,
   ) => {
     const storeState = useCanvasStore.getState();
-    if (storeState.interactionState === InteractionState.Editing) {
-      return;
-    }
-
     const stage = event.target.getStage();
     if (!stage || event.target !== stage) {
       return;
@@ -250,9 +247,10 @@ export function Canvas() {
 
     addNode(node);
     selectNode(node.id);
+    setAutoFocusNodeId(node.id);
   };
 
-  // Disable stage drag when a node interaction (drag, edit…) is already in progress.
+  // Disable stage drag when node drag or other interactions are in progress.
   const isStageDraggable =
     interactionState === InteractionState.Idle ||
     interactionState === InteractionState.Panning;
@@ -270,7 +268,6 @@ export function Canvas() {
         scaleX={viewport.zoom}
         scaleY={viewport.zoom}
         draggable={isStageDraggable}
-        onWheel={handleWheel}
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -281,29 +278,15 @@ export function Canvas() {
         onDblClick={handleStageDoubleClick}
         onDblTap={handleStageDoubleClick}
       >
-        <Layer>
-          {Object.values(nodes).map((node) => (
-            <CanvasNode key={node.id} node={node} />
-          ))}
-        </Layer>
+        <Layer />
       </Stage>
 
       {overlayContainer ? (
-        <CardPreviewOverlay
+        <CardOverlay
           container={overlayContainer}
           nodes={nodes}
           viewport={viewport}
-          editingNodeId={editingNodeId}
-        />
-      ) : null}
-
-      {overlayContainer && editingNode ? (
-        <CardEditorOverlay
-          container={overlayContainer}
-          node={editingNode}
-          viewport={viewport}
-          onCommit={handleEditorCommit}
-          onRequestClose={stopEditing}
+          autoFocusNodeId={autoFocusNodeId}
         />
       ) : null}
     </div>

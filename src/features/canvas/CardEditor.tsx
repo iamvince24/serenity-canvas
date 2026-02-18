@@ -124,7 +124,7 @@ type CardEditorProps = {
   initialMarkdown: string;
   onCommit?: (markdown: string) => void;
   onEditorReady?: (editor: CardEditorInstance | null) => void;
-  readOnly?: boolean;
+  autoFocus?: boolean;
 };
 
 function fallbackMarkdownDoc(markdown: string): TiptapJSONContent {
@@ -144,7 +144,7 @@ export function CardEditor({
   initialMarkdown,
   onCommit,
   onEditorReady,
-  readOnly = false,
+  autoFocus = false,
 }: CardEditorProps) {
   const lastSuccessfulMarkdownRef = useRef(initialMarkdown);
   const onCommitRef = useRef(onCommit);
@@ -171,10 +171,6 @@ export function CardEditor({
 
   const commitEditorContent = useCallback(
     (editor: CardEditorInstance | null) => {
-      if (readOnly) {
-        return;
-      }
-
       if (!editor || editor.isDestroyed) {
         return;
       }
@@ -198,7 +194,7 @@ export function CardEditor({
         );
       }
     },
-    [readOnly],
+    [],
   );
 
   const editor = useEditor({
@@ -209,24 +205,20 @@ export function CardEditor({
       SlashCommands,
     ],
     content: initialContent,
-    editable: !readOnly,
-    autofocus: readOnly ? false : "start",
+    editable: true,
+    autofocus: autoFocus ? "start" : false,
     editorProps: {
       attributes: {
         class:
           "card-editor__content min-h-full w-full text-[16px] leading-[1.4] text-[#1C1C1A] outline-none",
       },
     },
-    onBlur: readOnly
-      ? undefined
-      : ({ editor: editorInstance }: { editor: CardEditorInstance }) => {
-          commitEditorContent(editorInstance);
-        },
-    onUpdate: readOnly
-      ? undefined
-      : ({ editor: editorInstance }: { editor: CardEditorInstance }) => {
-          commitEditorContent(editorInstance);
-        },
+    onBlur: ({ editor: editorInstance }: { editor: CardEditorInstance }) => {
+      commitEditorContent(editorInstance);
+    },
+    onUpdate: ({ editor: editorInstance }: { editor: CardEditorInstance }) => {
+      commitEditorContent(editorInstance);
+    },
   });
 
   useEffect(() => {
@@ -241,19 +233,13 @@ export function CardEditor({
   }, [editor, onEditorReady]);
 
   useEffect(() => {
-    if (readOnly) {
-      return;
-    }
-
     return () => {
       commitEditorContent(editor);
     };
-  }, [commitEditorContent, editor, readOnly]);
+  }, [commitEditorContent, editor]);
 
   return (
-    <div
-      className={`card-editor h-full w-full px-4 py-4${readOnly ? " card-editor--readonly" : ""}`}
-    >
+    <div className="card-editor h-full w-full px-4 py-4">
       <EditorContent editor={editor} className="h-full w-full" />
     </div>
   );

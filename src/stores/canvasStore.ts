@@ -12,8 +12,6 @@ type CanvasActions = {
   addNode: (node: TextNode) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeContent: (id: string, contentMarkdown: string) => void;
-  startEditing: (nodeId: string) => void;
-  stopEditing: () => void;
   dispatch: (event: InteractionEvent) => void;
   deleteNode: (id: string) => void;
   deleteSelectedNodes: () => void;
@@ -35,7 +33,6 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   viewport: initialViewport,
   nodes: {},
   selectedNodeIds: [],
-  editingNodeId: null,
   interactionState: InteractionState.Idle,
   setViewport: (viewport) => {
     set({ viewport });
@@ -90,40 +87,10 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       };
     });
   },
-  startEditing: (nodeId) => {
-    set((state) => {
-      if (!state.nodes[nodeId]) {
-        return state;
-      }
-
-      return {
-        editingNodeId: nodeId,
-        selectedNodeIds: [nodeId],
-        // Enter editing deterministically even if current interaction is transient
-        // (e.g. brief dragging state during double-click sequence).
-        interactionState: InteractionState.Editing,
-      };
-    });
-  },
-  stopEditing: () => {
-    set((state) => ({
-      editingNodeId: null,
-      interactionState: transition(
-        state.interactionState,
-        InteractionEvent.EDIT_END,
-      ),
-    }));
-  },
   dispatch: (event) => {
     set((state) => {
-      const nextInteractionState = transition(state.interactionState, event);
-      const isLeavingEditing =
-        state.interactionState === InteractionState.Editing &&
-        nextInteractionState !== InteractionState.Editing;
-
       return {
-        interactionState: nextInteractionState,
-        editingNodeId: isLeavingEditing ? null : state.editingNodeId,
+        interactionState: transition(state.interactionState, event),
       };
     });
   },
@@ -141,7 +108,6 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         selectedNodeIds: state.selectedNodeIds.filter(
           (selectedNodeId) => selectedNodeId !== id,
         ),
-        editingNodeId: state.editingNodeId === id ? null : state.editingNodeId,
         interactionState: InteractionState.Idle,
       };
     });
@@ -160,11 +126,6 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       return {
         nodes: remainingNodes,
         selectedNodeIds: [],
-        editingNodeId:
-          state.editingNodeId &&
-          state.selectedNodeIds.includes(state.editingNodeId)
-            ? null
-            : state.editingNodeId,
         interactionState: InteractionState.Idle,
       };
     });

@@ -23,5 +23,4 @@ export type CanvasState = {
   viewport: ViewportState;
   nodes: Record<string, TextNode>;
   selectedNodeIds: string[];
-  editingNodeId: string | null;
 };
