@@ -96,14 +96,19 @@ export function CardEditorOverlay({
         return;
       }
 
+      // Let editor-level handlers (e.g. slash menu) consume Escape first.
+      if (event.defaultPrevented) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       requestClose();
     };
 
-    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [requestClose]);
 

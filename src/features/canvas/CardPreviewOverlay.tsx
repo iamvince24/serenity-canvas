@@ -22,7 +22,6 @@ type CardPreviewOverlayProps = {
 
 type CardPreviewNodeProps = {
   node: TextNode;
-  viewport: ViewportState;
 };
 
 function extractText(node: TiptapJSONContent): string {
@@ -148,6 +147,14 @@ function renderBlockNode(node: TiptapJSONContent, key: string): ReactNode {
     return <ul key={key}>{renderBlockNodes(node.content, key)}</ul>;
   }
 
+  if (node.type === "taskList") {
+    return (
+      <ul key={key} data-type="taskList">
+        {renderBlockNodes(node.content, key)}
+      </ul>
+    );
+  }
+
   if (node.type === "orderedList") {
     const rawStart = node.attrs?.start;
     const start = typeof rawStart === "number" ? rawStart : undefined;
@@ -160,6 +167,19 @@ function renderBlockNode(node: TiptapJSONContent, key: string): ReactNode {
 
   if (node.type === "listItem") {
     return <li key={key}>{renderBlockNodes(node.content, key)}</li>;
+  }
+
+  if (node.type === "taskItem") {
+    const checked = node.attrs?.checked === true;
+    return (
+      <li key={key} data-type="taskItem">
+        <label>
+          <input type="checkbox" checked={checked} readOnly tabIndex={-1} />
+          <span />
+        </label>
+        <div>{renderBlockNodes(node.content, key)}</div>
+      </li>
+    );
   }
 
   if (node.type === "codeBlock") {
@@ -203,7 +223,6 @@ function renderBlockNodes(
 
 const CardPreviewNode = memo(function CardPreviewNode({
   node,
-  viewport,
 }: CardPreviewNodeProps) {
   const previewBlocks = useMemo<TiptapJSONContent[]>(() => {
     try {
@@ -229,22 +248,13 @@ const CardPreviewNode = memo(function CardPreviewNode({
   const cardStyle = useMemo<CSSProperties>(
     () => ({
       position: "absolute",
-      left: `${node.x * viewport.zoom + viewport.x}px`,
-      top: `${node.y * viewport.zoom + viewport.y}px`,
+      left: `${node.x}px`,
+      top: `${node.y}px`,
       width: `${node.width}px`,
       height: `${node.height}px`,
-      transform: `scale(${viewport.zoom})`,
       transformOrigin: "top left",
     }),
-    [
-      node.height,
-      node.width,
-      node.x,
-      node.y,
-      viewport.x,
-      viewport.y,
-      viewport.zoom,
-    ],
+    [node.height, node.width, node.x, node.y],
   );
 
   return (
@@ -271,14 +281,27 @@ export function CardPreviewOverlay({
       .map(([, node]) => node);
   }, [editingNodeId, nodes]);
 
+  const overlayContentStyle = useMemo<CSSProperties>(
+    () => ({
+      position: "absolute",
+      inset: 0,
+      transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+      transformOrigin: "top left",
+      willChange: "transform",
+    }),
+    [viewport.x, viewport.y, viewport.zoom],
+  );
+
   return createPortal(
     <div
       className="pointer-events-none absolute inset-0 z-20"
       role="presentation"
     >
-      {previewNodes.map((node) => (
-        <CardPreviewNode key={node.id} node={node} viewport={viewport} />
-      ))}
+      <div style={overlayContentStyle}>
+        {previewNodes.map((node) => (
+          <CardPreviewNode key={node.id} node={node} />
+        ))}
+      </div>
     </div>,
     container,
   );

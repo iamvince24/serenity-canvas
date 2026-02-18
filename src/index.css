@@ -359,13 +359,108 @@
 
   .card-editor__content ul,
   .card-editor__content ol {
+    padding-left: 1.25em;
+  }
+
+  .card-editor__content ul {
+    list-style: disc;
+  }
+
+  .card-editor__content ol {
+    list-style: decimal;
+  }
+
+  .card-editor__content ul[data-type="taskList"] {
+    padding-left: 0;
     list-style: none;
+  }
+
+  .card-editor__content li[data-type="taskItem"],
+  .card-editor__content li[data-checked] {
+    display: flex;
+    align-items: center;
+    gap: 0.45em;
+    list-style: none;
+  }
+
+  .card-editor__content li[data-type="taskItem"] > label,
+  .card-editor__content li[data-checked] > label {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0;
+    user-select: none;
+  }
+
+  .card-editor__content li[data-type="taskItem"] > label input,
+  .card-editor__content li[data-checked] > label input {
+    width: 1.15em;
+    height: 1.15em;
+    margin: 0;
+  }
+
+  .card-editor__content li[data-type="taskItem"] > label span,
+  .card-editor__content li[data-checked] > label span {
+    display: none;
+  }
+
+  .card-editor__content li[data-type="taskItem"] > div,
+  .card-editor__content li[data-checked] > div {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .card-editor__content li[data-type="taskItem"] > div > p,
+  .card-editor__content li[data-checked] > div > p {
+    margin: 0;
+  }
+
+  .card-editor__content li[data-type="taskItem"] + li[data-type="taskItem"],
+  .card-editor__content li[data-checked] + li[data-checked] {
+    margin-top: 0.35em;
+  }
+
+  .card-editor__content h1 {
+    font-size: 1.45em;
+    font-weight: 700;
+  }
+
+  .card-editor__content h2 {
+    font-size: 1.25em;
+    font-weight: 700;
+  }
+
+  .card-editor__content h3,
+  .card-editor__content h4,
+  .card-editor__content h5,
+  .card-editor__content h6 {
+    font-size: 1.1em;
+    font-weight: 600;
+  }
+
+  .card-editor__content blockquote {
+    border-left: 3px solid #cfd6ca;
+    padding-left: 0.75em;
+    color: #4f564a;
   }
 
   .card-editor__content code {
     font: inherit;
+    border-radius: 4px;
+    background: #f3f4f1;
+    padding: 0.05em 0.3em;
+  }
+
+  .card-editor__content pre {
+    border-radius: 6px;
+    background: #f3f4f1;
+    padding: 0.6em 0.75em;
+    white-space: pre-wrap;
+  }
+
+  .card-editor__content pre code {
     background: transparent;
-    color: inherit;
+    padding: 0;
   }
 
   .card-preview__content {
@@ -426,6 +521,45 @@
 
   .card-preview__content ol {
     list-style: decimal;
+  }
+
+  .card-preview__content ul[data-type="taskList"] {
+    padding-left: 0;
+    list-style: none;
+  }
+
+  .card-preview__content li[data-type="taskItem"] {
+    display: flex;
+    align-items: center;
+    gap: 0.45em;
+    list-style: none;
+  }
+
+  .card-preview__content li[data-type="taskItem"] > label {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0;
+    user-select: none;
+  }
+
+  .card-preview__content li[data-type="taskItem"] > label input {
+    width: 1.15em;
+    height: 1.15em;
+    margin: 0;
+  }
+
+  .card-preview__content li[data-type="taskItem"] > label span {
+    display: none;
+  }
+
+  .card-preview__content li[data-type="taskItem"] > div {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .card-preview__content li[data-type="taskItem"] > div > p {
+    margin: 0;
   }
 
   .card-preview__content li + li {

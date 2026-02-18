@@ -183,6 +183,21 @@ export function Canvas() {
     dispatch(InteractionEvent.PAN_END);
   };
 
+  const handleDragMove = (event: KonvaEventObject<DragEvent>) => {
+    const stage = event.target.getStage();
+    if (!stage || event.target !== stage) {
+      // Ignore bubbled drag events from child nodes.
+      return;
+    }
+
+    const currentViewport = useCanvasStore.getState().viewport;
+    setViewport({
+      ...currentViewport,
+      x: event.target.x(),
+      y: event.target.y(),
+    });
+  };
+
   const handlePointerDown = (
     event: KonvaEventObject<MouseEvent | TouchEvent>,
   ) => {
@@ -257,6 +272,7 @@ export function Canvas() {
         draggable={isStageDraggable}
         onWheel={handleWheel}
         onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onMouseDown={handlePointerDown}
         onMouseUp={handlePointerUp}

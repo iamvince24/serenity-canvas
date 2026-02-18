@@ -92,9 +92,10 @@ function paragraphFromText(text: string): TiptapJSONContent {
 
 function isListBoundary(line: string): boolean {
   return (
-    /^#{1,6}\s+/.test(line) ||
-    /^\s*[-*+]\s+/.test(line) ||
-    /^\s*\d+\.\s+/.test(line) ||
+    /^#{1,6}(?:\s+.*)?$/.test(line) ||
+    /^\s*[-*+]\s+\[[ x]\](?:\s+.*)?$/.test(line) ||
+    /^\s*[-*+](?:\s+.*)?$/.test(line) ||
+    /^\s*\d+\.(?:\s+.*)?$/.test(line) ||
     /^```/.test(line)
   );
 }
@@ -137,10 +138,10 @@ function parseBlocks(markdown: string): TiptapJSONContent[] {
       continue;
     }
 
-    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    const headingMatch = line.match(/^(#{1,6})(?:\s+(.*))?$/);
     if (headingMatch) {
       const level = headingMatch[1].length;
-      const content = parseInlineText(headingMatch[2]);
+      const content = parseInlineText(headingMatch[2] ?? "");
       blocks.push({
         type: "heading",
         attrs: { level },
@@ -150,18 +151,42 @@ function parseBlocks(markdown: string): TiptapJSONContent[] {
       continue;
     }
 
-    if (/^\s*[-*+]\s+/.test(line)) {
+    if (/^\s*[-*+]\s+\[[ x]\](?:\s+.*)?$/.test(line)) {
       const items: TiptapJSONContent[] = [];
 
       while (index < lines.length) {
-        const bulletMatch = lines[index].match(/^\s*[-*+]\s+(.+)$/);
+        const taskMatch = lines[index].match(
+          /^\s*[-*+]\s+\[([ x])\](?:\s+(.*))?$/,
+        );
+        if (!taskMatch) {
+          break;
+        }
+
+        const checked = taskMatch[1] === "x";
+        items.push({
+          type: "taskItem",
+          attrs: { checked },
+          content: [paragraphFromText(taskMatch[2] ?? "")],
+        });
+        index += 1;
+      }
+
+      blocks.push({ type: "taskList", content: items });
+      continue;
+    }
+
+    if (/^\s*[-*+](?:\s+.*)?$/.test(line)) {
+      const items: TiptapJSONContent[] = [];
+
+      while (index < lines.length) {
+        const bulletMatch = lines[index].match(/^\s*[-*+](?:\s+(.*))?$/);
         if (!bulletMatch) {
           break;
         }
 
         items.push({
           type: "listItem",
-          content: [paragraphFromText(bulletMatch[1])],
+          content: [paragraphFromText(bulletMatch[1] ?? "")],
         });
         index += 1;
       }
@@ -170,20 +195,20 @@ function parseBlocks(markdown: string): TiptapJSONContent[] {
       continue;
     }
 
-    const orderedMatch = line.match(/^\s*(\d+)\.\s+(.+)$/);
+    const orderedMatch = line.match(/^\s*(\d+)\.(?:\s+(.*))?$/);
     if (orderedMatch) {
       const start = Number(orderedMatch[1]);
       const items: TiptapJSONContent[] = [];
 
       while (index < lines.length) {
-        const itemMatch = lines[index].match(/^\s*(\d+)\.\s+(.+)$/);
+        const itemMatch = lines[index].match(/^\s*(\d+)\.(?:\s+(.*))?$/);
         if (!itemMatch) {
           break;
         }
 
         items.push({
           type: "listItem",
-          content: [paragraphFromText(itemMatch[2])],
+          content: [paragraphFromText(itemMatch[2] ?? "")],
         });
         index += 1;
       }
@@ -368,6 +393,15 @@ function serializeBlock(node: TiptapJSONContent): string {
     return blockContent
       .split("\n")
       .map((line) => `> ${line}`)
+      .join("\n");
+  }
+
+  if (node.type === "taskList") {
+    return (node.content ?? [])
+      .map((item) => {
+        const checked = item.attrs?.checked === true ? "x" : " ";
+        return `- [${checked}] ${serializeListItem(item)}`.trimEnd();
+      })
       .join("\n");
   }
 
