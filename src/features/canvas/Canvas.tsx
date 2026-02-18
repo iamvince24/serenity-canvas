@@ -4,6 +4,11 @@ import { Layer, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { CardOverlay } from "./CardOverlay";
 import { InteractionEvent, InteractionState } from "./stateMachine";
+import {
+  ensureNodeVisible,
+  findDirectionalNeighbor,
+  type ArrowDirection,
+} from "./keyboardNavigation";
 import { createTextNodeCenteredAt } from "./nodeFactory";
 
 type StageSize = {
@@ -21,6 +26,25 @@ function getWindowSize(): StageSize {
     width: window.innerWidth,
     height: window.innerHeight,
   };
+}
+
+function isTextInputElement(target: HTMLElement | null): boolean {
+  if (!target) {
+    return false;
+  }
+
+  return (
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.isContentEditable
+  );
+}
+
+function isSlashEscapeHandled(event: KeyboardEvent): boolean {
+  return (
+    (event as KeyboardEvent & { __serenitySlashEscapeHandled?: boolean })
+      .__serenitySlashEscapeHandled === true
+  );
 }
 
 export function Canvas() {
@@ -41,6 +65,21 @@ export function Canvas() {
     setOverlayContainer(element);
   }, []);
 
+  const handleRootPointerDownCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement | null;
+      if (!target || target.closest("[data-card-node-id]")) {
+        return;
+      }
+
+      const state = useCanvasStore.getState();
+      if (state.selectedNodeIds.length > 0) {
+        state.selectNode(null);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     const handleResize = () => {
       setStageSize(getWindowSize());
@@ -52,22 +91,135 @@ export function Canvas() {
     };
   }, []);
 
-  // Delete/Backspace deletes selected nodes; Escape cancels the active interaction.
-  // Reads from getState() to avoid stale closure over interactionState/selectedNodeIds.
+  // Keyboard controls:
+  // - Escape blurs editor and keeps current card selected.
+  // - Arrow keys move selection to directional nearest card.
+  // - Enter re-enters editing on selected card.
+  // - Delete/Backspace removes selection outside editable fields.
   useEffect(() => {
+    const focusNodeEditor = (nodeId: string) => {
+      setAutoFocusNodeId(nodeId);
+    };
+
+    const moveViewportToNodeIfNeeded = (nodeId: string) => {
+      const state = useCanvasStore.getState();
+      const targetNode = state.nodes[nodeId];
+      if (!targetNode || !overlayContainer) {
+        return;
+      }
+
+      const rect = overlayContainer.getBoundingClientRect();
+      const nextViewport = ensureNodeVisible({
+        node: targetNode,
+        viewport: state.viewport,
+        zoom: state.viewport.zoom,
+        containerWidth: rect.width,
+        containerHeight: rect.height,
+      });
+
+      if (
+        nextViewport.x !== state.viewport.x ||
+        nextViewport.y !== state.viewport.y
+      ) {
+        setViewport(nextViewport);
+      }
+    };
+
+    const selectDirectionalNeighbor = (direction: ArrowDirection): boolean => {
+      const state = useCanvasStore.getState();
+      const selectedId = state.selectedNodeIds[0];
+
+      if (!selectedId) {
+        return false;
+      }
+
+      if (!state.nodes[selectedId]) {
+        return false;
+      }
+
+      const nextNode = findDirectionalNeighbor({
+        currentNodeId: selectedId,
+        nodes: state.nodes,
+        direction,
+      });
+
+      if (!nextNode) {
+        return false;
+      }
+
+      state.selectNode(nextNode.id);
+      moveViewportToNodeIfNeeded(nextNode.id);
+      return true;
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
+      const activeElement = document.activeElement as HTMLElement | null;
+      const target = event.target as HTMLElement | null;
+      const isEditing = activeElement?.isContentEditable ?? false;
+
       if (event.key === "Escape") {
+        if (isSlashEscapeHandled(event)) {
+          return;
+        }
+
+        if (isEditing) {
+          const nodeContainer = activeElement?.closest<HTMLElement>(
+            "[data-card-node-id]",
+          );
+          const nodeId = nodeContainer?.dataset.cardNodeId;
+          if (nodeId) {
+            useCanvasStore.getState().selectNode(nodeId);
+          }
+
+          activeElement?.blur();
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+
         if (event.defaultPrevented) {
           return;
         }
 
-        const activeElement = document.activeElement as HTMLElement | null;
-        if (activeElement?.isContentEditable) {
-          activeElement.blur();
+        dispatch(InteractionEvent.ESCAPE);
+        return;
+      }
+
+      if (
+        event.key === "ArrowUp" ||
+        event.key === "ArrowDown" ||
+        event.key === "ArrowLeft" ||
+        event.key === "ArrowRight"
+      ) {
+        if (isEditing || isTextInputElement(target)) {
           return;
         }
 
-        dispatch(InteractionEvent.ESCAPE);
+        event.preventDefault();
+        event.stopPropagation();
+        selectDirectionalNeighbor(event.key);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        if (
+          isEditing ||
+          isTextInputElement(target) ||
+          target?.tagName === "BUTTON" ||
+          target?.tagName === "SELECT" ||
+          target?.tagName === "A"
+        ) {
+          return;
+        }
+
+        const state = useCanvasStore.getState();
+        const selectedId = state.selectedNodeIds[0];
+        if (!selectedId || !state.nodes[selectedId]) {
+          return;
+        }
+
+        focusNodeEditor(selectedId);
+        event.preventDefault();
         return;
       }
 
@@ -76,13 +228,7 @@ export function Canvas() {
       }
 
       const state = useCanvasStore.getState();
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
-      ) {
+      if (isTextInputElement(target)) {
         return;
       }
 
@@ -98,7 +244,7 @@ export function Canvas() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [dispatch]);
+  }, [dispatch, overlayContainer, setViewport]);
 
   useEffect(() => {
     if (!overlayContainer) {
@@ -203,7 +349,9 @@ export function Canvas() {
     event: KonvaEventObject<MouseEvent | TouchEvent>,
   ) => {
     const stage = event.target.getStage();
-    if (stage && event.target === stage) {
+    const isBackgroundTarget =
+      stage && (event.target === stage || event.target.getType() === "Layer");
+    if (isBackgroundTarget) {
       // Clicking empty canvas clears current selection.
       selectNode(null);
       dispatch(InteractionEvent.STAGE_POINTER_DOWN);
@@ -214,14 +362,18 @@ export function Canvas() {
     event: KonvaEventObject<MouseEvent | TouchEvent>,
   ) => {
     const stage = event.target.getStage();
-    if (stage && event.target === stage) {
+    const isBackgroundTarget =
+      stage && (event.target === stage || event.target.getType() === "Layer");
+    if (isBackgroundTarget) {
       dispatch(InteractionEvent.STAGE_POINTER_UP);
     }
   };
 
   const handleDragStart = (event: KonvaEventObject<DragEvent>) => {
     const stage = event.target.getStage();
-    if (stage && event.target === stage) {
+    const isBackgroundTarget =
+      stage && (event.target === stage || event.target.getType() === "Layer");
+    if (isBackgroundTarget) {
       dispatch(InteractionEvent.PAN_START);
     }
   };
@@ -231,7 +383,9 @@ export function Canvas() {
   ) => {
     const storeState = useCanvasStore.getState();
     const stage = event.target.getStage();
-    if (!stage || event.target !== stage) {
+    const isBackgroundTarget =
+      stage && (event.target === stage || event.target.getType() === "Layer");
+    if (!stage || !isBackgroundTarget) {
       return;
     }
 
@@ -259,6 +413,7 @@ export function Canvas() {
     <div
       ref={handleContainerRef}
       className="relative h-screen w-screen overflow-hidden bg-canvas"
+      onPointerDownCapture={handleRootPointerDownCapture}
     >
       <Stage
         width={stageSize.width}

@@ -59,7 +59,11 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   );
 
   return (
-    <div style={cardStyle} className="card-widget pointer-events-auto">
+    <div
+      style={cardStyle}
+      className="card-widget pointer-events-auto"
+      data-card-node-id={node.id}
+    >
       <div
         className="card-widget__handle border-b border-[#ECEAE6]"
         {...dragHandleProps}

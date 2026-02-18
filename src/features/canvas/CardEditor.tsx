@@ -117,6 +117,7 @@ export type CardEditorInstance = {
   isDestroyed?: boolean;
   commands: {
     blur: () => void;
+    focus: (position?: "start" | "end" | number) => void;
   };
 };
 
@@ -220,6 +221,14 @@ export function CardEditor({
       commitEditorContent(editorInstance);
     },
   });
+
+  useEffect(() => {
+    if (!autoFocus || !editor || editor.isDestroyed) {
+      return;
+    }
+
+    editor.commands.focus("end");
+  }, [autoFocus, editor]);
 
   useEffect(() => {
     if (!onEditorReady) {

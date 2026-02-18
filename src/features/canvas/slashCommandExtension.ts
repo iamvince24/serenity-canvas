@@ -8,6 +8,10 @@ import {
   type SlashCommandItem,
 } from "./SlashCommandMenu";
 
+type SlashEscapeHandledEvent = KeyboardEvent & {
+  __serenitySlashEscapeHandled?: boolean;
+};
+
 const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "heading1",
@@ -259,6 +263,11 @@ export const SlashCommands = Extension.create({
 
             onKeyDown({ event, range }) {
               if (event.key === "Escape") {
+                const escapeEvent = event as SlashEscapeHandledEvent;
+                escapeEvent.__serenitySlashEscapeHandled = true;
+                event.preventDefault();
+                event.stopPropagation();
+
                 // Clear the active slash query so Suggestion can truly exit.
                 // Otherwise Escape can remain trapped in the active plugin state.
                 editor.chain().focus().deleteRange(range).run();
