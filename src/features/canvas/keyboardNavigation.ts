@@ -26,6 +26,29 @@ type Point = {
   y: number;
 };
 
+type NodeRect = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+  center: Point;
+};
+
+type CandidateMetrics = {
+  node: TextNode;
+  rect: NodeRect;
+  score: number;
+  euclideanDistance: number;
+};
+
+// Keep forward progress important, but avoid overwhelming alignment:
+// small vertical differences should not beat a much better directional match.
+const PRIMARY_WEIGHT = 3;
+const ALIGNMENT_WEIGHT = 60;
+const FLOAT_EPSILON = 1e-6;
+
 function getNodeCenter(node: TextNode): Point {
   return {
     x: node.x + node.width / 2,
@@ -33,52 +56,146 @@ function getNodeCenter(node: TextNode): Point {
   };
 }
 
-function getDirectionalDeltas(
-  direction: ArrowDirection,
-  source: Point,
-  target: Point,
-): { primary: number; cross: number } | null {
-  if (direction === "ArrowUp") {
-    if (target.y >= source.y) {
-      return null;
-    }
+function toRect(node: TextNode): NodeRect {
+  const center = getNodeCenter(node);
+  return {
+    left: node.x,
+    top: node.y,
+    right: node.x + node.width,
+    bottom: node.y + node.height,
+    width: node.width,
+    height: node.height,
+    center,
+  };
+}
 
-    return {
-      primary: source.y - target.y,
-      cross: Math.abs(target.x - source.x),
-    };
+function isCandidateInDirection(
+  direction: ArrowDirection,
+  source: NodeRect,
+  target: NodeRect,
+): boolean {
+  if (direction === "ArrowUp") {
+    return target.center.y < source.center.y;
   }
 
   if (direction === "ArrowDown") {
-    if (target.y <= source.y) {
-      return null;
-    }
-
-    return {
-      primary: target.y - source.y,
-      cross: Math.abs(target.x - source.x),
-    };
+    return target.center.y > source.center.y;
   }
 
   if (direction === "ArrowLeft") {
-    if (target.x >= source.x) {
-      return null;
+    return target.center.x < source.center.x;
+  }
+
+  return target.center.x > source.center.x;
+}
+
+function getPrimaryGap(
+  direction: ArrowDirection,
+  source: NodeRect,
+  target: NodeRect,
+): number {
+  if (direction === "ArrowUp") {
+    return Math.max(0, source.top - target.bottom);
+  }
+
+  if (direction === "ArrowDown") {
+    return Math.max(0, target.top - source.bottom);
+  }
+
+  if (direction === "ArrowLeft") {
+    return Math.max(0, source.left - target.right);
+  }
+
+  return Math.max(0, target.left - source.right);
+}
+
+function getCrossCenterDelta(
+  direction: ArrowDirection,
+  source: NodeRect,
+  target: NodeRect,
+): number {
+  if (direction === "ArrowLeft" || direction === "ArrowRight") {
+    return Math.abs(target.center.y - source.center.y);
+  }
+
+  return Math.abs(target.center.x - source.center.x);
+}
+
+function getRangeOverlap(
+  startA: number,
+  endA: number,
+  startB: number,
+  endB: number,
+): number {
+  return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
+}
+
+function getCrossOverlapPx(
+  direction: ArrowDirection,
+  source: NodeRect,
+  target: NodeRect,
+): number {
+  if (direction === "ArrowLeft" || direction === "ArrowRight") {
+    return getRangeOverlap(
+      source.top,
+      source.bottom,
+      target.top,
+      target.bottom,
+    );
+  }
+
+  return getRangeOverlap(source.left, source.right, target.left, target.right);
+}
+
+function getCrossSize(direction: ArrowDirection, rect: NodeRect): number {
+  if (direction === "ArrowLeft" || direction === "ArrowRight") {
+    return rect.height;
+  }
+
+  return rect.width;
+}
+
+function getEuclideanRectDistance(source: NodeRect, target: NodeRect): number {
+  const dx = Math.max(
+    0,
+    Math.max(source.left - target.right, target.left - source.right),
+  );
+  const dy = Math.max(
+    0,
+    Math.max(source.top - target.bottom, target.top - source.bottom),
+  );
+  return Math.hypot(dx, dy);
+}
+
+function compareNumber(a: number, b: number): number {
+  const delta = a - b;
+  if (Math.abs(delta) <= FLOAT_EPSILON) {
+    return 0;
+  }
+
+  return delta < 0 ? -1 : 1;
+}
+
+function compareByDirectionalCanvasOrder(
+  direction: ArrowDirection,
+  aRect: NodeRect,
+  bRect: NodeRect,
+): number {
+  if (direction === "ArrowUp" || direction === "ArrowDown") {
+    const yCmp = compareNumber(aRect.top, bRect.top);
+    if (yCmp !== 0) {
+      return yCmp;
     }
 
-    return {
-      primary: source.x - target.x,
-      cross: Math.abs(target.y - source.y),
-    };
+    return compareNumber(aRect.left, bRect.left);
   }
 
-  if (target.x <= source.x) {
-    return null;
+  const xCmp = compareNumber(aRect.left, bRect.left);
+  if (xCmp !== 0) {
+    return xCmp;
   }
 
-  return {
-    primary: target.x - source.x,
-    cross: Math.abs(target.y - source.y),
-  };
+  return compareNumber(aRect.top, bRect.top);
 }
 
 export function findDirectionalNeighbor({
@@ -91,47 +208,89 @@ export function findDirectionalNeighbor({
     return null;
   }
 
-  const sourceCenter = getNodeCenter(currentNode);
-  let bestNode: TextNode | null = null;
-  let bestScore = Number.POSITIVE_INFINITY;
-  let bestDistance = Number.POSITIVE_INFINITY;
+  const sourceRect = toRect(currentNode);
+  const overlapCandidates: CandidateMetrics[] = [];
+  const nonOverlapCandidates: CandidateMetrics[] = [];
 
   for (const node of Object.values(nodes)) {
     if (node.id === currentNodeId) {
       continue;
     }
 
-    const candidateCenter = getNodeCenter(node);
-    const deltas = getDirectionalDeltas(
-      direction,
-      sourceCenter,
-      candidateCenter,
-    );
-    if (!deltas) {
+    const candidateRect = toRect(node);
+    if (!isCandidateInDirection(direction, sourceRect, candidateRect)) {
       continue;
     }
 
-    const score = deltas.primary * 1000 + deltas.cross;
-    const distance = Math.hypot(
-      candidateCenter.x - sourceCenter.x,
-      candidateCenter.y - sourceCenter.y,
+    const primaryGap = getPrimaryGap(direction, sourceRect, candidateRect);
+    const crossCenterDelta = getCrossCenterDelta(
+      direction,
+      sourceRect,
+      candidateRect,
     );
+    const crossOverlapPx = getCrossOverlapPx(
+      direction,
+      sourceRect,
+      candidateRect,
+    );
+    const euclideanDistance = getEuclideanRectDistance(
+      sourceRect,
+      candidateRect,
+    );
+    const crossSizeFloor = Math.min(
+      getCrossSize(direction, sourceRect),
+      getCrossSize(direction, candidateRect),
+    );
+    const alignmentRatio =
+      crossSizeFloor > 0 ? crossOverlapPx / crossSizeFloor : 0;
+    const score =
+      primaryGap * PRIMARY_WEIGHT +
+      euclideanDistance +
+      crossCenterDelta -
+      alignmentRatio * ALIGNMENT_WEIGHT -
+      Math.sqrt(crossOverlapPx);
 
-    if (
-      score < bestScore ||
-      (score === bestScore && distance < bestDistance) ||
-      (score === bestScore &&
-        distance === bestDistance &&
-        bestNode &&
-        node.id < bestNode.id)
-    ) {
-      bestNode = node;
-      bestScore = score;
-      bestDistance = distance;
+    const metrics: CandidateMetrics = {
+      node,
+      rect: candidateRect,
+      score,
+      euclideanDistance,
+    };
+
+    if (crossOverlapPx > 0) {
+      overlapCandidates.push(metrics);
+      continue;
     }
+
+    nonOverlapCandidates.push(metrics);
   }
 
-  return bestNode;
+  const candidatePool =
+    overlapCandidates.length > 0 ? overlapCandidates : nonOverlapCandidates;
+  if (candidatePool.length === 0) {
+    return null;
+  }
+
+  candidatePool.sort((a, b) => {
+    const scoreCmp = compareNumber(a.score, b.score);
+    if (scoreCmp !== 0) {
+      return scoreCmp;
+    }
+
+    const distanceCmp = compareNumber(a.euclideanDistance, b.euclideanDistance);
+    if (distanceCmp !== 0) {
+      return distanceCmp;
+    }
+
+    const orderCmp = compareByDirectionalCanvasOrder(direction, a.rect, b.rect);
+    if (orderCmp !== 0) {
+      return orderCmp;
+    }
+
+    return a.node.id.localeCompare(b.node.id);
+  });
+
+  return candidatePool[0].node;
 }
 
 export function ensureNodeVisible({

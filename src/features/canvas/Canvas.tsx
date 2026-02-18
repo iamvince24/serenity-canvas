@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
@@ -40,6 +45,12 @@ function isTextInputElement(target: HTMLElement | null): boolean {
   );
 }
 
+function getEventTargetAsHTMLElement(
+  target: EventTarget | null,
+): HTMLElement | null {
+  return target instanceof HTMLElement ? target : null;
+}
+
 function isSlashEscapeHandled(event: KeyboardEvent): boolean {
   return (
     (event as KeyboardEvent & { __serenitySlashEscapeHandled?: boolean })
@@ -66,9 +77,12 @@ export function Canvas() {
   }, []);
 
   const handleRootPointerDownCapture = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement | null;
-      if (!target || target.closest("[data-card-node-id]")) {
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const target = event.target;
+      if (
+        !(target instanceof Element) ||
+        target.closest("[data-card-node-id]")
+      ) {
         return;
       }
 
@@ -154,7 +168,7 @@ export function Canvas() {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const activeElement = document.activeElement as HTMLElement | null;
-      const target = event.target as HTMLElement | null;
+      const target = getEventTargetAsHTMLElement(event.target);
       const isEditing = activeElement?.isContentEditable ?? false;
 
       if (event.key === "Escape") {

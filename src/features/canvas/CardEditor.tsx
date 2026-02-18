@@ -148,6 +148,7 @@ export function CardEditor({
   autoFocus = false,
 }: CardEditorProps) {
   const lastSuccessfulMarkdownRef = useRef(initialMarkdown);
+  const lastCommittedMarkdownRef = useRef(initialMarkdown);
   const onCommitRef = useRef(onCommit);
 
   const initialContent = useMemo<TiptapJSONContent>(() => {
@@ -164,6 +165,7 @@ export function CardEditor({
 
   useEffect(() => {
     lastSuccessfulMarkdownRef.current = initialMarkdown;
+    lastCommittedMarkdownRef.current = initialMarkdown;
   }, [initialMarkdown]);
 
   useEffect(() => {
@@ -185,8 +187,12 @@ export function CardEditor({
         const nextMarkdown = tiptapDocToMarkdown(
           editor.getJSON() as TiptapJSONContent,
         );
+        if (nextMarkdown === lastCommittedMarkdownRef.current) {
+          return;
+        }
 
         lastSuccessfulMarkdownRef.current = nextMarkdown;
+        lastCommittedMarkdownRef.current = nextMarkdown;
         commitHandler(nextMarkdown);
       } catch (error) {
         console.warn(
@@ -221,6 +227,42 @@ export function CardEditor({
       commitEditorContent(editorInstance);
     },
   });
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || editor.isFocused) {
+      return;
+    }
+
+    let currentMarkdown: string;
+    try {
+      currentMarkdown = tiptapDocToMarkdown(
+        editor.getJSON() as TiptapJSONContent,
+      );
+    } catch (error) {
+      console.warn(
+        "[CardEditor] Failed to read current editor content while syncing markdown.",
+        error,
+      );
+      return;
+    }
+
+    if (currentMarkdown === initialMarkdown) {
+      return;
+    }
+
+    let nextContent: TiptapJSONContent;
+    try {
+      nextContent = markdownToTiptapDoc(initialMarkdown);
+    } catch (error) {
+      console.warn(
+        "[CardEditor] Failed to parse incoming markdown while syncing editor content. Falling back to plain text paragraph.",
+        error,
+      );
+      nextContent = fallbackMarkdownDoc(initialMarkdown);
+    }
+
+    editor.commands.setContent(nextContent, false);
+  }, [editor, initialMarkdown]);
 
   useEffect(() => {
     if (!autoFocus || !editor || editor.isDestroyed) {
