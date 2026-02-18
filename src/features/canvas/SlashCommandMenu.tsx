@@ -17,7 +17,6 @@ export type SlashCommandItem = {
   action: (editor: Editor, range?: Range) => void;
   shortcut?: string;
   shortcutKeys?: string[];
-  command?: (args: { editor: Editor; range: Range }) => void;
 };
 
 export type SlashCommandMenuHandle = {

@@ -12,6 +12,7 @@ import {
 import { useCanvasStore } from "../../stores/canvasStore";
 import type { TextNode } from "../../types/canvas";
 import { CardEditor } from "./CardEditor";
+import { DEFAULT_NODE_HEIGHT, HANDLE_BAR_HEIGHT } from "./constants";
 import {
   CornerResizeHandle,
   HeightResizeHandle,
@@ -20,15 +21,12 @@ import {
 } from "./ResizeHandle";
 import { InteractionState } from "./stateMachine";
 import { useDragHandle } from "./useDragHandle";
-import { DEFAULT_NODE_HEIGHT } from "./nodeFactory";
 
 type CardWidgetProps = {
   node: TextNode;
   zoom: number;
   autoFocus?: boolean;
 };
-
-const HANDLE_BAR_HEIGHT = 28;
 
 export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
@@ -42,6 +40,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const settingsRootRef = useRef<HTMLDivElement | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [focusAtEndSignal, setFocusAtEndSignal] = useState(0);
 
   const isSelected = selectedNodeIds.includes(node.id);
   const isResizing = interactionState === InteractionState.Resizing;
@@ -82,6 +81,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const handleContentPointerDown = useCallback(() => {
     selectNode(node.id);
     setIsSettingsOpen(false);
+    setFocusAtEndSignal((current) => current + 1);
   }, [node.id, selectNode]);
 
   const handleCommit = useCallback(
@@ -275,9 +275,10 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
       >
         <CardEditor
           key={node.id}
-          initialMarkdown={node.content_markdown}
+          initialMarkdown={node.contentMarkdown}
           onCommit={handleCommit}
           autoFocus={autoFocus}
+          focusAtEndSignal={focusAtEndSignal}
         />
       </div>
 

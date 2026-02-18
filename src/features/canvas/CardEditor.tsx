@@ -124,8 +124,8 @@ export type CardEditorInstance = {
 type CardEditorProps = {
   initialMarkdown: string;
   onCommit?: (markdown: string) => void;
-  onEditorReady?: (editor: CardEditorInstance | null) => void;
   autoFocus?: boolean;
+  focusAtEndSignal?: number;
 };
 
 function fallbackMarkdownDoc(markdown: string): TiptapJSONContent {
@@ -144,8 +144,8 @@ function fallbackMarkdownDoc(markdown: string): TiptapJSONContent {
 export function CardEditor({
   initialMarkdown,
   onCommit,
-  onEditorReady,
   autoFocus = false,
+  focusAtEndSignal = 0,
 }: CardEditorProps) {
   const lastSuccessfulMarkdownRef = useRef(initialMarkdown);
   const lastCommittedMarkdownRef = useRef(initialMarkdown);
@@ -273,15 +273,23 @@ export function CardEditor({
   }, [autoFocus, editor]);
 
   useEffect(() => {
-    if (!onEditorReady) {
+    if (focusAtEndSignal === 0 || !editor || editor.isDestroyed) {
       return;
     }
 
-    onEditorReady(editor as CardEditorInstance | null);
+    // Defer to next frame so the final caret position always wins after click handling.
+    const frameId = window.requestAnimationFrame(() => {
+      if (editor.isDestroyed) {
+        return;
+      }
+
+      editor.commands.focus("end");
+    });
+
     return () => {
-      onEditorReady(null);
+      window.cancelAnimationFrame(frameId);
     };
-  }, [editor, onEditorReady]);
+  }, [editor, focusAtEndSignal]);
 
   useEffect(() => {
     return () => {

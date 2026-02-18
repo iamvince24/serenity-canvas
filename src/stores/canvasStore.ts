@@ -1,19 +1,26 @@
 import { create } from "zustand";
+import type { PersistenceCanvasNode } from "../features/canvas/nodePersistenceAdapter";
+import { migrateLegacyNode } from "../features/canvas/nodePersistenceAdapter";
 import {
   InteractionEvent,
   InteractionState,
   transition,
 } from "../features/canvas/stateMachine";
-import type { CanvasState, TextNode, ViewportState } from "../types/canvas";
+import type {
+  CanvasNode,
+  CanvasState,
+  NodeHeightMode,
+  ViewportState,
+} from "../types/canvas";
 
 // Write operations for canvas state updates.
 type CanvasActions = {
   setViewport: (viewport: ViewportState) => void;
-  addNode: (node: TextNode) => void;
+  addNode: (node: CanvasNode | PersistenceCanvasNode) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeSize: (id: string, width: number, height: number) => void;
   updateNodeContent: (id: string, contentMarkdown: string) => void;
-  setNodeHeightMode: (id: string, mode: "auto" | "fixed") => void;
+  setNodeHeightMode: (id: string, mode: NodeHeightMode) => void;
   dispatch: (event: InteractionEvent) => void;
   deleteNode: (id: string) => void;
   deleteSelectedNodes: () => void;
@@ -31,6 +38,28 @@ const initialViewport: ViewportState = {
   zoom: 1,
 };
 
+type NodesMap = CanvasState["nodes"];
+
+// Shared node patch helper for future command-style reuse.
+function patchNode(
+  nodes: NodesMap,
+  id: string,
+  patch: Partial<CanvasNode>,
+): NodesMap {
+  const current = nodes[id];
+  if (!current) {
+    return nodes;
+  }
+
+  return {
+    ...nodes,
+    [id]: {
+      ...current,
+      ...patch,
+    } as CanvasNode,
+  };
+}
+
 export const useCanvasStore = create<CanvasStore>((set) => ({
   viewport: initialViewport,
   nodes: {},
@@ -40,71 +69,50 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     set({ viewport });
   },
   addNode: (node) => {
+    const migratedNode = migrateLegacyNode(node);
     set((state) => ({
       nodes: {
         ...state.nodes,
-        [node.id]: node,
+        [migratedNode.id]: migratedNode,
       },
     }));
   },
   updateNodePosition: (id, x, y) => {
     set((state) => {
-      const node = state.nodes[id];
-      if (!node) {
+      if (!state.nodes[id]) {
         // Ignore stale drag events if the node was removed.
         return state;
       }
 
       return {
-        nodes: {
-          ...state.nodes,
-          [id]: {
-            ...node,
-            x,
-            y,
-          },
-        },
+        nodes: patchNode(state.nodes, id, { x, y }),
       };
     });
   },
   updateNodeSize: (id, width, height) => {
     set((state) => {
-      const node = state.nodes[id];
-      if (!node) {
+      if (!state.nodes[id]) {
         return state;
       }
 
       return {
-        nodes: {
-          ...state.nodes,
-          [id]: {
-            ...node,
-            width,
-            height,
-          },
-        },
+        nodes: patchNode(state.nodes, id, { width, height }),
       };
     });
   },
   updateNodeContent: (id, contentMarkdown) => {
     set((state) => {
       const node = state.nodes[id];
-      if (!node) {
+      if (!node || node.type !== "text") {
         return state;
       }
 
-      if (node.content_markdown === contentMarkdown) {
+      if (node.contentMarkdown === contentMarkdown) {
         return state;
       }
 
       return {
-        nodes: {
-          ...state.nodes,
-          [id]: {
-            ...node,
-            content_markdown: contentMarkdown,
-          },
-        },
+        nodes: patchNode(state.nodes, id, { contentMarkdown }),
       };
     });
   },
@@ -116,13 +124,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       }
 
       return {
-        nodes: {
-          ...state.nodes,
-          [id]: {
-            ...node,
-            heightMode: mode,
-          },
-        },
+        nodes: patchNode(state.nodes, id, { heightMode: mode }),
       };
     });
   },

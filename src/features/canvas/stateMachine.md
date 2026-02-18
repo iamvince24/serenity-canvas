@@ -24,9 +24,8 @@
 - `dragging`：拖曳卡片中
 - `panning`：平移畫布中
 - `box-selecting`：框選中（目前預留）
-- `resizing`：調整大小中（目前預留）
+- `resizing`：調整大小中
 - `connecting`：連線中（目前預留）
-- `editing`：編輯內容中（目前預留）
 
 ## 事件列表
 
@@ -37,7 +36,6 @@
 - `box-select-start` / `box-select-end`
 - `resize-start` / `resize-end`
 - `connect-start` / `connect-end`
-- `edit-start` / `edit-end`
 - `escape`
 
 ## 目前轉移規則
@@ -49,7 +47,6 @@
 - `box-select-start` -> `box-selecting`
 - `resize-start` -> `resizing`
 - `connect-start` -> `connecting`
-- `edit-start` -> `editing`
 - 其他事件維持 `idle`
 
 ### dragging
@@ -76,11 +73,6 @@
 
 - `connect-end`、`escape` -> `idle`
 - 其他事件維持 `connecting`
-
-### editing
-
-- `edit-end`、`escape` -> `idle`
-- 其他事件維持 `editing`
 
 ## 與目前程式碼的對應
 

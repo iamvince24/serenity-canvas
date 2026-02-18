@@ -83,8 +83,12 @@
   --border: #e5e3df;
   --border-strong: #d1cfc9;
   --divider: #f0eeea;
+  --card-handle-height: 28px;
   --resize-edge-hit: 16px;
   --resize-corner-hit: 20px;
+  --editor-blockquote-border: #cfd6ca;
+  --editor-blockquote-text: #4f564a;
+  --editor-code-bg: #f3f4f1;
 
   --background: var(--canvas);
   --card: var(--elevated);
@@ -127,6 +131,13 @@
   --border: rgba(255, 255, 255, 0.12);
   --border-strong: rgba(255, 255, 255, 0.2);
   --divider: rgba(255, 255, 255, 0.08);
+  --editor-blockquote-border: color-mix(
+    in srgb,
+    var(--sage-light) 70%,
+    transparent
+  );
+  --editor-blockquote-text: var(--foreground-muted);
+  --editor-code-bg: color-mix(in srgb, var(--surface) 85%, black 15%);
 
   --background: var(--canvas);
   --card: var(--elevated);
@@ -328,7 +339,7 @@
     inset-inline: 0;
     top: 0;
     z-index: 10;
-    height: 28px;
+    height: var(--card-handle-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -594,21 +605,21 @@
   }
 
   .card-editor__content blockquote {
-    border-left: 3px solid #cfd6ca;
+    border-left: 3px solid var(--editor-blockquote-border);
     padding-left: 0.75em;
-    color: #4f564a;
+    color: var(--editor-blockquote-text);
   }
 
   .card-editor__content code {
     font: inherit;
     border-radius: 4px;
-    background: #f3f4f1;
+    background: var(--editor-code-bg);
     padding: 0.05em 0.3em;
   }
 
   .card-editor__content pre {
     border-radius: 6px;
-    background: #f3f4f1;
+    background: var(--editor-code-bg);
     padding: 0.6em 0.75em;
     white-space: pre-wrap;
   }

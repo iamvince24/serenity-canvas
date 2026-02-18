@@ -1,142 +1,92 @@
-import { useCallback, useEffect, useRef, type MouseEventHandler } from "react";
+import { useCallback, useRef, type MouseEventHandler } from "react";
 import { useCanvasStore } from "../../stores/canvasStore";
 import type { TextNode } from "../../types/canvas";
-import { InteractionEvent } from "./stateMachine";
-
-const MIN_NODE_WIDTH = 120;
-const MIN_NODE_HEIGHT = 80;
+import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from "./constants";
+import { useResizeDrag } from "./useResizeDrag";
 
 type ResizeHandleProps = {
   node: TextNode;
   zoom: number;
 };
 
-function useCursor(
-  cursor: "ew-resize" | "ns-resize" | "nwse-resize" | "nesw-resize",
-) {
-  const isDraggingRef = useRef(false);
+type CornerResizeHandleProps = ResizeHandleProps & {
+  corner: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+};
 
-  const handleMouseEnter = useCallback(() => {
-    if (isDraggingRef.current) {
-      return;
-    }
+type WidthStartSnapshot = {
+  width: number;
+  height: number;
+};
 
-    document.body.style.cursor = cursor;
-  }, [cursor]);
+type LeftWidthStartSnapshot = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
-  const handleMouseLeave = useCallback(() => {
-    if (isDraggingRef.current) {
-      return;
-    }
+type HeightStartSnapshot = {
+  width: number;
+  height: number;
+};
 
-    document.body.style.cursor = "";
-  }, []);
+type CornerStartSnapshot = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
-  const startDragging = useCallback(() => {
-    isDraggingRef.current = true;
-    document.body.style.cursor = cursor;
-  }, [cursor]);
-
-  const stopDragging = useCallback(() => {
-    isDraggingRef.current = false;
-    document.body.style.cursor = "";
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (!isDraggingRef.current) {
-        return;
-      }
-
-      document.body.style.cursor = "";
-    };
-  }, []);
-
-  return {
-    handleMouseEnter,
-    handleMouseLeave,
-    startDragging,
-    stopDragging,
-  };
+function getCornerCursor(
+  corner: CornerResizeHandleProps["corner"],
+): "nwse-resize" | "nesw-resize" {
+  return corner === "top-left" || corner === "bottom-right"
+    ? "nwse-resize"
+    : "nesw-resize";
 }
 
 export function WidthResizeHandle({ node, zoom }: ResizeHandleProps) {
   const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
-  const selectNode = useCanvasStore((state) => state.selectNode);
-  const dispatch = useCanvasStore((state) => state.dispatch);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const { handleMouseEnter, handleMouseLeave, startDragging, stopDragging } =
-    useCursor("ew-resize");
+  const startSnapshotRef = useRef<WidthStartSnapshot | null>(null);
 
-  useEffect(() => {
-    return () => {
-      cleanupRef.current?.();
-    };
-  }, []);
-
-  const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
-    (event) => {
-      if (event.button !== 0) {
+  const {
+    onMouseDown: onResizeMouseDown,
+    onMouseEnter,
+    onMouseLeave,
+  } = useResizeDrag({
+    nodeId: node.id,
+    zoom,
+    cursor: "ew-resize",
+    onMove: ({ dx }) => {
+      const start = startSnapshotRef.current;
+      if (!start) {
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
-
-      const startX = event.clientX;
-      const startWidth = node.width;
-      const startHeight = node.height;
-      const capturedZoom = zoom > 0 ? zoom : 1;
-      let finished = false;
-
-      selectNode(node.id);
-      startDragging();
-      dispatch(InteractionEvent.RESIZE_START);
-
-      const onMove = (moveEvent: MouseEvent) => {
-        const deltaX = (moveEvent.clientX - startX) / capturedZoom;
-        const nextWidth = Math.max(MIN_NODE_WIDTH, startWidth + deltaX);
-        updateNodeSize(node.id, nextWidth, startHeight);
-      };
-
-      const onUp = () => {
-        if (finished) {
-          return;
-        }
-
-        finished = true;
-        cleanupRef.current = null;
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        window.removeEventListener("blur", onUp);
-        stopDragging();
-        dispatch(InteractionEvent.RESIZE_END);
-      };
-
-      cleanupRef.current = onUp;
-
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-      window.addEventListener("blur", onUp);
+      const nextWidth = Math.max(MIN_NODE_WIDTH, start.width + dx);
+      updateNodeSize(node.id, nextWidth, start.height);
     },
-    [
-      dispatch,
-      node.height,
-      node.id,
-      node.width,
-      selectNode,
-      startDragging,
-      stopDragging,
-      updateNodeSize,
-      zoom,
-    ],
+    onEnd: () => {
+      startSnapshotRef.current = null;
+    },
+  });
+
+  const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
+    (event) => {
+      startSnapshotRef.current = {
+        width: node.width,
+        height: node.height,
+      };
+      onResizeMouseDown(event);
+    },
+    [node.height, node.width, onResizeMouseDown],
   );
 
   return (
     <div
       className="card-widget__resize-handle card-widget__resize-handle--width"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       onMouseDown={onMouseDown}
       role="presentation"
       aria-hidden
@@ -149,88 +99,50 @@ export function LeftWidthResizeHandle({ node, zoom }: ResizeHandleProps) {
     (state) => state.updateNodePosition,
   );
   const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
-  const selectNode = useCanvasStore((state) => state.selectNode);
-  const dispatch = useCanvasStore((state) => state.dispatch);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const { handleMouseEnter, handleMouseLeave, startDragging, stopDragging } =
-    useCursor("ew-resize");
+  const startSnapshotRef = useRef<LeftWidthStartSnapshot | null>(null);
 
-  useEffect(() => {
-    return () => {
-      cleanupRef.current?.();
-    };
-  }, []);
-
-  const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
-    (event) => {
-      if (event.button !== 0) {
+  const {
+    onMouseDown: onResizeMouseDown,
+    onMouseEnter,
+    onMouseLeave,
+  } = useResizeDrag({
+    nodeId: node.id,
+    zoom,
+    cursor: "ew-resize",
+    onMove: ({ dx }) => {
+      const start = startSnapshotRef.current;
+      if (!start) {
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
-
-      const startX = event.clientX;
-      const startNodeX = node.x;
-      const startWidth = node.width;
-      const startHeight = node.height;
-      const capturedZoom = zoom > 0 ? zoom : 1;
-      let finished = false;
-
-      selectNode(node.id);
-      startDragging();
-      dispatch(InteractionEvent.RESIZE_START);
-
-      const onMove = (moveEvent: MouseEvent) => {
-        const deltaX = (moveEvent.clientX - startX) / capturedZoom;
-        const nextWidth = Math.max(MIN_NODE_WIDTH, startWidth - deltaX);
-        const nextX = startNodeX + (startWidth - nextWidth);
-
-        updateNodePosition(node.id, nextX, node.y);
-        updateNodeSize(node.id, nextWidth, startHeight);
-      };
-
-      const onUp = () => {
-        if (finished) {
-          return;
-        }
-
-        finished = true;
-        cleanupRef.current = null;
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        window.removeEventListener("blur", onUp);
-        stopDragging();
-        dispatch(InteractionEvent.RESIZE_END);
-      };
-
-      cleanupRef.current = onUp;
-
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-      window.addEventListener("blur", onUp);
+      const nextWidth = Math.max(MIN_NODE_WIDTH, start.width - dx);
+      const nextX = start.x + (start.width - nextWidth);
+      updateNodePosition(node.id, nextX, start.y);
+      updateNodeSize(node.id, nextWidth, start.height);
     },
-    [
-      dispatch,
-      node.height,
-      node.id,
-      node.width,
-      node.x,
-      node.y,
-      selectNode,
-      startDragging,
-      stopDragging,
-      updateNodePosition,
-      updateNodeSize,
-      zoom,
-    ],
+    onEnd: () => {
+      startSnapshotRef.current = null;
+    },
+  });
+
+  const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
+    (event) => {
+      startSnapshotRef.current = {
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+      };
+      onResizeMouseDown(event);
+    },
+    [node.height, node.width, node.x, node.y, onResizeMouseDown],
   );
 
   return (
     <div
       className="card-widget__resize-handle card-widget__resize-handle--width-left"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       onMouseDown={onMouseDown}
       role="presentation"
       aria-hidden
@@ -241,100 +153,52 @@ export function LeftWidthResizeHandle({ node, zoom }: ResizeHandleProps) {
 export function HeightResizeHandle({ node, zoom }: ResizeHandleProps) {
   const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
   const setNodeHeightMode = useCanvasStore((state) => state.setNodeHeightMode);
-  const selectNode = useCanvasStore((state) => state.selectNode);
-  const dispatch = useCanvasStore((state) => state.dispatch);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const { handleMouseEnter, handleMouseLeave, startDragging, stopDragging } =
-    useCursor("ns-resize");
+  const startSnapshotRef = useRef<HeightStartSnapshot | null>(null);
 
-  useEffect(() => {
-    return () => {
-      cleanupRef.current?.();
-    };
-  }, []);
-
-  const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
-    (event) => {
-      if (event.button !== 0) {
+  const {
+    onMouseDown: onResizeMouseDown,
+    onMouseEnter,
+    onMouseLeave,
+  } = useResizeDrag({
+    nodeId: node.id,
+    zoom,
+    cursor: "ns-resize",
+    onMove: ({ dy }) => {
+      const start = startSnapshotRef.current;
+      if (!start) {
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
-
-      const startY = event.clientY;
-      const startWidth = node.width;
-      const startHeight = node.height;
-      const capturedZoom = zoom > 0 ? zoom : 1;
-      let finished = false;
-
-      selectNode(node.id);
-      startDragging();
-      dispatch(InteractionEvent.RESIZE_START);
-
-      const onMove = (moveEvent: MouseEvent) => {
-        const deltaY = (moveEvent.clientY - startY) / capturedZoom;
-        const nextHeight = Math.max(MIN_NODE_HEIGHT, startHeight + deltaY);
-        updateNodeSize(node.id, startWidth, nextHeight);
-        setNodeHeightMode(node.id, "fixed");
-      };
-
-      const onUp = () => {
-        if (finished) {
-          return;
-        }
-
-        finished = true;
-        cleanupRef.current = null;
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        window.removeEventListener("blur", onUp);
-        stopDragging();
-        dispatch(InteractionEvent.RESIZE_END);
-      };
-
-      cleanupRef.current = onUp;
-
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-      window.addEventListener("blur", onUp);
+      const nextHeight = Math.max(MIN_NODE_HEIGHT, start.height + dy);
+      updateNodeSize(node.id, start.width, nextHeight);
+      setNodeHeightMode(node.id, "fixed");
     },
-    [
-      dispatch,
-      node.height,
-      node.id,
-      node.width,
-      selectNode,
-      setNodeHeightMode,
-      startDragging,
-      stopDragging,
-      updateNodeSize,
-      zoom,
-    ],
+    onEnd: () => {
+      startSnapshotRef.current = null;
+    },
+  });
+
+  const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
+    (event) => {
+      startSnapshotRef.current = {
+        width: node.width,
+        height: node.height,
+      };
+      onResizeMouseDown(event);
+    },
+    [node.height, node.width, onResizeMouseDown],
   );
 
   return (
     <div
       className="card-widget__resize-handle card-widget__resize-handle--height"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       onMouseDown={onMouseDown}
       role="presentation"
       aria-hidden
     />
   );
-}
-
-type CornerResizeHandleProps = ResizeHandleProps & {
-  corner: "top-left" | "top-right" | "bottom-left" | "bottom-right";
-};
-
-function getCornerCursor(
-  corner: CornerResizeHandleProps["corner"],
-): "nwse-resize" | "nesw-resize" {
-  return corner === "top-left" || corner === "bottom-right"
-    ? "nwse-resize"
-    : "nesw-resize";
 }
 
 export function CornerResizeHandle({
@@ -347,126 +211,84 @@ export function CornerResizeHandle({
     (state) => state.updateNodePosition,
   );
   const setNodeHeightMode = useCanvasStore((state) => state.setNodeHeightMode);
-  const selectNode = useCanvasStore((state) => state.selectNode);
-  const dispatch = useCanvasStore((state) => state.dispatch);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const { handleMouseEnter, handleMouseLeave, startDragging, stopDragging } =
-    useCursor(getCornerCursor(corner));
+  const startSnapshotRef = useRef<CornerStartSnapshot | null>(null);
 
-  useEffect(() => {
-    return () => {
-      cleanupRef.current?.();
-    };
-  }, []);
-
-  const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
-    (event) => {
-      if (event.button !== 0) {
+  const {
+    onMouseDown: onResizeMouseDown,
+    onMouseEnter,
+    onMouseLeave,
+  } = useResizeDrag({
+    nodeId: node.id,
+    zoom,
+    cursor: getCornerCursor(corner),
+    onMove: ({ dx, dy }) => {
+      const start = startSnapshotRef.current;
+      if (!start) {
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
+      let nextWidth = start.width;
+      let nextHeight = start.height;
+      let nextX = start.x;
+      let nextY = start.y;
 
-      const startX = event.clientX;
-      const startY = event.clientY;
-      const startNodeX = node.x;
-      const startNodeY = node.y;
-      const startWidth = node.width;
-      const startHeight = node.height;
-      const capturedZoom = zoom > 0 ? zoom : 1;
-      let finished = false;
-
-      selectNode(node.id);
-      startDragging();
-      dispatch(InteractionEvent.RESIZE_START);
-
-      const onMove = (moveEvent: MouseEvent) => {
-        const deltaX = (moveEvent.clientX - startX) / capturedZoom;
-        const deltaY = (moveEvent.clientY - startY) / capturedZoom;
-        let nextWidth = startWidth;
-        let nextHeight = startHeight;
-        let nextX = startNodeX;
-        let nextY = startNodeY;
-
-        switch (corner) {
-          case "top-left": {
-            nextWidth = Math.max(MIN_NODE_WIDTH, startWidth - deltaX);
-            nextHeight = Math.max(MIN_NODE_HEIGHT, startHeight - deltaY);
-            nextX = startNodeX + (startWidth - nextWidth);
-            nextY = startNodeY + (startHeight - nextHeight);
-            break;
-          }
-          case "top-right": {
-            nextWidth = Math.max(MIN_NODE_WIDTH, startWidth + deltaX);
-            nextHeight = Math.max(MIN_NODE_HEIGHT, startHeight - deltaY);
-            nextY = startNodeY + (startHeight - nextHeight);
-            break;
-          }
-          case "bottom-left": {
-            nextWidth = Math.max(MIN_NODE_WIDTH, startWidth - deltaX);
-            nextHeight = Math.max(MIN_NODE_HEIGHT, startHeight + deltaY);
-            nextX = startNodeX + (startWidth - nextWidth);
-            break;
-          }
-          case "bottom-right": {
-            nextWidth = Math.max(MIN_NODE_WIDTH, startWidth + deltaX);
-            nextHeight = Math.max(MIN_NODE_HEIGHT, startHeight + deltaY);
-            break;
-          }
-          default: {
-            break;
-          }
+      switch (corner) {
+        case "top-left": {
+          nextWidth = Math.max(MIN_NODE_WIDTH, start.width - dx);
+          nextHeight = Math.max(MIN_NODE_HEIGHT, start.height - dy);
+          nextX = start.x + (start.width - nextWidth);
+          nextY = start.y + (start.height - nextHeight);
+          break;
         }
-
-        updateNodePosition(node.id, nextX, nextY);
-        updateNodeSize(node.id, nextWidth, nextHeight);
-        setNodeHeightMode(node.id, "fixed");
-      };
-
-      const onUp = () => {
-        if (finished) {
-          return;
+        case "top-right": {
+          nextWidth = Math.max(MIN_NODE_WIDTH, start.width + dx);
+          nextHeight = Math.max(MIN_NODE_HEIGHT, start.height - dy);
+          nextY = start.y + (start.height - nextHeight);
+          break;
         }
+        case "bottom-left": {
+          nextWidth = Math.max(MIN_NODE_WIDTH, start.width - dx);
+          nextHeight = Math.max(MIN_NODE_HEIGHT, start.height + dy);
+          nextX = start.x + (start.width - nextWidth);
+          break;
+        }
+        case "bottom-right": {
+          nextWidth = Math.max(MIN_NODE_WIDTH, start.width + dx);
+          nextHeight = Math.max(MIN_NODE_HEIGHT, start.height + dy);
+          break;
+        }
+        default: {
+          break;
+        }
+      }
 
-        finished = true;
-        cleanupRef.current = null;
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        window.removeEventListener("blur", onUp);
-        stopDragging();
-        dispatch(InteractionEvent.RESIZE_END);
-      };
-
-      cleanupRef.current = onUp;
-
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-      window.addEventListener("blur", onUp);
+      updateNodePosition(node.id, nextX, nextY);
+      updateNodeSize(node.id, nextWidth, nextHeight);
+      setNodeHeightMode(node.id, "fixed");
     },
-    [
-      dispatch,
-      corner,
-      node.x,
-      node.y,
-      node.height,
-      node.id,
-      node.width,
-      selectNode,
-      setNodeHeightMode,
-      startDragging,
-      stopDragging,
-      updateNodePosition,
-      updateNodeSize,
-      zoom,
-    ],
+    onEnd: () => {
+      startSnapshotRef.current = null;
+    },
+  });
+
+  const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
+    (event) => {
+      startSnapshotRef.current = {
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+      };
+      onResizeMouseDown(event);
+    },
+    [node.height, node.width, node.x, node.y, onResizeMouseDown],
   );
 
   return (
     <div
       className={`card-widget__resize-handle card-widget__resize-handle--corner card-widget__resize-handle--corner-${corner}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       onMouseDown={onMouseDown}
       role="presentation"
       aria-hidden

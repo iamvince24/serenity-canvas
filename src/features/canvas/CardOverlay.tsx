@@ -1,11 +1,15 @@
 import { useMemo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import type { TextNode, ViewportState } from "../../types/canvas";
+import {
+  isTextNode,
+  type CanvasNode,
+  type ViewportState,
+} from "../../types/canvas";
 import { CardWidget } from "./CardWidget";
 
 type CardOverlayProps = {
   container: HTMLElement;
-  nodes: Record<string, TextNode>;
+  nodes: Record<string, CanvasNode>;
   viewport: ViewportState;
   autoFocusNodeId?: string | null;
 };
@@ -33,14 +37,16 @@ export function CardOverlay({
       role="presentation"
     >
       <div style={overlayContentStyle}>
-        {Object.values(nodes).map((node) => (
-          <CardWidget
-            key={node.id}
-            node={node}
-            zoom={viewport.zoom}
-            autoFocus={autoFocusNodeId === node.id}
-          />
-        ))}
+        {Object.values(nodes)
+          .filter(isTextNode)
+          .map((node) => (
+            <CardWidget
+              key={node.id}
+              node={node}
+              zoom={viewport.zoom}
+              autoFocus={autoFocusNodeId === node.id}
+            />
+          ))}
       </div>
     </div>,
     container,

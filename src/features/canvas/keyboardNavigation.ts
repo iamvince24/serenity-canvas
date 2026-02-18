@@ -1,4 +1,4 @@
-import type { TextNode, ViewportState } from "../../types/canvas";
+import type { CanvasNode, ViewportState } from "../../types/canvas";
 
 export type ArrowDirection =
   | "ArrowUp"
@@ -8,12 +8,12 @@ export type ArrowDirection =
 
 type FindDirectionalNeighborOptions = {
   currentNodeId: string;
-  nodes: Record<string, TextNode>;
+  nodes: Record<string, CanvasNode>;
   direction: ArrowDirection;
 };
 
 type EnsureNodeVisibleOptions = {
-  node: TextNode;
+  node: CanvasNode;
   viewport: ViewportState;
   zoom: number;
   containerWidth: number;
@@ -37,7 +37,7 @@ type NodeRect = {
 };
 
 type CandidateMetrics = {
-  node: TextNode;
+  node: CanvasNode;
   rect: NodeRect;
   score: number;
   euclideanDistance: number;
@@ -49,14 +49,14 @@ const PRIMARY_WEIGHT = 3;
 const ALIGNMENT_WEIGHT = 60;
 const FLOAT_EPSILON = 1e-6;
 
-function getNodeCenter(node: TextNode): Point {
+function getNodeCenter(node: CanvasNode): Point {
   return {
     x: node.x + node.width / 2,
     y: node.y + node.height / 2,
   };
 }
 
-function toRect(node: TextNode): NodeRect {
+function toRect(node: CanvasNode): NodeRect {
   const center = getNodeCenter(node);
   return {
     left: node.x,
@@ -202,7 +202,7 @@ export function findDirectionalNeighbor({
   currentNodeId,
   nodes,
   direction,
-}: FindDirectionalNeighborOptions): TextNode | null {
+}: FindDirectionalNeighborOptions): CanvasNode | null {
   const currentNode = nodes[currentNodeId];
   if (!currentNode) {
     return null;

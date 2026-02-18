@@ -175,15 +175,7 @@ export const SlashCommands = Extension.create({
         char: "/",
         command({ editor, range, props }) {
           const item = props as SlashCommandItem;
-
-          // Primary handler for local slash items.
-          if (typeof item.action === "function") {
-            item.action(editor, range);
-            return;
-          }
-
-          // Backward-compatible fallback if item uses suggestion-style command.
-          item.command?.({ editor, range });
+          item.action(editor, range);
         },
       } satisfies Partial<SuggestionOptions>,
     };

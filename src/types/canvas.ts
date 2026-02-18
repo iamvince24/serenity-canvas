@@ -6,22 +6,43 @@ export type ViewportState = {
   zoom: number;
 };
 
-// Single text card model rendered on the canvas.
-export type TextNode = {
+export type NodeHeightMode = "auto" | "fixed";
+
+// Shared fields for all node variants.
+export type BaseNode = {
   id: string;
-  type: "text";
   x: number;
   y: number;
   width: number;
   height: number;
-  heightMode: "auto" | "fixed";
-  content_markdown: string;
+  heightMode: NodeHeightMode;
   color: string;
 };
+
+// Text card model rendered in the DOM overlay.
+export type TextNode = BaseNode & {
+  type: "text";
+  contentMarkdown: string;
+};
+
+// Reserved for Step 6 implementation.
+export type ImageNode = BaseNode & {
+  type: "image";
+};
+
+export type CanvasNode = TextNode | ImageNode;
+
+export function isTextNode(node: CanvasNode): node is TextNode {
+  return node.type === "text";
+}
+
+export function isImageNode(node: CanvasNode): node is ImageNode {
+  return node.type === "image";
+}
 
 // Root canvas data shape kept in Zustand.
 export type CanvasState = {
   viewport: ViewportState;
-  nodes: Record<string, TextNode>;
+  nodes: Record<string, CanvasNode>;
   selectedNodeIds: string[];
 };
