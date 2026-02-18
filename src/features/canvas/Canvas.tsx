@@ -3,6 +3,7 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { CanvasNode } from "./CanvasNode";
+import { InteractionEvent, InteractionState } from "./stateMachine";
 
 type StageSize = {
   width: number;
@@ -24,7 +25,9 @@ function getWindowSize(): StageSize {
 export function Canvas() {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
+  const interactionState = useCanvasStore((state) => state.interactionState);
   const setViewport = useCanvasStore((state) => state.setViewport);
+  const dispatch = useCanvasStore((state) => state.dispatch);
   const selectNode = useCanvasStore((state) => state.selectNode);
 
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
@@ -39,6 +42,48 @@ export function Canvas() {
       window.removeEventListener("resize", handleResize);
     };
   }, []);
+
+  // Delete/Backspace deletes selected nodes; Escape cancels the active interaction.
+  // Reads from getState() to avoid stale closure over interactionState/selectedNodeIds.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        dispatch(InteractionEvent.ESCAPE);
+        return;
+      }
+
+      if (event.key !== "Delete" && event.key !== "Backspace") {
+        return;
+      }
+
+      const state = useCanvasStore.getState();
+      if (state.interactionState === InteractionState.Editing) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (state.selectedNodeIds.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      state.deleteSelectedNodes();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [dispatch]);
 
   const handleWheel = (event: KonvaEventObject<WheelEvent>) => {
     event.evt.preventDefault();
@@ -100,6 +145,7 @@ export function Canvas() {
       x: event.target.x(),
       y: event.target.y(),
     });
+    dispatch(InteractionEvent.PAN_END);
   };
 
   const handlePointerDown = (
@@ -109,8 +155,30 @@ export function Canvas() {
     if (stage && event.target === stage) {
       // Clicking empty canvas clears current selection.
       selectNode(null);
+      dispatch(InteractionEvent.STAGE_POINTER_DOWN);
     }
   };
+
+  const handlePointerUp = (
+    event: KonvaEventObject<MouseEvent | TouchEvent>,
+  ) => {
+    const stage = event.target.getStage();
+    if (stage && event.target === stage) {
+      dispatch(InteractionEvent.STAGE_POINTER_UP);
+    }
+  };
+
+  const handleDragStart = (event: KonvaEventObject<DragEvent>) => {
+    const stage = event.target.getStage();
+    if (stage && event.target === stage) {
+      dispatch(InteractionEvent.PAN_START);
+    }
+  };
+
+  // Disable stage drag when a node interaction (drag, edit…) is already in progress.
+  const isStageDraggable =
+    interactionState === InteractionState.Idle ||
+    interactionState === InteractionState.Panning;
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-canvas">
@@ -121,11 +189,14 @@ export function Canvas() {
         y={viewport.y}
         scaleX={viewport.zoom}
         scaleY={viewport.zoom}
-        draggable
+        draggable={isStageDraggable}
         onWheel={handleWheel}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onMouseDown={handlePointerDown}
+        onMouseUp={handlePointerUp}
         onTouchStart={handlePointerDown}
+        onTouchEnd={handlePointerUp}
       >
         <Layer>
           {Object.values(nodes).map((node) => (

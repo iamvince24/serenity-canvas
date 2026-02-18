@@ -1,4 +1,9 @@
 import { create } from "zustand";
+import {
+  InteractionEvent,
+  InteractionState,
+  transition,
+} from "../features/canvas/stateMachine";
 import type { CanvasState, TextNode, ViewportState } from "../types/canvas";
 
 // Write operations for canvas state updates.
@@ -6,10 +11,15 @@ type CanvasActions = {
   setViewport: (viewport: ViewportState) => void;
   addNode: (node: TextNode) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
+  dispatch: (event: InteractionEvent) => void;
+  deleteNode: (id: string) => void;
+  deleteSelectedNodes: () => void;
   selectNode: (nodeId: string | null) => void;
 };
 
-type CanvasStore = CanvasState & CanvasActions;
+type CanvasStore = CanvasState & {
+  interactionState: InteractionState;
+} & CanvasActions;
 
 // Default camera starts at world origin with 1:1 zoom.
 const initialViewport: ViewportState = {
@@ -22,6 +32,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   viewport: initialViewport,
   nodes: {},
   selectedNodeIds: [],
+  interactionState: InteractionState.Idle,
   setViewport: (viewport) => {
     set({ viewport });
   },
@@ -53,10 +64,51 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       };
     });
   },
+  dispatch: (event) => {
+    set((state) => ({
+      interactionState: transition(state.interactionState, event),
+    }));
+  },
+  deleteNode: (id) => {
+    set((state) => {
+      if (!state.nodes[id]) {
+        return state;
+      }
+
+      const remainingNodes = { ...state.nodes };
+      delete remainingNodes[id];
+
+      return {
+        nodes: remainingNodes,
+        selectedNodeIds: state.selectedNodeIds.filter(
+          (selectedNodeId) => selectedNodeId !== id,
+        ),
+        interactionState: InteractionState.Idle,
+      };
+    });
+  },
+  deleteSelectedNodes: () => {
+    set((state) => {
+      if (state.selectedNodeIds.length === 0) {
+        return state;
+      }
+
+      const remainingNodes = { ...state.nodes };
+      for (const nodeId of state.selectedNodeIds) {
+        delete remainingNodes[nodeId];
+      }
+
+      return {
+        nodes: remainingNodes,
+        selectedNodeIds: [],
+        interactionState: InteractionState.Idle,
+      };
+    });
+  },
   selectNode: (nodeId) => {
     // Keep selection as an array for future multi-select support.
-    set({
-      selectedNodeIds: nodeId ? [nodeId] : [],
-    });
+    set((state) => ({
+      selectedNodeIds: nodeId && state.nodes[nodeId] ? [nodeId] : [],
+    }));
   },
 }));

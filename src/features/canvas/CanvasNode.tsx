@@ -1,5 +1,6 @@
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Group, Rect, Text } from "react-konva";
+import { InteractionEvent } from "./stateMachine";
 import { useCanvasStore } from "../../stores/canvasStore";
 import type { TextNode } from "../../types/canvas";
 
@@ -14,16 +15,29 @@ export function CanvasNode({ node }: CanvasNodeProps) {
     (state) => state.updateNodePosition,
   );
   const selectNode = useCanvasStore((state) => state.selectNode);
+  const dispatch = useCanvasStore((state) => state.dispatch);
 
   const isSelected = selectedNodeIds.includes(node.id);
+
+  // Forward pointer/drag lifecycle events to the state machine.
+  const handlePointerDown = () => {
+    selectNode(node.id);
+    dispatch(InteractionEvent.NODE_POINTER_DOWN);
+  };
+
+  const handlePointerUp = () => {
+    dispatch(InteractionEvent.NODE_POINTER_UP);
+  };
+
+  const handleDragStart = () => {
+    selectNode(node.id);
+    dispatch(InteractionEvent.NODE_DRAG_START);
+  };
 
   const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
     // Persist final position so it remains stable after rerender.
     updateNodePosition(node.id, event.target.x(), event.target.y());
-  };
-
-  const handleSelect = () => {
-    selectNode(node.id);
+    dispatch(InteractionEvent.NODE_DRAG_END);
   };
 
   return (
@@ -31,9 +45,11 @@ export function CanvasNode({ node }: CanvasNodeProps) {
       x={node.x}
       y={node.y}
       draggable
-      onClick={handleSelect}
-      onTap={handleSelect}
-      onDragStart={handleSelect}
+      onMouseDown={handlePointerDown}
+      onTouchStart={handlePointerDown}
+      onMouseUp={handlePointerUp}
+      onTouchEnd={handlePointerUp}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       {/* Card shell */}
@@ -42,7 +58,7 @@ export function CanvasNode({ node }: CanvasNodeProps) {
         height={node.height}
         cornerRadius={10}
         fill={node.color}
-        stroke={isSelected ? "#5E6E58" : "#E5E3DF"}
+        stroke={isSelected ? "#8B9D83" : "#E5E3DF"}
         strokeWidth={isSelected ? 2 : 1}
       />
       {/* Card text content */}
