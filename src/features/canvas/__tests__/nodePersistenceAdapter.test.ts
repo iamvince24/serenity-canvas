@@ -3,6 +3,7 @@ import type { FileRecord, ImageNode, TextNode } from "../../../types/canvas";
 import {
   fromPersistenceFiles,
   fromPersistenceNode,
+  migrateNodeOrder,
   migrateLegacyNode,
   toPersistenceFiles,
   toPersistenceNode,
@@ -217,5 +218,63 @@ describe("migrateLegacyNode", () => {
     const migrated = migrateLegacyNode(legacy);
 
     expect(migrated.node.color).toBe("red");
+  });
+});
+
+describe("migrateNodeOrder", () => {
+  const nodes = {
+    "text-1": {
+      id: "text-1",
+      type: "text",
+      x: 0,
+      y: 0,
+      width: 280,
+      height: 240,
+      heightMode: "auto",
+      contentMarkdown: "text",
+      color: null,
+    } satisfies TextNode,
+    "img-1": {
+      id: "img-1",
+      type: "image",
+      x: 0,
+      y: 0,
+      width: 320,
+      height: 296,
+      heightMode: "fixed",
+      color: null,
+      content: "caption",
+      asset_id: "asset-1",
+    } satisfies ImageNode,
+    "img-2": {
+      id: "img-2",
+      type: "image",
+      x: 40,
+      y: 24,
+      width: 320,
+      height: 296,
+      heightMode: "fixed",
+      color: null,
+      content: "caption 2",
+      asset_id: "asset-2",
+    } satisfies ImageNode,
+  };
+
+  it("有 persisted order 時沿用並過濾過期 id", () => {
+    expect(
+      migrateNodeOrder(nodes, ["img-2", "stale-id", "text-1", "img-1"]),
+    ).toEqual(["img-2", "text-1", "img-1"]);
+  });
+
+  it("無 persisted order 時 fallback 到 Object.keys(nodes)", () => {
+    expect(migrateNodeOrder(nodes)).toEqual(Object.keys(nodes));
+  });
+
+  it("persisted order 缺漏新節點時會補在尾端", () => {
+    expect(migrateNodeOrder(nodes, ["img-1"])).toEqual([
+      "img-1",
+      "text-1",
+      "img-2",
+    ]);
   });
 });

@@ -10,7 +10,7 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
-import { isImageNode } from "../../types/canvas";
+import { isImageNode, type ImageNode } from "../../types/canvas";
 import { CardOverlay } from "./CardOverlay";
 import { ImageCanvasNode } from "./ImageCanvasNode";
 import {
@@ -37,6 +37,7 @@ function getWindowSize(): StageSize {
 export function Canvas() {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
+  const nodeOrder = useCanvasStore((state) => state.nodeOrder);
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const setViewport = useCanvasStore((state) => state.setViewport);
@@ -51,10 +52,30 @@ export function Canvas() {
     useState<HTMLDivElement | null>(null);
   const [autoFocusNodeId, setAutoFocusNodeId] = useState<string | null>(null);
 
-  const imageNodes = useMemo(
-    () => Object.values(nodes).filter(isImageNode),
-    [nodes],
-  );
+  const imageNodes = useMemo(() => {
+    const orderedImageNodes: ImageNode[] = [];
+    const seen = new Set<string>();
+
+    for (const nodeId of nodeOrder) {
+      const node = nodes[nodeId];
+      if (!node || !isImageNode(node)) {
+        continue;
+      }
+
+      orderedImageNodes.push(node);
+      seen.add(node.id);
+    }
+
+    for (const node of Object.values(nodes)) {
+      if (!isImageNode(node) || seen.has(node.id)) {
+        continue;
+      }
+
+      orderedImageNodes.push(node);
+    }
+
+    return orderedImageNodes;
+  }, [nodeOrder, nodes]);
 
   const handleContainerRef = useCallback((element: HTMLDivElement | null) => {
     setOverlayContainer(element);
@@ -327,6 +348,7 @@ export function Canvas() {
         <CardOverlay
           container={overlayContainer}
           nodes={nodes}
+          nodeOrder={nodeOrder}
           viewport={viewport}
           autoFocusNodeId={autoFocusNodeId}
         />

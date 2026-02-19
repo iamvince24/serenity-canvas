@@ -1,6 +1,16 @@
 import { create } from "zustand";
 import { collectGarbage } from "../features/canvas/imageGarbageCollector";
 import { releaseImage } from "../features/canvas/imageUrlCache";
+import {
+  appendNodeToOrder,
+  removeNodeFromOrder,
+  removeNodeIdsFromOrder,
+  reorderMoveDownInSubset,
+  reorderMoveUpInSubset,
+  reorderToBackInSubset,
+  reorderToFrontInSubset,
+  reorderToFront,
+} from "../features/canvas/layerOrder";
 import type { PersistenceCanvasNode } from "../features/canvas/nodePersistenceAdapter";
 import { migrateLegacyNode } from "../features/canvas/nodePersistenceAdapter";
 import {
@@ -8,12 +18,13 @@ import {
   InteractionState,
   transition,
 } from "../features/canvas/stateMachine";
-import type {
-  CanvasNode,
-  CanvasState,
-  FileRecord,
-  NodeHeightMode,
-  ViewportState,
+import {
+  isTextNode,
+  type CanvasNode,
+  type CanvasState,
+  type FileRecord,
+  type NodeHeightMode,
+  type ViewportState,
 } from "../types/canvas";
 
 // Write operations for canvas state updates.
@@ -31,6 +42,10 @@ type CanvasActions = {
   deleteNode: (id: string) => void;
   deleteSelectedNodes: () => void;
   selectNode: (nodeId: string | null) => void;
+  moveTextNodeUp: (id: string) => void;
+  moveTextNodeDown: (id: string) => void;
+  moveTextNodeToFront: (id: string) => void;
+  moveTextNodeToBack: (id: string) => void;
 };
 
 type CanvasStore = CanvasState & {
@@ -66,23 +81,6 @@ function patchNode(
   };
 }
 
-function moveNodeToFront(nodes: NodesMap, id: string): NodesMap {
-  const target = nodes[id];
-  if (!target) {
-    return nodes;
-  }
-
-  const keys = Object.keys(nodes);
-  if (keys[keys.length - 1] === id) {
-    return nodes;
-  }
-
-  const reordered = { ...nodes };
-  delete reordered[id];
-  reordered[id] = target;
-  return reordered;
-}
-
 function removeFilesByIds(files: FilesMap, ids: string[]): FilesMap {
   if (ids.length === 0) {
     return files;
@@ -95,9 +93,16 @@ function removeFilesByIds(files: FilesMap, ids: string[]): FilesMap {
   return nextFiles;
 }
 
+function getTextNodeIds(nodes: NodesMap): string[] {
+  return Object.values(nodes)
+    .filter(isTextNode)
+    .map((node) => node.id);
+}
+
 export const useCanvasStore = create<CanvasStore>((set) => ({
   viewport: initialViewport,
   nodes: {},
+  nodeOrder: [],
   files: {},
   selectedNodeIds: [],
   interactionState: InteractionState.Idle,
@@ -120,6 +125,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
           ...state.nodes,
           [migrated.node.id]: migrated.node,
         },
+        nodeOrder: appendNodeToOrder(state.nodeOrder, migrated.node.id),
       };
     });
   },
@@ -239,6 +245,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
 
       return {
         nodes: remainingNodes,
+        nodeOrder: removeNodeFromOrder(state.nodeOrder, id),
         selectedNodeIds: state.selectedNodeIds.filter(
           (selectedNodeId) => selectedNodeId !== id,
         ),
@@ -286,6 +293,10 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
 
       return {
         nodes: remainingNodes,
+        nodeOrder: removeNodeIdsFromOrder(
+          state.nodeOrder,
+          state.selectedNodeIds,
+        ),
         selectedNodeIds: [],
         interactionState: InteractionState.Idle,
       };
@@ -315,14 +326,80 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       }
 
       const selectedNode = state.nodes[nodeId];
-      const nextNodes =
+      // Keep current behavior: selecting an image brings it to the front so
+      // overlapping images remain directly manipulable.
+      const nextNodeOrder =
         selectedNode.type === "image"
-          ? moveNodeToFront(state.nodes, nodeId)
-          : state.nodes;
+          ? reorderToFront(state.nodeOrder, nodeId)
+          : state.nodeOrder;
 
       return {
-        nodes: nextNodes,
+        nodeOrder: nextNodeOrder,
         selectedNodeIds: [nodeId],
+      };
+    });
+  },
+  moveTextNodeUp: (id) => {
+    set((state) => {
+      const node = state.nodes[id];
+      if (!node || node.type !== "text") {
+        return state;
+      }
+
+      return {
+        nodeOrder: reorderMoveUpInSubset(
+          state.nodeOrder,
+          id,
+          getTextNodeIds(state.nodes),
+        ),
+      };
+    });
+  },
+  moveTextNodeDown: (id) => {
+    set((state) => {
+      const node = state.nodes[id];
+      if (!node || node.type !== "text") {
+        return state;
+      }
+
+      return {
+        nodeOrder: reorderMoveDownInSubset(
+          state.nodeOrder,
+          id,
+          getTextNodeIds(state.nodes),
+        ),
+      };
+    });
+  },
+  moveTextNodeToFront: (id) => {
+    set((state) => {
+      const node = state.nodes[id];
+      if (!node || node.type !== "text") {
+        return state;
+      }
+
+      return {
+        nodeOrder: reorderToFrontInSubset(
+          state.nodeOrder,
+          id,
+          getTextNodeIds(state.nodes),
+        ),
+      };
+    });
+  },
+  moveTextNodeToBack: (id) => {
+    set((state) => {
+      const node = state.nodes[id];
+      if (!node || node.type !== "text") {
+        return state;
+      }
+
+      return {
+        nodeOrder: reorderToBackInSubset(
+          state.nodeOrder,
+          id,
+          getTextNodeIds(state.nodes),
+        ),
       };
     });
   },

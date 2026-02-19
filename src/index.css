@@ -420,6 +420,9 @@
     border-radius: 6px;
     background: transparent;
     color: var(--foreground);
+    display: flex;
+    align-items: center;
+    gap: 6px;
     text-align: left;
     padding: 6px 8px;
     font-size: 13px;
@@ -430,6 +433,12 @@
 
   .card-widget__settings-item:hover {
     background: var(--surface);
+  }
+
+  .card-widget__settings-item:disabled {
+    color: var(--foreground-subtle);
+    background: transparent;
+    cursor: not-allowed;
   }
 
   .card-widget__settings-divider {

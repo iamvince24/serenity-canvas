@@ -15,9 +15,13 @@ import {
 
 type ImageCaptionWidgetProps = {
   node: ImageNode;
+  layerIndex: number;
 };
 
-export function ImageCaptionWidget({ node }: ImageCaptionWidgetProps) {
+export function ImageCaptionWidget({
+  node,
+  layerIndex,
+}: ImageCaptionWidgetProps) {
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
@@ -34,10 +38,10 @@ export function ImageCaptionWidget({ node }: ImageCaptionWidgetProps) {
       top: `${node.y + imageHeight}px`,
       width: `${node.width}px`,
       height: `${IMAGE_NODE_CAPTION_HEIGHT}px`,
-      zIndex: isSelected ? 4 : 2,
+      zIndex: isSelected ? layerIndex + 1000 : layerIndex,
       pointerEvents: "none",
     }),
-    [imageHeight, isSelected, node.width, node.x, node.y],
+    [imageHeight, isSelected, layerIndex, node.width, node.x, node.y],
   );
 
   const handleBlur = useCallback(() => {

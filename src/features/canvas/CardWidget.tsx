@@ -1,4 +1,10 @@
-import { Settings2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ChevronsDown,
+  ChevronsUp,
+  Settings2,
+} from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -30,6 +36,7 @@ import { useDragHandle } from "./useDragHandle";
 type CardWidgetProps = {
   node: TextNode;
   zoom: number;
+  layerIndex: number;
   autoFocus?: boolean;
 };
 
@@ -39,13 +46,28 @@ function toUploadErrorMessage(error: unknown): string {
     : "Image upload failed. Please try again.";
 }
 
-export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
+export function CardWidget({
+  node,
+  zoom,
+  layerIndex,
+  autoFocus = false,
+}: CardWidgetProps) {
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
+  const nodeOrder = useCanvasStore((state) => state.nodeOrder);
+  const nodes = useCanvasStore((state) => state.nodes);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
   const setNodeHeightMode = useCanvasStore((state) => state.setNodeHeightMode);
+  const moveTextNodeUp = useCanvasStore((state) => state.moveTextNodeUp);
+  const moveTextNodeDown = useCanvasStore((state) => state.moveTextNodeDown);
+  const moveTextNodeToFront = useCanvasStore(
+    (state) => state.moveTextNodeToFront,
+  );
+  const moveTextNodeToBack = useCanvasStore(
+    (state) => state.moveTextNodeToBack,
+  );
   const dragHandleProps = useDragHandle({ nodeId: node.id, zoom });
   const cardEditorRef = useRef<CardEditorHandle | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
@@ -56,9 +78,48 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const [focusAtEndSignal, setFocusAtEndSignal] = useState(0);
 
   const isSelected = selectedNodeIds.includes(node.id);
+  const isDragging = interactionState === InteractionState.Dragging;
   const isResizing = interactionState === InteractionState.Resizing;
   const isSettingsVisible = isSettingsOpen;
   const shouldShowResizeHandles = !isEditing;
+  const shouldElevateForInteraction = isSelected && (isDragging || isResizing);
+  const orderedTextNodeIds = useMemo(() => {
+    const ids: string[] = [];
+    const seen = new Set<string>();
+
+    for (const nodeId of nodeOrder) {
+      const orderedNode = nodes[nodeId];
+      if (!orderedNode || orderedNode.type !== "text") {
+        continue;
+      }
+
+      ids.push(orderedNode.id);
+      seen.add(orderedNode.id);
+    }
+
+    for (const unorderedNode of Object.values(nodes)) {
+      if (unorderedNode.type !== "text" || seen.has(unorderedNode.id)) {
+        continue;
+      }
+
+      ids.push(unorderedNode.id);
+    }
+
+    return ids;
+  }, [nodeOrder, nodes]);
+  const singleSelectedNodeId =
+    selectedNodeIds.length === 1 ? selectedNodeIds[0] : null;
+  const textLayerIndex = orderedTextNodeIds.indexOf(node.id);
+  const canReorderLayer =
+    singleSelectedNodeId === node.id &&
+    textLayerIndex !== -1 &&
+    orderedTextNodeIds.length > 1;
+  const isTextLayerTop = textLayerIndex === orderedTextNodeIds.length - 1;
+  const isTextLayerBottom = textLayerIndex === 0;
+  const disableMoveToFront = !canReorderLayer || isTextLayerTop;
+  const disableMoveUp = !canReorderLayer || isTextLayerTop;
+  const disableMoveDown = !canReorderLayer || isTextLayerBottom;
+  const disableMoveToBack = !canReorderLayer || isTextLayerBottom;
 
   const cardStyle = useMemo<CSSProperties>(() => {
     const colorStyle = getCardColorStyle(node.color);
@@ -74,10 +135,19 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
       borderRadius: "10px",
       boxSizing: "border-box",
       overflow: "hidden",
-      zIndex: isSelected ? 2 : 1,
+      zIndex: shouldElevateForInteraction ? layerIndex + 1000 : layerIndex,
       isolation: "isolate",
     };
-  }, [isSelected, node.color, node.height, node.width, node.x, node.y]);
+  }, [
+    isSelected,
+    layerIndex,
+    node.color,
+    node.height,
+    node.width,
+    node.x,
+    node.y,
+    shouldElevateForInteraction,
+  ]);
 
   const editorShellStyle = useMemo<CSSProperties>(
     () => ({
@@ -229,6 +299,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const handleSettingsButtonClick = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
+      selectNode(node.id);
       setIsSettingsOpen((current) => {
         const next = !current;
         if (!next) {
@@ -238,7 +309,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
         return next;
       });
     },
-    [],
+    [node.id, selectNode],
   );
 
   useEffect(() => {
@@ -361,6 +432,59 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
                 }}
               >
                 Color
+              </button>
+              <div className="card-widget__settings-divider" />
+              <button
+                type="button"
+                className="card-widget__settings-item"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveTextNodeToFront(node.id);
+                }}
+                disabled={disableMoveToFront}
+              >
+                <ChevronsUp size={14} />
+                Bring to Front
+              </button>
+              <button
+                type="button"
+                className="card-widget__settings-item"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveTextNodeUp(node.id);
+                }}
+                disabled={disableMoveUp}
+              >
+                <ChevronUp size={14} />
+                Bring Forward
+              </button>
+              <button
+                type="button"
+                className="card-widget__settings-item"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveTextNodeDown(node.id);
+                }}
+                disabled={disableMoveDown}
+              >
+                <ChevronDown size={14} />
+                Send Backward
+              </button>
+              <button
+                type="button"
+                className="card-widget__settings-item"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveTextNodeToBack(node.id);
+                }}
+                disabled={disableMoveToBack}
+              >
+                <ChevronsDown size={14} />
+                Send to Back
               </button>
 
               {isColorPickerOpen ? (

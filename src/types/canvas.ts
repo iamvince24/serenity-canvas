@@ -57,6 +57,7 @@ export function isImageNode(node: CanvasNode): node is ImageNode {
 export type CanvasState = {
   viewport: ViewportState;
   nodes: Record<string, CanvasNode>;
+  nodeOrder: string[];
   files: Record<string, FileRecord>;
   selectedNodeIds: string[];
 };

@@ -1,4 +1,5 @@
 import { normalizeNodeColor } from "../../constants/colors";
+import { migrateNodeOrderByIds } from "./layerOrder";
 import type {
   CanvasNode,
   FileRecord,
@@ -15,6 +16,12 @@ export type PersistenceImageNode = ImageNode;
 export type PersistenceCanvasNode = PersistenceTextNode | PersistenceImageNode;
 
 export type PersistenceFileRecord = FileRecord;
+
+export type PersistenceCanvasSnapshot = {
+  nodes: Record<string, PersistenceCanvasNode>;
+  files: Record<string, PersistenceFileRecord>;
+  node_order?: string[];
+};
 
 export type LegacyMigrationResult = {
   node: CanvasNode;
@@ -83,6 +90,13 @@ export function fromPersistenceFiles(
   return Object.fromEntries(
     Object.entries(files).map(([id, file]) => [id, { ...file }]),
   );
+}
+
+export function migrateNodeOrder(
+  nodes: Record<string, CanvasNode>,
+  persistedOrder?: string[],
+): string[] {
+  return migrateNodeOrderByIds(Object.keys(nodes), persistedOrder);
 }
 
 // Support loading old snapshots that still use content_markdown internally.
