@@ -11,7 +11,7 @@ import {
   MIN_IMAGE_CONTENT_HEIGHT,
   MIN_IMAGE_NODE_WIDTH,
 } from "./constants";
-import { getImageAssetBlob } from "./imageAssetStorage";
+import { acquireImage, releaseImage } from "./imageUrlCache";
 import { InteractionEvent } from "./stateMachine";
 
 type ImageCanvasNodeProps = {
@@ -306,6 +306,7 @@ export function ImageCanvasNode({
   isSelected,
   zoom,
 }: ImageCanvasNodeProps) {
+  const file = useCanvasStore((state) => state.files[node.asset_id]);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const updateNodePosition = useCanvasStore(
     (state) => state.updateNodePosition,
@@ -313,20 +314,16 @@ export function ImageCanvasNode({
   const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
   const dispatch = useCanvasStore((state) => state.dispatch);
 
-  const [assetImageUrl, setAssetImageUrl] = useState<string | null>(null);
-  const [loadedAssetId, setLoadedAssetId] = useState<string | null>(null);
-  const [konvaImage, setKonvaImage] = useState<HTMLImageElement | null>(null);
-  const [loadedImageUrl, setLoadedImageUrl] = useState<string | null>(null);
+  const [cacheEntry, setCacheEntry] = useState<{
+    objectUrl: string;
+    image: HTMLImageElement;
+  } | null>(null);
   const [isResizing, setIsResizing] = useState(false);
-  const objectUrlRef = useRef<string | null>(null);
   const resizeStateRef = useRef<ResizeState | null>(null);
   const isResizingRef = useRef(false);
   const stopResizeRef = useRef<(() => void) | null>(null);
 
   const colorStyle = useMemo(() => getCardColorStyle(node.color), [node.color]);
-  const resolvedImageUrl =
-    node.runtimeImageUrl ||
-    (loadedAssetId === node.asset_id ? assetImageUrl : null);
   const imageHeight = Math.max(
     MIN_IMAGE_CONTENT_HEIGHT,
     node.height - IMAGE_NODE_CAPTION_HEIGHT,
@@ -334,82 +331,42 @@ export function ImageCanvasNode({
 
   useEffect(() => {
     let disposed = false;
-    if (
-      loadedAssetId &&
-      loadedAssetId !== node.asset_id &&
-      objectUrlRef.current
-    ) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
+    let acquired = false;
 
-    if (node.runtimeImageUrl || loadedAssetId === node.asset_id) {
-      return () => {
-        disposed = true;
-      };
-    }
-
-    void (async () => {
+    const load = async () => {
       try {
-        const assetBlob = await getImageAssetBlob(node.asset_id);
-        if (!assetBlob || disposed) {
+        const entry = await acquireImage(node.asset_id);
+        if (disposed) {
+          // Load completed after unmount; immediately release to avoid leaks.
+          releaseImage(node.asset_id);
           return;
         }
 
-        const objectUrl = URL.createObjectURL(assetBlob);
-        if (objectUrlRef.current) {
-          URL.revokeObjectURL(objectUrlRef.current);
-        }
-        objectUrlRef.current = objectUrl;
-        setAssetImageUrl(objectUrl);
-        setLoadedAssetId(node.asset_id);
+        acquired = true;
+        setCacheEntry(entry);
       } catch {
         if (!disposed) {
-          setAssetImageUrl(null);
+          setCacheEntry(null);
         }
       }
-    })();
+    };
+
+    void load();
 
     return () => {
       disposed = true;
-    };
-  }, [assetImageUrl, loadedAssetId, node.asset_id, node.runtimeImageUrl]);
+      if (!acquired) {
+        return;
+      }
 
-  useEffect(() => {
-    return () => {
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
+      // deleteNode/deleteSelectedNodes release cache references in store actions.
+      // Skip duplicate release if this node has already been removed from store.
+      const latestState = useCanvasStore.getState();
+      if (latestState.nodes[node.id]) {
+        releaseImage(node.asset_id);
       }
     };
-  }, []);
-
-  useEffect(() => {
-    if (!resolvedImageUrl) {
-      return;
-    }
-
-    let disposed = false;
-    const image = new Image();
-
-    image.onload = () => {
-      if (!disposed) {
-        setKonvaImage(image);
-        setLoadedImageUrl(resolvedImageUrl);
-      }
-    };
-    image.onerror = () => {
-      if (!disposed) {
-        setKonvaImage(null);
-        setLoadedImageUrl(null);
-      }
-    };
-    image.src = resolvedImageUrl;
-
-    return () => {
-      disposed = true;
-    };
-  }, [resolvedImageUrl]);
+  }, [node.asset_id, node.id]);
 
   const setResizeCursor = useCallback((cursor: string) => {
     document.body.style.cursor = cursor;
@@ -492,6 +449,15 @@ export function ImageCanvasNode({
       isResizingRef.current = true;
       setIsResizing(true);
 
+      const startImageHeight = Math.max(
+        MIN_IMAGE_CONTENT_HEIGHT,
+        node.height - IMAGE_NODE_CAPTION_HEIGHT,
+      );
+      const aspectRatio =
+        file && file.original_width > 0 && file.original_height > 0
+          ? file.original_width / file.original_height
+          : node.width / Math.max(1, startImageHeight);
+
       resizeStateRef.current = {
         handle,
         startClientX: pointerPosition.x,
@@ -499,21 +465,8 @@ export function ImageCanvasNode({
         startX: node.x,
         startY: node.y,
         startWidth: node.width,
-        startImageHeight: Math.max(
-          MIN_IMAGE_CONTENT_HEIGHT,
-          node.height - IMAGE_NODE_CAPTION_HEIGHT,
-        ),
-        aspectRatio: Math.max(
-          0.01,
-          node.width /
-            Math.max(
-              1,
-              Math.max(
-                MIN_IMAGE_CONTENT_HEIGHT,
-                node.height - IMAGE_NODE_CAPTION_HEIGHT,
-              ),
-            ),
-        ),
+        startImageHeight,
+        aspectRatio: Math.max(0.01, aspectRatio),
       };
 
       const handlePointerMove = (moveEvent: MouseEvent | TouchEvent) => {
@@ -582,6 +535,7 @@ export function ImageCanvasNode({
     [
       clearResizeCursor,
       dispatch,
+      file,
       node.height,
       node.id,
       node.width,
@@ -634,9 +588,9 @@ export function ImageCanvasNode({
         cornerRadius={10}
       />
 
-      {konvaImage && resolvedImageUrl && loadedImageUrl === resolvedImageUrl ? (
+      {cacheEntry ? (
         <KonvaImage
-          image={konvaImage}
+          image={cacheEntry.image}
           x={0}
           y={0}
           width={node.width}

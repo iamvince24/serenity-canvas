@@ -99,3 +99,23 @@ export async function getImageAssetBlob(assetId: string): Promise<Blob | null> {
   const assetRecord = await getImageAsset(assetId);
   return assetRecord?.blob ?? null;
 }
+
+export async function hasImageAsset(assetId: string): Promise<boolean> {
+  const count = await withImageAssetStore<number>("readonly", (store) =>
+    store.count(assetId),
+  );
+
+  return count > 0;
+}
+
+export async function deleteImageAsset(assetId: string): Promise<void> {
+  await withImageAssetStore("readwrite", (store) => store.delete(assetId));
+}
+
+export async function getAllAssetIds(): Promise<string[]> {
+  const keys = await withImageAssetStore<IDBValidKey[]>("readonly", (store) =>
+    store.getAllKeys(),
+  );
+
+  return keys.map((key) => String(key));
+}

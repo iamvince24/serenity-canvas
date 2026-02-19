@@ -1,7 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  deleteImageAsset,
+  getAllAssetIds,
   getImageAsset,
   getImageAssetBlob,
+  hasImageAsset,
   saveImageAsset,
   type ImageAssetRecord,
 } from "../imageAssetStorage";
@@ -10,7 +13,7 @@ describe("imageAssetStorage", () => {
   const createTestRecord = (
     overrides: Partial<ImageAssetRecord> = {},
   ): ImageAssetRecord => ({
-    asset_id: "test-asset-1",
+    asset_id: `test-${Math.random().toString(36).slice(2, 10)}`,
     blob: new Blob(["test image data"], { type: "image/png" }),
     mime_type: "image/png",
     original_width: 800,
@@ -18,15 +21,6 @@ describe("imageAssetStorage", () => {
     byte_size: 1024,
     created_at: Date.now(),
     ...overrides,
-  });
-
-  beforeEach(async () => {
-    // 每個測試前清除可能殘留的資料（fake-indexeddb 每次測試會用新的 DB instance）
-    // 由於 fake-indexeddb 會依 DB name 隔離，不同測試檔可能共用，這裡用唯一 asset_id 避免衝突
-  });
-
-  afterEach(() => {
-    // fake-indexeddb 在 jsdom 環境下每個 test file 會重新初始化
   });
 
   describe("saveImageAsset", () => {
@@ -65,6 +59,16 @@ describe("imageAssetStorage", () => {
     });
   });
 
+  describe("hasImageAsset", () => {
+    it("存在回傳 true，不存在回傳 false", async () => {
+      const assetId = "has-test";
+      await saveImageAsset(createTestRecord({ asset_id: assetId }));
+
+      expect(await hasImageAsset(assetId)).toBe(true);
+      expect(await hasImageAsset("has-test-missing")).toBe(false);
+    });
+  });
+
   describe("getImageAsset", () => {
     it("不存在的 ID 回傳 null", async () => {
       const result = await getImageAsset("non-existent-id-12345");
@@ -79,7 +83,6 @@ describe("imageAssetStorage", () => {
 
       const blob = await getImageAssetBlob("blob-test");
       expect(blob).not.toBeNull();
-      // getImageAssetBlob 從 getImageAsset 取 record.blob，驗證有回傳
       const asset = await getImageAsset("blob-test");
       expect(asset?.blob).toBeDefined();
     });
@@ -87,6 +90,31 @@ describe("imageAssetStorage", () => {
     it("不存在的 ID 回傳 null", async () => {
       const blob = await getImageAssetBlob("non-existent-blob");
       expect(blob).toBeNull();
+    });
+  });
+
+  describe("deleteImageAsset", () => {
+    it("刪除後不可再取得", async () => {
+      const assetId = "delete-test";
+      await saveImageAsset(createTestRecord({ asset_id: assetId }));
+
+      await deleteImageAsset(assetId);
+
+      expect(await getImageAsset(assetId)).toBeNull();
+      expect(await hasImageAsset(assetId)).toBe(false);
+    });
+  });
+
+  describe("getAllAssetIds", () => {
+    it("回傳目前所有 key", async () => {
+      const ids = ["all-1", "all-2", "all-3"];
+      await Promise.all(
+        ids.map((id) => saveImageAsset(createTestRecord({ asset_id: id }))),
+      );
+
+      const allIds = await getAllAssetIds();
+
+      expect(allIds).toEqual(expect.arrayContaining(ids));
     });
   });
 });

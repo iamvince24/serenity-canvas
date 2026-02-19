@@ -11,6 +11,7 @@ type ToolbarProps = {
 export function Toolbar({ onImageUploadError }: ToolbarProps) {
   const viewport = useCanvasStore((state) => state.viewport);
   const addNode = useCanvasStore((state) => state.addNode);
+  const addFile = useCanvasStore((state) => state.addFile);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { uploadImageFile } = useImageUpload();
@@ -28,7 +29,7 @@ export function Toolbar({ onImageUploadError }: ToolbarProps) {
       }
 
       try {
-        const uploadedImage = await uploadImageFile(file);
+        const { fileRecord, nodePayload } = await uploadImageFile(file);
         const canvasCenterX =
           (window.innerWidth / 2 - viewport.x) / viewport.zoom;
         const canvasCenterY =
@@ -36,9 +37,11 @@ export function Toolbar({ onImageUploadError }: ToolbarProps) {
         const imageNode = createImageNodeCenteredAt(
           canvasCenterX,
           canvasCenterY,
-          uploadedImage,
+          nodePayload,
+          fileRecord,
         );
 
+        addFile(fileRecord);
         addNode(imageNode);
         selectNode(imageNode.id);
       } catch (error) {
@@ -50,6 +53,7 @@ export function Toolbar({ onImageUploadError }: ToolbarProps) {
       }
     },
     [
+      addFile,
       addNode,
       onImageUploadError,
       selectNode,

@@ -1,6 +1,9 @@
 import { useCallback } from "react";
+import type { FileRecord } from "../../types/canvas";
 import { compressImageWithWorker } from "../../workers/imageCompression";
-import { saveImageAsset } from "./imageAssetStorage";
+import type { ImageNodeUploadPayload } from "./nodeFactory";
+import { injectImage } from "./imageUrlCache";
+import { hasImageAsset, saveImageAsset } from "./imageAssetStorage";
 
 const MAX_SOURCE_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -20,12 +23,8 @@ const MIME_TYPE_BY_EXTENSION: Record<string, string> = {
 };
 
 export type UploadedImagePayload = {
-  asset_id: string;
-  mime_type: string;
-  original_width: number;
-  original_height: number;
-  byte_size: number;
-  runtimeImageUrl: string;
+  fileRecord: FileRecord;
+  nodePayload: ImageNodeUploadPayload;
 };
 
 function inferMimeTypeFromFileName(fileName: string): string | null {
@@ -46,15 +45,24 @@ function resolveSourceMimeType(file: File): string | null {
   return inferMimeTypeFromFileName(file.name);
 }
 
-function createAssetId(): string {
+export async function computeAssetId(blob: Blob): Promise<string> {
   if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
+    typeof crypto === "undefined" ||
+    typeof crypto.subtle === "undefined" ||
+    typeof crypto.subtle.digest !== "function"
   ) {
-    return crypto.randomUUID();
+    throw new Error("Web Crypto API is not available.");
   }
 
-  return `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const buffer = await blob.arrayBuffer();
+  const sourceBytes = new Uint8Array(buffer);
+  const digestInput = new Uint8Array(sourceBytes.length);
+  digestInput.set(sourceBytes);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", digestInput);
+
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function loadImageDimensions(blob: Blob): Promise<{
@@ -112,28 +120,34 @@ export function useImageUpload() {
         },
       );
 
-      const assetId = createAssetId();
+      const assetId = await computeAssetId(compressedOutput.blob);
       const mimeType = compressedOutput.mimeType || sourceMimeType;
-      const runtimeImageUrl = URL.createObjectURL(compressedOutput.blob);
-
-      await saveImageAsset({
-        asset_id: assetId,
-        blob: compressedOutput.blob,
+      const createdAt = Date.now();
+      const fileRecord: FileRecord = {
+        id: assetId,
         mime_type: mimeType,
         original_width: compressedOutput.originalWidth,
         original_height: compressedOutput.originalHeight,
         byte_size: compressedOutput.byteSize,
-        created_at: Date.now(),
-      });
-
-      return {
-        asset_id: assetId,
-        mime_type: mimeType,
-        original_width: compressedOutput.originalWidth,
-        original_height: compressedOutput.originalHeight,
-        byte_size: compressedOutput.byteSize,
-        runtimeImageUrl,
+        created_at: createdAt,
       };
+
+      await injectImage(assetId, compressedOutput.blob);
+
+      const assetExists = await hasImageAsset(assetId);
+      if (!assetExists) {
+        await saveImageAsset({
+          asset_id: assetId,
+          blob: compressedOutput.blob,
+          mime_type: mimeType,
+          original_width: compressedOutput.originalWidth,
+          original_height: compressedOutput.originalHeight,
+          byte_size: compressedOutput.byteSize,
+          created_at: createdAt,
+        });
+      }
+
+      return { fileRecord, nodePayload: { asset_id: assetId } };
     },
     [],
   );

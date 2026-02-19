@@ -32,13 +32,15 @@ export type ImageNode = BaseNode & {
   type: "image";
   content: string;
   asset_id: string;
+};
+
+export type FileRecord = {
+  id: string;
   mime_type: string;
   original_width: number;
   original_height: number;
   byte_size: number;
-  storage_path?: string;
-  // Runtime-only object URL. This should never be persisted.
-  runtimeImageUrl?: string;
+  created_at: number;
 };
 
 export type CanvasNode = TextNode | ImageNode;
@@ -55,5 +57,6 @@ export function isImageNode(node: CanvasNode): node is ImageNode {
 export type CanvasState = {
   viewport: ViewportState;
   nodes: Record<string, CanvasNode>;
+  files: Record<string, FileRecord>;
   selectedNodeIds: string[];
 };

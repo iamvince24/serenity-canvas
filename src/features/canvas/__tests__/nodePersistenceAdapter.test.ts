@@ -1,20 +1,18 @@
 import { describe, expect, it } from "vitest";
+import type { FileRecord, ImageNode, TextNode } from "../../../types/canvas";
 import {
+  fromPersistenceFiles,
   fromPersistenceNode,
   migrateLegacyNode,
+  toPersistenceFiles,
   toPersistenceNode,
+  type PersistenceFileRecord,
   type PersistenceImageNode,
   type PersistenceTextNode,
 } from "../nodePersistenceAdapter";
-import {
-  isImageNode,
-  isTextNode,
-  type ImageNode,
-  type TextNode,
-} from "../../../types/canvas";
 
 describe("toPersistenceNode", () => {
-  it("TextNode: contentMarkdown → content_markdown", () => {
+  it("TextNode: contentMarkdown -> content_markdown", () => {
     const textNode: TextNode = {
       id: "text-1",
       type: "text",
@@ -33,7 +31,7 @@ describe("toPersistenceNode", () => {
     expect("contentMarkdown" in persisted).toBe(false);
   });
 
-  it("ImageNode: runtimeImageUrl 被移除", () => {
+  it("ImageNode: 結構保持不變", () => {
     const imageNode: ImageNode = {
       id: "img-1",
       type: "image",
@@ -45,22 +43,17 @@ describe("toPersistenceNode", () => {
       color: null,
       content: "caption",
       asset_id: "asset-1",
-      mime_type: "image/png",
-      original_width: 800,
-      original_height: 600,
-      byte_size: 1024,
-      runtimeImageUrl: "blob:mock-url",
     };
 
     const persisted = toPersistenceNode(imageNode) as PersistenceImageNode;
 
-    expect("runtimeImageUrl" in persisted).toBe(false);
     expect(persisted.asset_id).toBe("asset-1");
+    expect("runtimeImageUrl" in persisted).toBe(false);
   });
 });
 
 describe("fromPersistenceNode", () => {
-  it("TextNode: content_markdown → contentMarkdown", () => {
+  it("TextNode: content_markdown -> contentMarkdown", () => {
     const persisted: PersistenceTextNode = {
       id: "text-1",
       type: "text",
@@ -82,7 +75,7 @@ describe("fromPersistenceNode", () => {
     expect("content_markdown" in node).toBe(false);
   });
 
-  it("ImageNode: runtimeImageUrl 設為 undefined", () => {
+  it("ImageNode: 可正常還原", () => {
     const persisted: PersistenceImageNode = {
       id: "img-1",
       type: "image",
@@ -94,18 +87,35 @@ describe("fromPersistenceNode", () => {
       color: null,
       content: "caption",
       asset_id: "asset-1",
-      mime_type: "image/png",
-      original_width: 800,
-      original_height: 600,
-      byte_size: 1024,
     };
 
     const node = fromPersistenceNode(persisted);
 
     expect(node.type).toBe("image");
-    expect(
-      isImageNode(node) ? node.runtimeImageUrl : undefined,
-    ).toBeUndefined();
+    if (node.type === "image") {
+      expect(node.asset_id).toBe("asset-1");
+    }
+  });
+});
+
+describe("files serialization", () => {
+  it("toPersistenceFiles/fromPersistenceFiles round-trip", () => {
+    const files: Record<string, FileRecord> = {
+      "asset-1": {
+        id: "asset-1",
+        mime_type: "image/webp",
+        original_width: 1920,
+        original_height: 1080,
+        byte_size: 204800,
+        created_at: 1700000000000,
+      },
+    };
+
+    const persisted: Record<string, PersistenceFileRecord> =
+      toPersistenceFiles(files);
+    const restored = fromPersistenceFiles(persisted);
+
+    expect(restored).toEqual(files);
   });
 });
 
@@ -125,14 +135,15 @@ describe("migrateLegacyNode", () => {
 
     const migrated = migrateLegacyNode(legacy);
 
-    expect(migrated.type).toBe("text");
-    expect("contentMarkdown" in migrated && migrated.contentMarkdown).toBe(
-      "# Legacy content",
-    );
+    expect(migrated.node.type).toBe("text");
+    expect(
+      "contentMarkdown" in migrated.node && migrated.node.contentMarkdown,
+    ).toBe("# Legacy content");
+    expect(migrated.extractedFile).toBeUndefined();
   });
 
-  it("處理 ImageNode 保留 runtimeImageUrl", () => {
-    const legacy = {
+  it("新格式 ImageNode 不產生 extractedFile", () => {
+    const modern: ImageNode = {
       id: "img-1",
       type: "image",
       x: 0,
@@ -143,22 +154,54 @@ describe("migrateLegacyNode", () => {
       color: null,
       content: "caption",
       asset_id: "asset-1",
+    };
+
+    const migrated = migrateLegacyNode(modern);
+
+    expect(migrated.node.type).toBe("image");
+    expect(migrated.extractedFile).toBeUndefined();
+  });
+
+  it("舊格式 ImageNode 會抽出 FileRecord", () => {
+    const legacyImage = {
+      id: "img-legacy",
+      type: "image",
+      x: 10,
+      y: 20,
+      width: 320,
+      height: 296,
+      heightMode: "fixed",
+      color: null,
+      content: "legacy",
+      asset_id: "asset-legacy",
       mime_type: "image/png",
       original_width: 800,
       original_height: 600,
       byte_size: 1024,
-      runtimeImageUrl: "blob:legacy-url",
-    } as ImageNode & { runtimeImageUrl?: string };
+      runtimeImageUrl: "blob:legacy",
+    } as const;
 
-    const migrated = migrateLegacyNode(legacy);
+    const migrated = migrateLegacyNode(legacyImage);
 
-    expect(migrated.type).toBe("image");
-    expect(isImageNode(migrated) ? migrated.runtimeImageUrl : undefined).toBe(
-      "blob:legacy-url",
-    );
+    expect(migrated.node.type).toBe("image");
+    if (migrated.node.type === "image") {
+      expect(migrated.node.asset_id).toBe("asset-legacy");
+    }
+    expect("mime_type" in migrated.node).toBe(false);
+    expect("original_width" in migrated.node).toBe(false);
+    expect("byte_size" in migrated.node).toBe(false);
+
+    expect(migrated.extractedFile).toMatchObject({
+      id: "asset-legacy",
+      mime_type: "image/png",
+      original_width: 800,
+      original_height: 600,
+      byte_size: 1024,
+    });
+    expect(migrated.extractedFile?.created_at).toEqual(expect.any(Number));
   });
 
-  it("normalizeNodeColor 正確呼叫", () => {
+  it("normalizeNodeColor 正常套用", () => {
     const legacy: PersistenceTextNode = {
       id: "text-1",
       type: "text",
@@ -173,26 +216,6 @@ describe("migrateLegacyNode", () => {
 
     const migrated = migrateLegacyNode(legacy);
 
-    expect(migrated.color).toBe("red");
-  });
-
-  it("已為 CanvasNode 格式的 TextNode 直接回傳", () => {
-    const modern: TextNode = {
-      id: "text-1",
-      type: "text",
-      x: 0,
-      y: 0,
-      width: 280,
-      height: 240,
-      heightMode: "auto",
-      contentMarkdown: "# Modern",
-      color: null,
-    };
-
-    const migrated = migrateLegacyNode(modern);
-
-    expect(isTextNode(migrated) ? migrated.contentMarkdown : "").toBe(
-      "# Modern",
-    );
+    expect(migrated.node.color).toBe("red");
   });
 });

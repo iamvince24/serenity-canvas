@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { FileRecord } from "../../../types/canvas";
 import {
   createImageNodeCenteredAt,
   createNodeId,
@@ -60,86 +61,93 @@ describe("createImageNodeCenteredAt", () => {
     overrides: Partial<ImageNodeUploadPayload> = {},
   ): ImageNodeUploadPayload => ({
     asset_id: "test-asset-id",
+    ...overrides,
+  });
+
+  const createFileRecord = (
+    overrides: Partial<FileRecord> = {},
+  ): FileRecord => ({
+    id: "test-asset-id",
     mime_type: "image/png",
     original_width: 800,
     original_height: 600,
     byte_size: 1024,
-    runtimeImageUrl: "blob:mock-url",
+    created_at: 1,
     ...overrides,
   });
 
   it("正確置中計算", () => {
     const x = 400;
     const y = 300;
-    const payload = createPayload({
+    const payload = createPayload();
+    const file = createFileRecord({
       original_width: 800,
       original_height: 600,
     });
-    const node = createImageNodeCenteredAt(x, y, payload);
+    const node = createImageNodeCenteredAt(x, y, payload, file);
 
     expect(node.x).toBe(x - node.width / 2);
     expect(node.y).toBe(y - node.height / 2);
   });
 
   it("初始寬度 clamped 在 240-420px（原始寬度在範圍內）", () => {
-    const payload = createPayload({
-      original_width: 320,
-      original_height: 240,
-    });
-    const node = createImageNodeCenteredAt(0, 0, payload);
+    const node = createImageNodeCenteredAt(
+      0,
+      0,
+      createPayload(),
+      createFileRecord({ original_width: 320, original_height: 240 }),
+    );
 
     expect(node.width).toBe(320);
   });
 
   it("初始寬度 clamped 在 240-420px（原始寬度過小）", () => {
-    const payload = createPayload({
-      original_width: 100,
-      original_height: 100,
-    });
-    const node = createImageNodeCenteredAt(0, 0, payload);
+    const node = createImageNodeCenteredAt(
+      0,
+      0,
+      createPayload(),
+      createFileRecord({ original_width: 100, original_height: 100 }),
+    );
 
     expect(node.width).toBe(240);
   });
 
   it("初始寬度 clamped 在 240-420px（原始寬度過大）", () => {
-    const payload = createPayload({
-      original_width: 1000,
-      original_height: 800,
-    });
-    const node = createImageNodeCenteredAt(0, 0, payload);
+    const node = createImageNodeCenteredAt(
+      0,
+      0,
+      createPayload(),
+      createFileRecord({ original_width: 1000, original_height: 800 }),
+    );
 
     expect(node.width).toBe(420);
   });
 
   it("高度依 aspect ratio 計算並加上 caption height", () => {
-    const payload = createPayload({
-      original_width: 400,
-      original_height: 300,
-    });
-    const node = createImageNodeCenteredAt(0, 0, payload);
+    const node = createImageNodeCenteredAt(
+      0,
+      0,
+      createPayload(),
+      createFileRecord({ original_width: 400, original_height: 300 }),
+    );
 
-    // initialWidth = 400, imageHeight = (400 * 300) / 400 = 300
     const expectedTotalHeight = IMAGE_NODE_CAPTION_HEIGHT + 300;
     expect(node.height).toBe(expectedTotalHeight);
   });
 
-  it("payload 欄位正確傳入 node", () => {
-    const payload = createPayload({
-      asset_id: "my-asset",
-      mime_type: "image/webp",
-      original_width: 640,
-      original_height: 480,
-      byte_size: 2048,
-      runtimeImageUrl: "blob:custom-url",
-    });
-    const node = createImageNodeCenteredAt(0, 0, payload);
+  it("僅保留 asset_id 到 image node", () => {
+    const node = createImageNodeCenteredAt(
+      0,
+      0,
+      createPayload({ asset_id: "my-asset" }),
+      createFileRecord({ id: "my-asset" }),
+    );
 
     expect(node.asset_id).toBe("my-asset");
-    expect(node.mime_type).toBe("image/webp");
-    expect(node.original_width).toBe(640);
-    expect(node.original_height).toBe(480);
-    expect(node.byte_size).toBe(2048);
-    expect(node.runtimeImageUrl).toBe("blob:custom-url");
+    expect("mime_type" in node).toBe(false);
+    expect("original_width" in node).toBe(false);
+    expect("original_height" in node).toBe(false);
+    expect("byte_size" in node).toBe(false);
   });
 });
 

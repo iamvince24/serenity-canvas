@@ -1,4 +1,4 @@
-import type { ImageNode, TextNode } from "../../types/canvas";
+import type { FileRecord, ImageNode, TextNode } from "../../types/canvas";
 import {
   DEFAULT_NODE_COLOR,
   DEFAULT_NODE_CONTENT,
@@ -36,11 +36,6 @@ export function createTextNodeCenteredAt(x: number, y: number): TextNode {
 
 export type ImageNodeUploadPayload = {
   asset_id: string;
-  mime_type: string;
-  original_width: number;
-  original_height: number;
-  byte_size: number;
-  runtimeImageUrl: string;
 };
 
 function getInitialImageNodeWidth(originalWidth: number): number {
@@ -74,12 +69,13 @@ export function createImageNodeCenteredAt(
   x: number,
   y: number,
   payload: ImageNodeUploadPayload,
+  file: FileRecord,
 ): ImageNode {
-  const initialWidth = getInitialImageNodeWidth(payload.original_width);
+  const initialWidth = getInitialImageNodeWidth(file.original_width);
   const initialHeight = getImageNodeHeightForWidth(
     initialWidth,
-    payload.original_width,
-    payload.original_height,
+    file.original_width,
+    file.original_height,
   );
 
   return {
@@ -93,10 +89,5 @@ export function createImageNodeCenteredAt(
     color: DEFAULT_NODE_COLOR,
     content: "Add a caption...",
     asset_id: payload.asset_id,
-    mime_type: payload.mime_type,
-    original_width: payload.original_width,
-    original_height: payload.original_height,
-    byte_size: payload.byte_size,
-    runtimeImageUrl: payload.runtimeImageUrl,
   };
 }

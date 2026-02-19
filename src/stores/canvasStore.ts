@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { collectGarbage } from "../features/canvas/imageGarbageCollector";
+import { releaseImage } from "../features/canvas/imageUrlCache";
 import type { PersistenceCanvasNode } from "../features/canvas/nodePersistenceAdapter";
 import { migrateLegacyNode } from "../features/canvas/nodePersistenceAdapter";
 import {
@@ -9,6 +11,7 @@ import {
 import type {
   CanvasNode,
   CanvasState,
+  FileRecord,
   NodeHeightMode,
   ViewportState,
 } from "../types/canvas";
@@ -17,6 +20,8 @@ import type {
 type CanvasActions = {
   setViewport: (viewport: ViewportState) => void;
   addNode: (node: CanvasNode | PersistenceCanvasNode) => void;
+  addFile: (record: FileRecord) => void;
+  removeFile: (id: string) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeSize: (id: string, width: number, height: number) => void;
   updateNodeContent: (id: string, content: string) => void;
@@ -40,8 +45,8 @@ const initialViewport: ViewportState = {
 };
 
 type NodesMap = CanvasState["nodes"];
+type FilesMap = CanvasState["files"];
 
-// Shared node patch helper for future command-style reuse.
 function patchNode(
   nodes: NodesMap,
   id: string,
@@ -61,29 +66,74 @@ function patchNode(
   };
 }
 
-function revokeImageRuntimeUrl(node: CanvasNode | undefined): void {
-  if (node?.type !== "image" || !node.runtimeImageUrl) {
-    return;
+function moveNodeToFront(nodes: NodesMap, id: string): NodesMap {
+  const target = nodes[id];
+  if (!target) {
+    return nodes;
   }
 
-  URL.revokeObjectURL(node.runtimeImageUrl);
+  const keys = Object.keys(nodes);
+  if (keys[keys.length - 1] === id) {
+    return nodes;
+  }
+
+  const reordered = { ...nodes };
+  delete reordered[id];
+  reordered[id] = target;
+  return reordered;
+}
+
+function removeFilesByIds(files: FilesMap, ids: string[]): FilesMap {
+  if (ids.length === 0) {
+    return files;
+  }
+
+  const nextFiles = { ...files };
+  for (const id of ids) {
+    delete nextFiles[id];
+  }
+  return nextFiles;
 }
 
 export const useCanvasStore = create<CanvasStore>((set) => ({
   viewport: initialViewport,
   nodes: {},
+  files: {},
   selectedNodeIds: [],
   interactionState: InteractionState.Idle,
   setViewport: (viewport) => {
     set({ viewport });
   },
   addNode: (node) => {
-    const migratedNode = migrateLegacyNode(node);
+    const migrated = migrateLegacyNode(node);
+    set((state) => {
+      const nextFiles = migrated.extractedFile
+        ? {
+            ...state.files,
+            [migrated.extractedFile.id]: migrated.extractedFile,
+          }
+        : state.files;
+
+      return {
+        files: nextFiles,
+        nodes: {
+          ...state.nodes,
+          [migrated.node.id]: migrated.node,
+        },
+      };
+    });
+  },
+  addFile: (record) => {
     set((state) => ({
-      nodes: {
-        ...state.nodes,
-        [migratedNode.id]: migratedNode,
+      files: {
+        ...state.files,
+        [record.id]: record,
       },
+    }));
+  },
+  removeFile: (id) => {
+    set((state) => ({
+      files: removeFilesByIds(state.files, [id]),
     }));
   },
   updateNodePosition: (id, x, y) => {
@@ -171,13 +221,18 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     });
   },
   deleteNode: (id) => {
+    let didDelete = false;
+
     set((state) => {
       const targetNode = state.nodes[id];
       if (!targetNode) {
         return state;
       }
 
-      revokeImageRuntimeUrl(targetNode);
+      didDelete = true;
+      if (targetNode.type === "image") {
+        releaseImage(targetNode.asset_id);
+      }
 
       const remainingNodes = { ...state.nodes };
       delete remainingNodes[id];
@@ -190,20 +245,43 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         interactionState: InteractionState.Idle,
       };
     });
+
+    if (!didDelete) {
+      return;
+    }
+
+    void collectGarbage(
+      () => useCanvasStore.getState(),
+      (ids) => {
+        set((state) => ({
+          files: removeFilesByIds(state.files, ids),
+        }));
+      },
+    ).catch((error) => {
+      console.error("[GC] garbage collection failed:", error);
+    });
   },
   deleteSelectedNodes: () => {
+    let deletedCount = 0;
+
     set((state) => {
       if (state.selectedNodeIds.length === 0) {
         return state;
       }
 
       for (const nodeId of state.selectedNodeIds) {
-        revokeImageRuntimeUrl(state.nodes[nodeId]);
+        const node = state.nodes[nodeId];
+        if (node?.type === "image") {
+          releaseImage(node.asset_id);
+        }
       }
 
       const remainingNodes = { ...state.nodes };
       for (const nodeId of state.selectedNodeIds) {
-        delete remainingNodes[nodeId];
+        if (remainingNodes[nodeId]) {
+          delete remainingNodes[nodeId];
+          deletedCount += 1;
+        }
       }
 
       return {
@@ -212,11 +290,40 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         interactionState: InteractionState.Idle,
       };
     });
+
+    if (deletedCount === 0) {
+      return;
+    }
+
+    void collectGarbage(
+      () => useCanvasStore.getState(),
+      (ids) => {
+        set((state) => ({
+          files: removeFilesByIds(state.files, ids),
+        }));
+      },
+    ).catch((error) => {
+      console.error("[GC] garbage collection failed:", error);
+    });
   },
   selectNode: (nodeId) => {
-    // Keep selection as an array for future multi-select support.
-    set((state) => ({
-      selectedNodeIds: nodeId && state.nodes[nodeId] ? [nodeId] : [],
-    }));
+    set((state) => {
+      if (!nodeId || !state.nodes[nodeId]) {
+        return {
+          selectedNodeIds: [],
+        };
+      }
+
+      const selectedNode = state.nodes[nodeId];
+      const nextNodes =
+        selectedNode.type === "image"
+          ? moveNodeToFront(state.nodes, nodeId)
+          : state.nodes;
+
+      return {
+        nodes: nextNodes,
+        selectedNodeIds: [nodeId],
+      };
+    });
   },
 }));

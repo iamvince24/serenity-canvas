@@ -46,6 +46,7 @@ export function Canvas({ onImageUploadError }: CanvasProps) {
   const dispatch = useCanvasStore((state) => state.dispatch);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const addNode = useCanvasStore((state) => state.addNode);
+  const addFile = useCanvasStore((state) => state.addFile);
   const { uploadImageFile } = useImageUpload();
 
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
@@ -70,7 +71,7 @@ export function Canvas({ onImageUploadError }: CanvasProps) {
       }
 
       try {
-        const uploadedImage = await uploadImageFile(file);
+        const { fileRecord, nodePayload } = await uploadImageFile(file);
         const state = useCanvasStore.getState();
         const bounds = container.getBoundingClientRect();
         const canvasX =
@@ -80,9 +81,11 @@ export function Canvas({ onImageUploadError }: CanvasProps) {
         const imageNode = createImageNodeCenteredAt(
           canvasX,
           canvasY,
-          uploadedImage,
+          nodePayload,
+          fileRecord,
         );
 
+        addFile(fileRecord);
         addNode(imageNode);
         selectNode(imageNode.id);
       } catch (error) {
@@ -94,6 +97,7 @@ export function Canvas({ onImageUploadError }: CanvasProps) {
       }
     },
     [
+      addFile,
       addNode,
       onImageUploadError,
       overlayContainer,
