@@ -30,6 +30,15 @@ export type TextNode = BaseNode & {
 // Reserved for Step 6 implementation.
 export type ImageNode = BaseNode & {
   type: "image";
+  content: string;
+  asset_id: string;
+  mime_type: string;
+  original_width: number;
+  original_height: number;
+  byte_size: number;
+  storage_path?: string;
+  // Runtime-only object URL. This should never be persisted.
+  runtimeImageUrl?: string;
 };
 
 export type CanvasNode = TextNode | ImageNode;

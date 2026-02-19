@@ -1,11 +1,13 @@
 import { useMemo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import {
+  isImageNode,
   isTextNode,
   type CanvasNode,
   type ViewportState,
 } from "../../types/canvas";
 import { CardWidget } from "./CardWidget";
+import { ImageCaptionWidget } from "./ImageCaptionWidget";
 
 type CardOverlayProps = {
   container: HTMLElement;
@@ -46,6 +48,12 @@ export function CardOverlay({
               zoom={viewport.zoom}
               autoFocus={autoFocusNodeId === node.id}
             />
+          ))}
+
+        {Object.values(nodes)
+          .filter(isImageNode)
+          .map((node) => (
+            <ImageCaptionWidget key={node.id} node={node} />
           ))}
       </div>
     </div>,

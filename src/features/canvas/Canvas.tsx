@@ -1,21 +1,33 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
+  type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
+import { isImageNode } from "../../types/canvas";
 import { CardOverlay } from "./CardOverlay";
-import { createTextNodeCenteredAt } from "./nodeFactory";
+import { ImageCanvasNode } from "./ImageCanvasNode";
+import {
+  createImageNodeCenteredAt,
+  createTextNodeCenteredAt,
+} from "./nodeFactory";
 import { InteractionEvent, InteractionState } from "./stateMachine";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useCanvasWheel } from "./useCanvasWheel";
+import { useImageUpload } from "./useImageUpload";
 
 type StageSize = {
   width: number;
   height: number;
+};
+
+type CanvasProps = {
+  onImageUploadError?: (message: string) => void;
 };
 
 function getWindowSize(): StageSize {
@@ -25,23 +37,70 @@ function getWindowSize(): StageSize {
   };
 }
 
-export function Canvas() {
+export function Canvas({ onImageUploadError }: CanvasProps) {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
+  const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const setViewport = useCanvasStore((state) => state.setViewport);
   const dispatch = useCanvasStore((state) => state.dispatch);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const addNode = useCanvasStore((state) => state.addNode);
+  const { uploadImageFile } = useImageUpload();
 
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
   const [overlayContainer, setOverlayContainer] =
     useState<HTMLDivElement | null>(null);
   const [autoFocusNodeId, setAutoFocusNodeId] = useState<string | null>(null);
 
+  const imageNodes = useMemo(
+    () => Object.values(nodes).filter(isImageNode),
+    [nodes],
+  );
+
   const handleContainerRef = useCallback((element: HTMLDivElement | null) => {
     setOverlayContainer(element);
   }, []);
+
+  const createImageNodeFromFile = useCallback(
+    async (file: File, clientX: number, clientY: number) => {
+      const container = overlayContainer;
+      if (!container) {
+        return;
+      }
+
+      try {
+        const uploadedImage = await uploadImageFile(file);
+        const state = useCanvasStore.getState();
+        const bounds = container.getBoundingClientRect();
+        const canvasX =
+          (clientX - bounds.left - state.viewport.x) / state.viewport.zoom;
+        const canvasY =
+          (clientY - bounds.top - state.viewport.y) / state.viewport.zoom;
+        const imageNode = createImageNodeCenteredAt(
+          canvasX,
+          canvasY,
+          uploadedImage,
+        );
+
+        addNode(imageNode);
+        selectNode(imageNode.id);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Image upload failed. Please try again.";
+        onImageUploadError?.(message);
+      }
+    },
+    [
+      addNode,
+      onImageUploadError,
+      overlayContainer,
+      selectNode,
+      uploadImageFile,
+    ],
+  );
 
   const handleRootPointerDownCapture = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -59,6 +118,33 @@ export function Canvas() {
       }
     },
     [],
+  );
+
+  const handleDragOver = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const transfer = event.dataTransfer;
+      if (!transfer || !Array.from(transfer.types).includes("Files")) {
+        return;
+      }
+
+      event.preventDefault();
+      transfer.dropEffect = "copy";
+    },
+    [],
+  );
+
+  const handleDrop = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const files = Array.from(event.dataTransfer.files);
+      const sourceFile = files[0];
+      if (!sourceFile) {
+        return;
+      }
+
+      void createImageNodeFromFile(sourceFile, event.clientX, event.clientY);
+    },
+    [createImageNodeFromFile],
   );
 
   useEffect(() => {
@@ -196,6 +282,8 @@ export function Canvas() {
       ref={handleContainerRef}
       className="relative h-screen w-screen overflow-hidden bg-canvas"
       onPointerDownCapture={handleRootPointerDownCapture}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       <Stage
         width={stageSize.width}
@@ -215,7 +303,16 @@ export function Canvas() {
         onDblClick={handleStageDoubleClick}
         onDblTap={handleStageDoubleClick}
       >
-        <Layer />
+        <Layer>
+          {imageNodes.map((node) => (
+            <ImageCanvasNode
+              key={node.id}
+              node={node}
+              zoom={viewport.zoom}
+              isSelected={selectedNodeIds.includes(node.id)}
+            />
+          ))}
+        </Layer>
       </Stage>
 
       {overlayContainer ? (

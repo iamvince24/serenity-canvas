@@ -5,7 +5,7 @@ export type PersistenceTextNode = Omit<TextNode, "contentMarkdown"> & {
   content_markdown: string;
 };
 
-export type PersistenceImageNode = ImageNode;
+export type PersistenceImageNode = Omit<ImageNode, "runtimeImageUrl">;
 
 export type PersistenceCanvasNode = PersistenceTextNode | PersistenceImageNode;
 
@@ -14,6 +14,7 @@ export function fromPersistenceNode(node: PersistenceCanvasNode): CanvasNode {
     return {
       ...node,
       color: normalizeNodeColor(node.color),
+      runtimeImageUrl: undefined,
     };
   }
 
@@ -27,7 +28,11 @@ export function fromPersistenceNode(node: PersistenceCanvasNode): CanvasNode {
 
 export function toPersistenceNode(node: CanvasNode): PersistenceCanvasNode {
   if (node.type !== "text") {
-    return node;
+    const persistenceImageNode = { ...node } as ImageNode & {
+      runtimeImageUrl?: string;
+    };
+    delete persistenceImageNode.runtimeImageUrl;
+    return persistenceImageNode;
   }
 
   const { contentMarkdown, ...rest } = node;
@@ -42,9 +47,12 @@ export function migrateLegacyNode(
   node: CanvasNode | PersistenceCanvasNode,
 ): CanvasNode {
   if (node.type !== "text") {
+    const runtimeImageUrl =
+      "runtimeImageUrl" in node ? node.runtimeImageUrl : undefined;
     return {
       ...node,
       color: normalizeNodeColor(node.color),
+      runtimeImageUrl,
     };
   }
 

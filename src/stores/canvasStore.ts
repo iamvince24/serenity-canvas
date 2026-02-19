@@ -19,7 +19,7 @@ type CanvasActions = {
   addNode: (node: CanvasNode | PersistenceCanvasNode) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   updateNodeSize: (id: string, width: number, height: number) => void;
-  updateNodeContent: (id: string, contentMarkdown: string) => void;
+  updateNodeContent: (id: string, content: string) => void;
   updateNodeColor: (id: string, color: CanvasNode["color"]) => void;
   setNodeHeightMode: (id: string, mode: NodeHeightMode) => void;
   dispatch: (event: InteractionEvent) => void;
@@ -59,6 +59,14 @@ function patchNode(
       ...patch,
     } as CanvasNode,
   };
+}
+
+function revokeImageRuntimeUrl(node: CanvasNode | undefined): void {
+  if (node?.type !== "image" || !node.runtimeImageUrl) {
+    return;
+  }
+
+  URL.revokeObjectURL(node.runtimeImageUrl);
 }
 
 export const useCanvasStore = create<CanvasStore>((set) => ({
@@ -101,20 +109,34 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       };
     });
   },
-  updateNodeContent: (id, contentMarkdown) => {
+  updateNodeContent: (id, content) => {
     set((state) => {
       const node = state.nodes[id];
-      if (!node || node.type !== "text") {
+      if (!node) {
         return state;
       }
 
-      if (node.contentMarkdown === contentMarkdown) {
-        return state;
+      if (node.type === "text") {
+        if (node.contentMarkdown === content) {
+          return state;
+        }
+
+        return {
+          nodes: patchNode(state.nodes, id, { contentMarkdown: content }),
+        };
       }
 
-      return {
-        nodes: patchNode(state.nodes, id, { contentMarkdown }),
-      };
+      if (node.type === "image") {
+        if (node.content === content) {
+          return state;
+        }
+
+        return {
+          nodes: patchNode(state.nodes, id, { content }),
+        };
+      }
+
+      return state;
     });
   },
   updateNodeColor: (id, color) => {
@@ -150,9 +172,12 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   },
   deleteNode: (id) => {
     set((state) => {
-      if (!state.nodes[id]) {
+      const targetNode = state.nodes[id];
+      if (!targetNode) {
         return state;
       }
+
+      revokeImageRuntimeUrl(targetNode);
 
       const remainingNodes = { ...state.nodes };
       delete remainingNodes[id];
@@ -170,6 +195,10 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     set((state) => {
       if (state.selectedNodeIds.length === 0) {
         return state;
+      }
+
+      for (const nodeId of state.selectedNodeIds) {
+        revokeImageRuntimeUrl(state.nodes[nodeId]);
       }
 
       const remainingNodes = { ...state.nodes };
