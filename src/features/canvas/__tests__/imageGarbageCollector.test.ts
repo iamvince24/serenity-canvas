@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CanvasNode, FileRecord, ImageNode } from "../../../types/canvas";
+import type {
+  CanvasNode,
+  FileRecord,
+  ImageNode,
+  TextNode,
+} from "../../../types/canvas";
 import { collectGarbage } from "../imageGarbageCollector";
 import { deleteImageAsset, getAllAssetIds } from "../imageAssetStorage";
 import { evictImage } from "../imageUrlCache";
@@ -43,6 +48,23 @@ function createFileRecord(id: string): FileRecord {
   };
 }
 
+function createTextNodeWithMarkdown(
+  id: string,
+  contentMarkdown: string,
+): TextNode {
+  return {
+    id,
+    type: "text",
+    x: 0,
+    y: 0,
+    width: 320,
+    height: 240,
+    heightMode: "auto",
+    color: null,
+    contentMarkdown,
+  };
+}
+
 describe("collectGarbage", () => {
   beforeEach(() => {
     mockDeleteImageAsset.mockReset();
@@ -80,6 +102,32 @@ describe("collectGarbage", () => {
         nodes: {
           n1: createImageNode("n1", "asset-shared"),
           n2: createImageNode("n2", "asset-shared"),
+        },
+      }),
+      removeFiles,
+    );
+
+    expect(mockDeleteImageAsset).not.toHaveBeenCalled();
+    expect(mockEvictImage).not.toHaveBeenCalled();
+    expect(removeFiles).not.toHaveBeenCalled();
+    expect(removed).toEqual([]);
+  });
+
+  it("TextNode markdown 引用 asset 時不會誤刪", async () => {
+    mockDeleteImageAsset.mockResolvedValue(undefined);
+    mockGetAllAssetIds.mockResolvedValue(["a55e7"]);
+
+    const removeFiles = vi.fn();
+    const removed = await collectGarbage(
+      () => ({
+        files: {
+          a55e7: createFileRecord("a55e7"),
+        },
+        nodes: {
+          t1: createTextNodeWithMarkdown(
+            "t1",
+            "文字前\n\n![inline](asset:a55e7)\n\n文字後",
+          ),
         },
       }),
       removeFiles,

@@ -1,31 +1,21 @@
-import { useCallback, useState } from "react";
 import { Link } from "react-router";
 import { Canvas } from "../features/canvas/Canvas";
 import { Toolbar } from "../features/canvas/Toolbar";
-
-type UploadErrorNotice = {
-  message: string;
-};
+import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
 
 export function CanvasPage() {
-  const [uploadErrorNotice, setUploadErrorNotice] =
-    useState<UploadErrorNotice | null>(null);
-
-  const handleImageUploadError = useCallback((message: string) => {
-    setUploadErrorNotice({
-      message,
-    });
-  }, []);
-
-  const handleDismissUploadError = useCallback(() => {
-    setUploadErrorNotice(null);
-  }, []);
+  const imageUploadErrorMessage = useUploadNoticeStore(
+    (state) => state.imageUploadErrorMessage,
+  );
+  const dismissImageUploadError = useUploadNoticeStore(
+    (state) => state.dismissImageUploadError,
+  );
 
   return (
     // Canvas fills full viewport; toolbar and back button float above it.
     <main className="relative min-h-screen w-full overflow-hidden bg-canvas">
-      <Canvas onImageUploadError={handleImageUploadError} />
-      <Toolbar onImageUploadError={handleImageUploadError} />
+      <Canvas />
+      <Toolbar />
 
       <Link
         to="/"
@@ -34,7 +24,7 @@ export function CanvasPage() {
         Back to Home
       </Link>
 
-      {uploadErrorNotice ? (
+      {imageUploadErrorMessage ? (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4 md:top-24">
           <div className="pointer-events-auto w-full max-w-md rounded-lg border border-destructive/45 bg-elevated shadow-lg">
             <div className="flex items-start justify-between gap-3 px-4 py-3">
@@ -43,14 +33,14 @@ export function CanvasPage() {
                   Image Upload Failed
                 </p>
                 <p className="mt-1 text-sm leading-[1.4] text-foreground">
-                  {uploadErrorNotice.message}
+                  {imageUploadErrorMessage}
                 </p>
               </div>
 
               <button
                 type="button"
                 className="btn-ghost h-7 shrink-0 px-2 text-xs"
-                onClick={handleDismissUploadError}
+                onClick={dismissImageUploadError}
                 aria-label="Dismiss upload error"
               >
                 Close

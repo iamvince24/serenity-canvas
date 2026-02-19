@@ -9,6 +9,7 @@ import {
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
+import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import { isImageNode } from "../../types/canvas";
 import { CardOverlay } from "./CardOverlay";
 import { ImageCanvasNode } from "./ImageCanvasNode";
@@ -26,10 +27,6 @@ type StageSize = {
   height: number;
 };
 
-type CanvasProps = {
-  onImageUploadError?: (message: string) => void;
-};
-
 function getWindowSize(): StageSize {
   return {
     width: window.innerWidth,
@@ -37,7 +34,7 @@ function getWindowSize(): StageSize {
   };
 }
 
-export function Canvas({ onImageUploadError }: CanvasProps) {
+export function Canvas() {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
@@ -93,17 +90,10 @@ export function Canvas({ onImageUploadError }: CanvasProps) {
           error instanceof Error
             ? error.message
             : "Image upload failed. Please try again.";
-        onImageUploadError?.(message);
+        notifyImageUploadError(message);
       }
     },
-    [
-      addFile,
-      addNode,
-      onImageUploadError,
-      overlayContainer,
-      selectNode,
-      uploadImageFile,
-    ],
+    [addFile, addNode, overlayContainer, selectNode, uploadImageFile],
   );
 
   const handleRootPointerDownCapture = useCallback(
@@ -131,6 +121,13 @@ export function Canvas({ onImageUploadError }: CanvasProps) {
         return;
       }
 
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-card-node-id]")) {
+        // Let card-level handlers own file drops inside cards.
+        event.preventDefault();
+        return;
+      }
+
       event.preventDefault();
       transfer.dropEffect = "copy";
     },
@@ -139,6 +136,13 @@ export function Canvas({ onImageUploadError }: CanvasProps) {
 
   const handleDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-card-node-id]")) {
+        // Ignore bubbling drops from card editors to avoid creating image cards.
+        event.preventDefault();
+        return;
+      }
+
       event.preventDefault();
       const files = Array.from(event.dataTransfer.files);
       const sourceFile = files[0];

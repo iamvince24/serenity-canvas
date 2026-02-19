@@ -13,6 +13,8 @@ export type TiptapJSONContent = {
 
 const INLINE_TOKEN_PATTERN =
   /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|_([^_]+)_|\*([^*]+)\*|`([^`]+)`)/g;
+const ASSET_IMAGE_LINE_PATTERN = /^!\[([^\]]*)\]\(asset:([a-f0-9]+)\)$/;
+const ASSET_IMAGE_PATTERN = /!\[[^\]]*\]\(asset:([a-f0-9]+)\)/g;
 
 function pushPlainTextNodes(
   target: TiptapJSONContent[],
@@ -93,6 +95,7 @@ function paragraphFromText(text: string): TiptapJSONContent {
 function isListBoundary(line: string): boolean {
   return (
     /^#{1,6}(?:\s+.*)?$/.test(line) ||
+    ASSET_IMAGE_LINE_PATTERN.test(line) ||
     /^\s*[-*+]\s+\[[ x]\](?:\s+.*)?$/.test(line) ||
     /^\s*[-*+](?:\s+.*)?$/.test(line) ||
     /^\s*\d+\.(?:\s+.*)?$/.test(line) ||
@@ -135,6 +138,19 @@ function parseBlocks(markdown: string): TiptapJSONContent[] {
         content:
           codeText.length > 0 ? [{ type: "text", text: codeText }] : undefined,
       });
+      continue;
+    }
+
+    const imageMatch = line.match(ASSET_IMAGE_LINE_PATTERN);
+    if (imageMatch) {
+      blocks.push({
+        type: "imageBlock",
+        attrs: {
+          alt: imageMatch[1],
+          assetId: imageMatch[2],
+        },
+      });
+      index += 1;
       continue;
     }
 
@@ -385,6 +401,13 @@ function serializeBlock(node: TiptapJSONContent): string {
     return `\`\`\`${language}\n${codeText}\n\`\`\``;
   }
 
+  if (node.type === "imageBlock") {
+    const alt = typeof node.attrs?.alt === "string" ? node.attrs.alt : "";
+    const assetId =
+      typeof node.attrs?.assetId === "string" ? node.attrs.assetId : "";
+    return `![${alt}](asset:${assetId})`;
+  }
+
   if (node.type === "blockquote") {
     const blockContent = (node.content ?? [])
       .map((child) => serializeBlock(child))
@@ -441,8 +464,14 @@ export function tiptapDocToMarkdown(doc: TiptapJSONContent): string {
   return blocks.join("\n\n").trim();
 }
 
+export function extractAssetIdsFromMarkdown(markdown: string): string[] {
+  const matches = markdown.matchAll(ASSET_IMAGE_PATTERN);
+  return Array.from(matches, (match) => match[1]);
+}
+
 export function markdownToPlainText(markdown: string): string {
   return markdown
+    .replace(ASSET_IMAGE_PATTERN, "")
     .replace(/```[\s\S]*?```/g, (block) =>
       block.replace(/```[^\n]*\n?/g, "").replace(/```/g, ""),
     )

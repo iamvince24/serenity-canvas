@@ -1,4 +1,4 @@
-import { Extension } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
 import Suggestion, { type SuggestionOptions } from "@tiptap/suggestion";
 import { createRoot, type Root } from "react-dom/client";
 import { createElement, createRef } from "react";
@@ -7,10 +7,79 @@ import {
   type SlashCommandMenuHandle,
   type SlashCommandItem,
 } from "./SlashCommandMenu";
+import { useCanvasStore } from "../../stores/canvasStore";
+import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
+import { uploadImageFile } from "./useImageUpload";
 
 type SlashEscapeHandledEvent = KeyboardEvent & {
   __serenitySlashEscapeHandled?: boolean;
 };
+
+function toUploadErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Image upload failed. Please try again.";
+}
+
+async function insertImageFromFile(editor: Editor, file: File): Promise<void> {
+  const { fileRecord } = await uploadImageFile(file);
+
+  const inserted = editor.commands.insertContentAt(
+    editor.state.selection.$to.pos,
+    {
+      type: "imageBlock",
+      attrs: {
+        assetId: fileRecord.id,
+        alt: file.name,
+      },
+    },
+    { updateSelection: true },
+  );
+
+  if (!inserted) {
+    const insertedAtEnd = editor.commands.insertContentAt(
+      editor.state.doc.content.size,
+      {
+        type: "imageBlock",
+        attrs: {
+          assetId: fileRecord.id,
+          alt: file.name,
+        },
+      },
+      { updateSelection: true },
+    );
+    if (!insertedAtEnd) {
+      throw new Error("Failed to insert image into this text card.");
+    }
+  }
+
+  useCanvasStore.getState().addFile(fileRecord);
+  editor.commands.focus();
+}
+
+function openImagePicker(editor: Editor): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/jpeg,image/png,image/gif,image/webp";
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    void insertImageFromFile(editor, file).catch((error: unknown) => {
+      const message = toUploadErrorMessage(error);
+      console.warn("[slashCommands] Failed to insert image via /image.", error);
+      notifyImageUploadError(message);
+    });
+  };
+
+  input.click();
+}
 
 const SLASH_COMMANDS: SlashCommandItem[] = [
   {
@@ -107,6 +176,19 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
       }
 
       chain.toggleTaskList().run();
+    },
+  },
+  {
+    id: "image",
+    label: "Image",
+    description: "插入圖片",
+    keywords: ["image", "圖片", "img"],
+    action: (editor, range) => {
+      if (range) {
+        editor.chain().focus().deleteRange(range).run();
+      }
+
+      openImagePicker(editor);
     },
   },
   {

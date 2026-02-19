@@ -1,15 +1,35 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type ForwardedRef,
+  type DragEvent as ReactDragEvent,
+} from "react";
+import type { Editor } from "@tiptap/core";
+import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { TextSelection } from "@tiptap/pm/state";
+import { useCanvasStore } from "../../stores/canvasStore";
+import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
+import { extractImageFilesFromTransfer } from "./editorImageTransfer";
+import { ImageBlockExtension } from "./imageBlockExtension";
 import { SlashCommands } from "./slashCommandExtension";
 import {
   markdownToTiptapDoc,
   tiptapDocToMarkdown,
   type TiptapJSONContent,
 } from "./markdownCodec";
+import { uploadImageFile } from "./useImageUpload";
+
+const EDITOR_NOT_READY_MESSAGE =
+  "Editor is not ready yet. Please try dropping the image again.";
 
 const TaskItemWithBackspaceBehavior = TaskItem.extend({
   addKeyboardShortcuts() {
@@ -128,6 +148,95 @@ type CardEditorProps = {
   focusAtEndSignal?: number;
 };
 
+export type CardEditorHandle = {
+  insertImageFiles: (files: File[], dropEvent?: DragEvent) => Promise<void>;
+};
+
+function toUploadErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Image upload failed. Please try again.";
+}
+
+export const CardEditor = forwardRef(CardEditorImpl);
+CardEditor.displayName = "CardEditor";
+
+async function insertImageAtPos(
+  editor: Editor,
+  file: File,
+  pos?: number,
+): Promise<number> {
+  const { fileRecord } = await uploadImageFile(file);
+
+  const imageBlock = {
+    type: "imageBlock",
+    attrs: {
+      assetId: fileRecord.id,
+      alt: file.name,
+    },
+  };
+  const insertionPos =
+    typeof pos === "number" ? pos : editor.state.selection.$to.pos;
+
+  let inserted = editor.commands.insertContentAt(insertionPos, imageBlock, {
+    updateSelection: true,
+  });
+
+  if (!inserted) {
+    inserted = editor.commands.insertContentAt(
+      editor.state.doc.content.size,
+      imageBlock,
+      { updateSelection: true },
+    );
+  }
+
+  if (!inserted) {
+    throw new Error("Failed to insert image into this text card.");
+  }
+
+  useCanvasStore.getState().addFile(fileRecord);
+  editor.commands.focus();
+  return editor.state.selection.$to.pos;
+}
+
+async function handleEditorImageDrop(
+  editor: Editor,
+  view: EditorView,
+  event: DragEvent,
+  files: File[],
+): Promise<void> {
+  event.preventDefault();
+  event.stopPropagation();
+  let nextPos =
+    view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ??
+    view.state.selection.$to.pos;
+
+  for (const file of files) {
+    nextPos = await insertImageAtPos(editor, file, nextPos);
+  }
+}
+
+async function handleEditorImagePaste(
+  editor: Editor,
+  event: ClipboardEvent,
+  files: File[],
+): Promise<void> {
+  event.preventDefault();
+
+  for (const file of files) {
+    await insertImageAtPos(editor, file);
+  }
+}
+
+function getReadyEditor(editorRef: React.RefObject<Editor | null>): Editor {
+  const editor = editorRef.current;
+  if (editor && !editor.isDestroyed) {
+    return editor;
+  }
+
+  throw new Error(EDITOR_NOT_READY_MESSAGE);
+}
+
 function fallbackMarkdownDoc(markdown: string): TiptapJSONContent {
   return {
     type: "doc",
@@ -141,12 +250,16 @@ function fallbackMarkdownDoc(markdown: string): TiptapJSONContent {
   };
 }
 
-export function CardEditor({
-  initialMarkdown,
-  onCommit,
-  autoFocus = false,
-  focusAtEndSignal = 0,
-}: CardEditorProps) {
+function CardEditorImpl(
+  {
+    initialMarkdown,
+    onCommit,
+    autoFocus = false,
+    focusAtEndSignal = 0,
+  }: CardEditorProps,
+  ref: ForwardedRef<CardEditorHandle>,
+) {
+  const editorRef = useRef<Editor | null>(null);
   const lastSuccessfulMarkdownRef = useRef(initialMarkdown);
   const lastCommittedMarkdownRef = useRef(initialMarkdown);
   const onCommitRef = useRef(onCommit);
@@ -209,6 +322,7 @@ export function CardEditor({
       StarterKit,
       TaskList,
       TaskItemWithBackspaceBehavior,
+      ImageBlockExtension,
       SlashCommands,
     ],
     content: initialContent,
@@ -219,6 +333,46 @@ export function CardEditor({
         class:
           "card-editor__content w-full text-[16px] leading-[1.4] text-[#1C1C1A] outline-none",
       },
+      handleDrop(view, event) {
+        const files = extractImageFilesFromTransfer(event.dataTransfer);
+        if (files.length === 0) {
+          return false;
+        }
+
+        const editorInstance = editorRef.current;
+        if (!editorInstance || editorInstance.isDestroyed) {
+          return false;
+        }
+
+        void handleEditorImageDrop(editorInstance, view, event, files).catch(
+          (error: unknown) => {
+            const message = toUploadErrorMessage(error);
+            console.warn("[CardEditor] Failed to handle dropped image.", error);
+            notifyImageUploadError(message);
+          },
+        );
+        return true;
+      },
+      handlePaste(_view, event) {
+        const files = extractImageFilesFromTransfer(event.clipboardData);
+        if (files.length === 0) {
+          return false;
+        }
+
+        const editorInstance = editorRef.current;
+        if (!editorInstance || editorInstance.isDestroyed) {
+          return false;
+        }
+
+        void handleEditorImagePaste(editorInstance, event, files).catch(
+          (error: unknown) => {
+            const message = toUploadErrorMessage(error);
+            console.warn("[CardEditor] Failed to handle pasted image.", error);
+            notifyImageUploadError(message);
+          },
+        );
+        return true;
+      },
     },
     onBlur: ({ editor: editorInstance }: { editor: CardEditorInstance }) => {
       commitEditorContent(editorInstance);
@@ -227,6 +381,98 @@ export function CardEditor({
       commitEditorContent(editorInstance);
     },
   });
+
+  // Sync the ref before paint so `insertImageFiles` can read it
+  // from event handlers. TipTap's `onCreate` fires inside setTimeout(0),
+  // which makes the previous ref-via-onCreate approach unreliable under
+  // React StrictMode + TipTap's internal scheduleDestroy race.
+  // useLayoutEffect runs synchronously after commit — before any
+  // setTimeout callbacks and before the browser processes user events.
+  useLayoutEffect(() => {
+    editorRef.current = editor ?? null;
+  }, [editor]);
+
+  const handleWrapperDragOverCapture = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const files = extractImageFilesFromTransfer(event.dataTransfer);
+      if (files.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "copy";
+    },
+    [],
+  );
+
+  const handleWrapperDropCapture = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const files = extractImageFilesFromTransfer(event.dataTransfer);
+      if (files.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const editorInstance = editorRef.current;
+      if (!editorInstance || editorInstance.isDestroyed) {
+        return;
+      }
+
+      const nativeDropEvent = event.nativeEvent;
+      const insertPromise =
+        nativeDropEvent instanceof DragEvent
+          ? handleEditorImageDrop(
+              editorInstance,
+              editorInstance.view,
+              nativeDropEvent,
+              files,
+            )
+          : (async () => {
+              for (const file of files) {
+                await insertImageAtPos(editorInstance, file);
+              }
+            })();
+
+      void insertPromise.catch((error: unknown) => {
+        const message = toUploadErrorMessage(error);
+        console.warn("[CardEditor] Failed to handle dropped image.", error);
+        notifyImageUploadError(message);
+      });
+    },
+    [],
+  );
+
+  const insertImageFiles = useCallback(
+    async (files: File[], dropEvent?: DragEvent) => {
+      const editorInstance = getReadyEditor(editorRef);
+
+      if (dropEvent) {
+        await handleEditorImageDrop(
+          editorInstance,
+          editorInstance.view,
+          dropEvent,
+          files,
+        );
+        return;
+      }
+
+      for (const file of files) {
+        await insertImageAtPos(editorInstance, file);
+      }
+    },
+    [],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertImageFiles,
+    }),
+    [insertImageFiles],
+  );
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || editor.isFocused) {
@@ -298,7 +544,11 @@ export function CardEditor({
   }, [commitEditorContent, editor]);
 
   return (
-    <div className="card-editor w-full px-4 py-4">
+    <div
+      className="card-editor h-full w-full px-4 py-4"
+      onDragOverCapture={handleWrapperDragOverCapture}
+      onDropCapture={handleWrapperDropCapture}
+    >
       <EditorContent editor={editor} className="w-full" />
     </div>
   );

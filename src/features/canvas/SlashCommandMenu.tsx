@@ -36,6 +36,7 @@ const ITEM_ICON: Record<string, string> = {
   bulletList: "•",
   orderedList: "1.",
   taskList: "☑",
+  image: "🖼",
   codeBlock: "</>",
   blockquote: "❝",
   divider: "—",

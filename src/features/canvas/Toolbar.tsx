@@ -1,14 +1,11 @@
 import { ImagePlus } from "lucide-react";
 import { useCallback, useRef, type ChangeEvent } from "react";
 import { useCanvasStore } from "../../stores/canvasStore";
+import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import { createImageNodeCenteredAt } from "./nodeFactory";
 import { useImageUpload } from "./useImageUpload";
 
-type ToolbarProps = {
-  onImageUploadError?: (message: string) => void;
-};
-
-export function Toolbar({ onImageUploadError }: ToolbarProps) {
+export function Toolbar() {
   const viewport = useCanvasStore((state) => state.viewport);
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
@@ -49,13 +46,12 @@ export function Toolbar({ onImageUploadError }: ToolbarProps) {
           error instanceof Error
             ? error.message
             : "Image upload failed. Please try again.";
-        onImageUploadError?.(message);
+        notifyImageUploadError(message);
       }
     },
     [
       addFile,
       addNode,
-      onImageUploadError,
       selectNode,
       uploadImageFile,
       viewport.x,

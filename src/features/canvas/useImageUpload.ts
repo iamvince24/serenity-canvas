@@ -45,6 +45,64 @@ function resolveSourceMimeType(file: File): string | null {
   return inferMimeTypeFromFileName(file.name);
 }
 
+export async function uploadImageFile(
+  file: File,
+): Promise<UploadedImagePayload> {
+  const sourceMimeType = resolveSourceMimeType(file);
+  if (!sourceMimeType) {
+    throw new Error("Unsupported file format. Please upload JPG/PNG/GIF/WEBP.");
+  }
+
+  if (file.size > MAX_SOURCE_FILE_BYTES) {
+    throw new Error("File is too large. Max source size is 10MB.");
+  }
+
+  const compressedOutput = await compressImageWithWorker(file).catch(
+    async () => {
+      // Fallback to source file when browser APIs for worker compression are unavailable.
+      const fallbackDimensions = await loadImageDimensions(file);
+      return {
+        blob: file,
+        mimeType: sourceMimeType,
+        width: fallbackDimensions.width,
+        height: fallbackDimensions.height,
+        originalWidth: fallbackDimensions.width,
+        originalHeight: fallbackDimensions.height,
+        byteSize: file.size,
+      };
+    },
+  );
+
+  const assetId = await computeAssetId(compressedOutput.blob);
+  const mimeType = compressedOutput.mimeType || sourceMimeType;
+  const createdAt = Date.now();
+  const fileRecord: FileRecord = {
+    id: assetId,
+    mime_type: mimeType,
+    original_width: compressedOutput.originalWidth,
+    original_height: compressedOutput.originalHeight,
+    byte_size: compressedOutput.byteSize,
+    created_at: createdAt,
+  };
+
+  await injectImage(assetId, compressedOutput.blob);
+
+  const assetExists = await hasImageAsset(assetId);
+  if (!assetExists) {
+    await saveImageAsset({
+      asset_id: assetId,
+      blob: compressedOutput.blob,
+      mime_type: mimeType,
+      original_width: compressedOutput.originalWidth,
+      original_height: compressedOutput.originalHeight,
+      byte_size: compressedOutput.byteSize,
+      created_at: createdAt,
+    });
+  }
+
+  return { fileRecord, nodePayload: { asset_id: assetId } };
+}
+
 export async function computeAssetId(blob: Blob): Promise<string> {
   if (
     typeof crypto === "undefined" ||
@@ -91,68 +149,12 @@ function loadImageDimensions(blob: Blob): Promise<{
 }
 
 export function useImageUpload() {
-  const uploadImageFile = useCallback(
-    async (file: File): Promise<UploadedImagePayload> => {
-      const sourceMimeType = resolveSourceMimeType(file);
-      if (!sourceMimeType) {
-        throw new Error(
-          "Unsupported file format. Please upload JPG/PNG/GIF/WEBP.",
-        );
-      }
-
-      if (file.size > MAX_SOURCE_FILE_BYTES) {
-        throw new Error("File is too large. Max source size is 10MB.");
-      }
-
-      const compressedOutput = await compressImageWithWorker(file).catch(
-        async () => {
-          // Fallback to source file when browser APIs for worker compression are unavailable.
-          const fallbackDimensions = await loadImageDimensions(file);
-          return {
-            blob: file,
-            mimeType: sourceMimeType,
-            width: fallbackDimensions.width,
-            height: fallbackDimensions.height,
-            originalWidth: fallbackDimensions.width,
-            originalHeight: fallbackDimensions.height,
-            byteSize: file.size,
-          };
-        },
-      );
-
-      const assetId = await computeAssetId(compressedOutput.blob);
-      const mimeType = compressedOutput.mimeType || sourceMimeType;
-      const createdAt = Date.now();
-      const fileRecord: FileRecord = {
-        id: assetId,
-        mime_type: mimeType,
-        original_width: compressedOutput.originalWidth,
-        original_height: compressedOutput.originalHeight,
-        byte_size: compressedOutput.byteSize,
-        created_at: createdAt,
-      };
-
-      await injectImage(assetId, compressedOutput.blob);
-
-      const assetExists = await hasImageAsset(assetId);
-      if (!assetExists) {
-        await saveImageAsset({
-          asset_id: assetId,
-          blob: compressedOutput.blob,
-          mime_type: mimeType,
-          original_width: compressedOutput.originalWidth,
-          original_height: compressedOutput.originalHeight,
-          byte_size: compressedOutput.byteSize,
-          created_at: createdAt,
-        });
-      }
-
-      return { fileRecord, nodePayload: { asset_id: assetId } };
-    },
+  const upload = useCallback(
+    (file: File): Promise<UploadedImagePayload> => uploadImageFile(file),
     [],
   );
 
   return {
-    uploadImageFile,
+    uploadImageFile: upload,
   };
 }

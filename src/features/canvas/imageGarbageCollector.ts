@@ -1,6 +1,7 @@
 import type { CanvasNode, FileRecord } from "../../types/canvas";
 import { deleteImageAsset, getAllAssetIds } from "./imageAssetStorage";
 import { evictImage } from "./imageUrlCache";
+import { extractAssetIdsFromMarkdown } from "./markdownCodec";
 
 type GarbageCollectorState = {
   files: Record<string, FileRecord>;
@@ -15,6 +16,13 @@ function collectReferencedAssetIds(
   for (const node of Object.values(nodes)) {
     if (node.type === "image") {
       referencedIds.add(node.asset_id);
+      continue;
+    }
+
+    if (node.type === "text") {
+      for (const assetId of extractAssetIdsFromMarkdown(node.contentMarkdown)) {
+        referencedIds.add(assetId);
+      }
     }
   }
 

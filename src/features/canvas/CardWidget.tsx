@@ -6,15 +6,18 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type DragEvent as ReactDragEvent,
   type FocusEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { getCardColorStyle } from "../../constants/colors";
 import { useCanvasStore } from "../../stores/canvasStore";
+import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import type { TextNode } from "../../types/canvas";
-import { CardEditor } from "./CardEditor";
+import { CardEditor, type CardEditorHandle } from "./CardEditor";
 import { ColorPicker } from "./ColorPicker";
 import { DEFAULT_NODE_HEIGHT, HANDLE_BAR_HEIGHT } from "./constants";
+import { extractImageFilesFromTransfer } from "./editorImageTransfer";
 import {
   CornerResizeHandle,
   HeightResizeHandle,
@@ -30,6 +33,12 @@ type CardWidgetProps = {
   autoFocus?: boolean;
 };
 
+function toUploadErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Image upload failed. Please try again.";
+}
+
 export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const interactionState = useCanvasStore((state) => state.interactionState);
@@ -38,6 +47,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
   const setNodeHeightMode = useCanvasStore((state) => state.setNodeHeightMode);
   const dragHandleProps = useDragHandle({ nodeId: node.id, zoom });
+  const cardEditorRef = useRef<CardEditorHandle | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const settingsRootRef = useRef<HTMLDivElement | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -86,6 +96,52 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
     setIsSettingsOpen(false);
     setIsColorPickerOpen(false);
   }, [node.id, selectNode]);
+
+  const handleCardDragOverCapture = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const files = extractImageFilesFromTransfer(event.dataTransfer);
+      if (files.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "copy";
+    },
+    [],
+  );
+
+  const handleCardDropCapture = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const files = extractImageFilesFromTransfer(event.dataTransfer);
+      if (files.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const editorHandle = cardEditorRef.current;
+      if (!editorHandle) {
+        console.warn("[CardWidget] CardEditor ref is not attached yet.");
+        notifyImageUploadError("Editor is not ready yet. Please try again.");
+        return;
+      }
+
+      const nativeDropEvent = event.nativeEvent;
+      const dropEvent =
+        nativeDropEvent instanceof DragEvent ? nativeDropEvent : undefined;
+
+      void editorHandle
+        .insertImageFiles(files, dropEvent)
+        .catch((error: unknown) => {
+          const message = toUploadErrorMessage(error);
+          console.warn("[CardWidget] Failed to insert dropped image.", error);
+          notifyImageUploadError(message);
+        });
+    },
+    [],
+  );
 
   const handleContentClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -257,6 +313,8 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
       style={cardStyle}
       className={`card-widget pointer-events-auto ${isSelected ? "card-widget--selected" : ""} ${isResizing ? "card-widget--resizing" : ""}`}
       data-card-node-id={node.id}
+      onDragOverCapture={handleCardDragOverCapture}
+      onDropCapture={handleCardDropCapture}
     >
       <div
         className="card-widget__handle border-b border-[#ECEAE6]"
@@ -330,6 +388,7 @@ export function CardWidget({ node, zoom, autoFocus = false }: CardWidgetProps) {
         onBlurCapture={handleEditorBlurCapture}
       >
         <CardEditor
+          ref={cardEditorRef}
           key={node.id}
           initialMarkdown={node.contentMarkdown}
           onCommit={handleCommit}
