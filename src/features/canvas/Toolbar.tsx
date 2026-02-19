@@ -1,4 +1,4 @@
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Redo2, Undo2 } from "lucide-react";
 import { useCallback, useRef, type ChangeEvent } from "react";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
@@ -10,6 +10,10 @@ export function Toolbar() {
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
   const selectNode = useCanvasStore((state) => state.selectNode);
+  const undo = useCanvasStore((state) => state.undo);
+  const redo = useCanvasStore((state) => state.redo);
+  const canUndo = useCanvasStore((state) => state.canUndo);
+  const canRedo = useCanvasStore((state) => state.canRedo);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { uploadImageFile } = useImageUpload();
 
@@ -63,6 +67,26 @@ export function Toolbar() {
   return (
     <div className="pointer-events-none fixed left-1/2 top-4 z-40 -translate-x-1/2 md:top-6">
       <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-elevated/95 p-1.5 shadow-sm backdrop-blur-sm">
+        <button
+          type="button"
+          className="btn-secondary h-9 w-9 justify-center px-0"
+          aria-label="Undo"
+          title="Undo (Cmd/Ctrl+Z)"
+          onClick={undo}
+          disabled={!canUndo}
+        >
+          <Undo2 size={16} />
+        </button>
+        <button
+          type="button"
+          className="btn-secondary h-9 w-9 justify-center px-0"
+          aria-label="Redo"
+          title="Redo (Cmd/Ctrl+Shift+Z)"
+          onClick={redo}
+          disabled={!canRedo}
+        >
+          <Redo2 size={16} />
+        </button>
         <button
           type="button"
           className="btn-secondary h-9 gap-2 px-3 text-sm"

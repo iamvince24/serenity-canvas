@@ -29,9 +29,10 @@ const INITIAL_DRAG_STATE: DragState = {
 
 export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
   const selectNode = useCanvasStore((state) => state.selectNode);
-  const updateNodePosition = useCanvasStore(
-    (state) => state.updateNodePosition,
+  const previewNodePosition = useCanvasStore(
+    (state) => state.previewNodePosition,
   );
+  const commitNodeMove = useCanvasStore((state) => state.commitNodeMove);
   const dispatch = useCanvasStore((state) => state.dispatch);
   const dragStateRef = useRef<DragState>(INITIAL_DRAG_STATE);
 
@@ -41,9 +42,24 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
       return;
     }
 
+    const node = useCanvasStore.getState().nodes[nodeId];
+    if (node) {
+      commitNodeMove(
+        nodeId,
+        {
+          x: dragState.startNodeX,
+          y: dragState.startNodeY,
+        },
+        {
+          x: node.x,
+          y: node.y,
+        },
+      );
+    }
+
     dragStateRef.current = INITIAL_DRAG_STATE;
     dispatch(InteractionEvent.NODE_DRAG_END);
-  }, [dispatch]);
+  }, [commitNodeMove, dispatch, nodeId]);
 
   const onPointerDown = useCallback<PointerEventHandler<HTMLDivElement>>(
     (event) => {
@@ -87,7 +103,7 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
       const deltaX = (event.clientX - dragState.startPointerX) / dragState.zoom;
       const deltaY = (event.clientY - dragState.startPointerY) / dragState.zoom;
 
-      updateNodePosition(
+      previewNodePosition(
         nodeId,
         dragState.startNodeX + deltaX,
         dragState.startNodeY + deltaY,
@@ -96,7 +112,7 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
       event.preventDefault();
       event.stopPropagation();
     },
-    [nodeId, updateNodePosition],
+    [nodeId, previewNodePosition],
   );
 
   const onPointerUp = useCallback<PointerEventHandler<HTMLDivElement>>(

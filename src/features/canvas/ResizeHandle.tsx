@@ -1,4 +1,5 @@
 import { useCallback, useRef, type MouseEventHandler } from "react";
+import { toNodeGeometrySnapshot } from "../../commands/nodeCommands";
 import { useCanvasStore } from "../../stores/canvasStore";
 import type { TextNode } from "../../types/canvas";
 import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from "./constants";
@@ -13,30 +14,6 @@ type CornerResizeHandleProps = ResizeHandleProps & {
   corner: "top-left" | "top-right" | "bottom-left" | "bottom-right";
 };
 
-type WidthStartSnapshot = {
-  width: number;
-  height: number;
-};
-
-type LeftWidthStartSnapshot = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-type HeightStartSnapshot = {
-  width: number;
-  height: number;
-};
-
-type CornerStartSnapshot = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
 function getCornerCursor(
   corner: CornerResizeHandleProps["corner"],
 ): "nwse-resize" | "nesw-resize" {
@@ -46,8 +23,13 @@ function getCornerCursor(
 }
 
 export function WidthResizeHandle({ node, zoom }: ResizeHandleProps) {
-  const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
-  const startSnapshotRef = useRef<WidthStartSnapshot | null>(null);
+  const previewNodeGeometry = useCanvasStore(
+    (state) => state.previewNodeGeometry,
+  );
+  const commitNodeResize = useCanvasStore((state) => state.commitNodeResize);
+  const startSnapshotRef = useRef<ReturnType<
+    typeof toNodeGeometrySnapshot
+  > | null>(null);
 
   const {
     onMouseDown: onResizeMouseDown,
@@ -64,22 +46,33 @@ export function WidthResizeHandle({ node, zoom }: ResizeHandleProps) {
       }
 
       const nextWidth = Math.max(MIN_NODE_WIDTH, start.width + dx);
-      updateNodeSize(node.id, nextWidth, start.height);
+      previewNodeGeometry(node.id, {
+        ...start,
+        width: nextWidth,
+      });
     },
     onEnd: () => {
+      const start = startSnapshotRef.current;
       startSnapshotRef.current = null;
+      if (!start) {
+        return;
+      }
+
+      const currentNode = useCanvasStore.getState().nodes[node.id];
+      if (!currentNode) {
+        return;
+      }
+
+      commitNodeResize(node.id, start, toNodeGeometrySnapshot(currentNode));
     },
   });
 
   const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
     (event) => {
-      startSnapshotRef.current = {
-        width: node.width,
-        height: node.height,
-      };
+      startSnapshotRef.current = toNodeGeometrySnapshot(node);
       onResizeMouseDown(event);
     },
-    [node.height, node.width, onResizeMouseDown],
+    [node, onResizeMouseDown],
   );
 
   return (
@@ -95,11 +88,13 @@ export function WidthResizeHandle({ node, zoom }: ResizeHandleProps) {
 }
 
 export function LeftWidthResizeHandle({ node, zoom }: ResizeHandleProps) {
-  const updateNodePosition = useCanvasStore(
-    (state) => state.updateNodePosition,
+  const previewNodeGeometry = useCanvasStore(
+    (state) => state.previewNodeGeometry,
   );
-  const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
-  const startSnapshotRef = useRef<LeftWidthStartSnapshot | null>(null);
+  const commitNodeResize = useCanvasStore((state) => state.commitNodeResize);
+  const startSnapshotRef = useRef<ReturnType<
+    typeof toNodeGeometrySnapshot
+  > | null>(null);
 
   const {
     onMouseDown: onResizeMouseDown,
@@ -117,25 +112,34 @@ export function LeftWidthResizeHandle({ node, zoom }: ResizeHandleProps) {
 
       const nextWidth = Math.max(MIN_NODE_WIDTH, start.width - dx);
       const nextX = start.x + (start.width - nextWidth);
-      updateNodePosition(node.id, nextX, start.y);
-      updateNodeSize(node.id, nextWidth, start.height);
+      previewNodeGeometry(node.id, {
+        ...start,
+        x: nextX,
+        width: nextWidth,
+      });
     },
     onEnd: () => {
+      const start = startSnapshotRef.current;
       startSnapshotRef.current = null;
+      if (!start) {
+        return;
+      }
+
+      const currentNode = useCanvasStore.getState().nodes[node.id];
+      if (!currentNode) {
+        return;
+      }
+
+      commitNodeResize(node.id, start, toNodeGeometrySnapshot(currentNode));
     },
   });
 
   const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
     (event) => {
-      startSnapshotRef.current = {
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
-      };
+      startSnapshotRef.current = toNodeGeometrySnapshot(node);
       onResizeMouseDown(event);
     },
-    [node.height, node.width, node.x, node.y, onResizeMouseDown],
+    [node, onResizeMouseDown],
   );
 
   return (
@@ -151,9 +155,13 @@ export function LeftWidthResizeHandle({ node, zoom }: ResizeHandleProps) {
 }
 
 export function HeightResizeHandle({ node, zoom }: ResizeHandleProps) {
-  const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
-  const setNodeHeightMode = useCanvasStore((state) => state.setNodeHeightMode);
-  const startSnapshotRef = useRef<HeightStartSnapshot | null>(null);
+  const previewNodeGeometry = useCanvasStore(
+    (state) => state.previewNodeGeometry,
+  );
+  const commitNodeResize = useCanvasStore((state) => state.commitNodeResize);
+  const startSnapshotRef = useRef<ReturnType<
+    typeof toNodeGeometrySnapshot
+  > | null>(null);
 
   const {
     onMouseDown: onResizeMouseDown,
@@ -170,23 +178,34 @@ export function HeightResizeHandle({ node, zoom }: ResizeHandleProps) {
       }
 
       const nextHeight = Math.max(MIN_NODE_HEIGHT, start.height + dy);
-      updateNodeSize(node.id, start.width, nextHeight);
-      setNodeHeightMode(node.id, "fixed");
+      previewNodeGeometry(node.id, {
+        ...start,
+        height: nextHeight,
+        heightMode: "fixed",
+      });
     },
     onEnd: () => {
+      const start = startSnapshotRef.current;
       startSnapshotRef.current = null;
+      if (!start) {
+        return;
+      }
+
+      const currentNode = useCanvasStore.getState().nodes[node.id];
+      if (!currentNode) {
+        return;
+      }
+
+      commitNodeResize(node.id, start, toNodeGeometrySnapshot(currentNode));
     },
   });
 
   const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
     (event) => {
-      startSnapshotRef.current = {
-        width: node.width,
-        height: node.height,
-      };
+      startSnapshotRef.current = toNodeGeometrySnapshot(node);
       onResizeMouseDown(event);
     },
-    [node.height, node.width, onResizeMouseDown],
+    [node, onResizeMouseDown],
   );
 
   return (
@@ -206,12 +225,13 @@ export function CornerResizeHandle({
   zoom,
   corner,
 }: CornerResizeHandleProps) {
-  const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
-  const updateNodePosition = useCanvasStore(
-    (state) => state.updateNodePosition,
+  const previewNodeGeometry = useCanvasStore(
+    (state) => state.previewNodeGeometry,
   );
-  const setNodeHeightMode = useCanvasStore((state) => state.setNodeHeightMode);
-  const startSnapshotRef = useRef<CornerStartSnapshot | null>(null);
+  const commitNodeResize = useCanvasStore((state) => state.commitNodeResize);
+  const startSnapshotRef = useRef<ReturnType<
+    typeof toNodeGeometrySnapshot
+  > | null>(null);
 
   const {
     onMouseDown: onResizeMouseDown,
@@ -262,26 +282,37 @@ export function CornerResizeHandle({
         }
       }
 
-      updateNodePosition(node.id, nextX, nextY);
-      updateNodeSize(node.id, nextWidth, nextHeight);
-      setNodeHeightMode(node.id, "fixed");
+      previewNodeGeometry(node.id, {
+        ...start,
+        x: nextX,
+        y: nextY,
+        width: nextWidth,
+        height: nextHeight,
+        heightMode: "fixed",
+      });
     },
     onEnd: () => {
+      const start = startSnapshotRef.current;
       startSnapshotRef.current = null;
+      if (!start) {
+        return;
+      }
+
+      const currentNode = useCanvasStore.getState().nodes[node.id];
+      if (!currentNode) {
+        return;
+      }
+
+      commitNodeResize(node.id, start, toNodeGeometrySnapshot(currentNode));
     },
   });
 
   const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
     (event) => {
-      startSnapshotRef.current = {
-        x: node.x,
-        y: node.y,
-        width: node.width,
-        height: node.height,
-      };
+      startSnapshotRef.current = toNodeGeometrySnapshot(node);
       onResizeMouseDown(event);
     },
-    [node.height, node.width, node.x, node.y, onResizeMouseDown],
+    [node, onResizeMouseDown],
   );
 
   return (

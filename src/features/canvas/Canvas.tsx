@@ -34,6 +34,23 @@ function getWindowSize(): StageSize {
   };
 }
 
+function isEditableElement(element: HTMLElement | null): boolean {
+  if (!element) {
+    return false;
+  }
+
+  if (
+    element.isContentEditable ||
+    element.tagName === "INPUT" ||
+    element.tagName === "TEXTAREA" ||
+    element.tagName === "SELECT"
+  ) {
+    return true;
+  }
+
+  return Boolean(element.closest(".ProseMirror"));
+}
+
 export function Canvas() {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
@@ -45,6 +62,8 @@ export function Canvas() {
   const selectNode = useCanvasStore((state) => state.selectNode);
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
+  const undo = useCanvasStore((state) => state.undo);
+  const redo = useCanvasStore((state) => state.redo);
   const { uploadImageFile } = useImageUpload();
 
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
@@ -211,6 +230,45 @@ export function Canvas() {
       window.cancelAnimationFrame(frameId);
     };
   }, [autoFocusNodeId]);
+
+  useEffect(() => {
+    const handleUndoRedoShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      const isModifierPressed = event.metaKey || event.ctrlKey;
+      if (!isModifierPressed || event.altKey) {
+        return;
+      }
+
+      if (event.key.toLowerCase() !== "z") {
+        return;
+      }
+
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const activeElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      if (isEditableElement(target) || isEditableElement(activeElement)) {
+        return;
+      }
+
+      event.preventDefault();
+      if (event.shiftKey) {
+        redo();
+        return;
+      }
+
+      undo();
+    };
+
+    window.addEventListener("keydown", handleUndoRedoShortcut);
+    return () => {
+      window.removeEventListener("keydown", handleUndoRedoShortcut);
+    };
+  }, [redo, undo]);
 
   const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
     const stage = event.target.getStage();

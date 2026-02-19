@@ -403,15 +403,13 @@
   }
 
   .card-widget__settings-dropdown {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
     min-width: 192px;
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 6px;
     background: var(--popover);
     box-shadow: 0 10px 24px rgb(20 20 18 / 14%);
+    overscroll-behavior: contain;
   }
 
   .card-widget__settings-item {

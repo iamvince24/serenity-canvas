@@ -41,6 +41,7 @@ function seedNodes(nodes: CanvasNode[], nodeOrder: string[]) {
 
 describe("canvasStore layer order", () => {
   beforeEach(() => {
+    useCanvasStore.getState().clearHistory();
     useCanvasStore.setState({
       viewport: { x: 0, y: 0, zoom: 1 },
       nodes: {},
@@ -48,6 +49,8 @@ describe("canvasStore layer order", () => {
       files: {},
       selectedNodeIds: [],
       interactionState: InteractionState.Idle,
+      canUndo: false,
+      canRedo: false,
     });
   });
 

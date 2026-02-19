@@ -1,6 +1,7 @@
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
+import { toNodeGeometrySnapshot } from "../../commands/nodeCommands";
 import { getCardColorStyle } from "../../constants/colors";
 import { useCanvasStore } from "../../stores/canvasStore";
 import type { ImageNode } from "../../types/canvas";
@@ -308,10 +309,14 @@ export function ImageCanvasNode({
 }: ImageCanvasNodeProps) {
   const file = useCanvasStore((state) => state.files[node.asset_id]);
   const selectNode = useCanvasStore((state) => state.selectNode);
-  const updateNodePosition = useCanvasStore(
-    (state) => state.updateNodePosition,
+  const previewNodePosition = useCanvasStore(
+    (state) => state.previewNodePosition,
   );
-  const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
+  const previewNodeGeometry = useCanvasStore(
+    (state) => state.previewNodeGeometry,
+  );
+  const commitNodeMove = useCanvasStore((state) => state.commitNodeMove);
+  const commitNodeResize = useCanvasStore((state) => state.commitNodeResize);
   const dispatch = useCanvasStore((state) => state.dispatch);
 
   const [cacheEntry, setCacheEntry] = useState<{
@@ -320,6 +325,10 @@ export function ImageCanvasNode({
   } | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const resizeStateRef = useRef<ResizeState | null>(null);
+  const resizeStartGeometryRef = useRef<ReturnType<
+    typeof toNodeGeometrySnapshot
+  > | null>(null);
+  const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const isResizingRef = useRef(false);
   const stopResizeRef = useRef<(() => void) | null>(null);
 
@@ -404,27 +413,42 @@ export function ImageCanvasNode({
       event.cancelBubble = true;
       selectNode(node.id);
       dispatch(InteractionEvent.NODE_DRAG_START);
+      const currentNode = useCanvasStore.getState().nodes[node.id];
+      dragStartPositionRef.current = {
+        x: currentNode?.x ?? node.x,
+        y: currentNode?.y ?? node.y,
+      };
     },
-    [dispatch, node.id, selectNode],
+    [dispatch, node.id, node.x, node.y, selectNode],
   );
 
   const handleDragMove = useCallback(
     (event: KonvaEventObject<DragEvent>) => {
       const target = event.target;
-      updateNodePosition(node.id, target.x(), target.y());
+      previewNodePosition(node.id, target.x(), target.y());
       event.cancelBubble = true;
     },
-    [node.id, updateNodePosition],
+    [node.id, previewNodePosition],
   );
 
   const handleDragEnd = useCallback(
     (event: KonvaEventObject<DragEvent>) => {
       const target = event.target;
-      updateNodePosition(node.id, target.x(), target.y());
+      const finalPosition = {
+        x: target.x(),
+        y: target.y(),
+      };
+      previewNodePosition(node.id, finalPosition.x, finalPosition.y);
+      const startPosition = dragStartPositionRef.current ?? {
+        x: node.x,
+        y: node.y,
+      };
+      dragStartPositionRef.current = null;
+      commitNodeMove(node.id, startPosition, finalPosition);
       dispatch(InteractionEvent.NODE_DRAG_END);
       event.cancelBubble = true;
     },
-    [dispatch, node.id, updateNodePosition],
+    [commitNodeMove, dispatch, node.id, node.x, node.y, previewNodePosition],
   );
 
   const handleResizePointerDown = useCallback(
@@ -453,6 +477,7 @@ export function ImageCanvasNode({
         MIN_IMAGE_CONTENT_HEIGHT,
         node.height - IMAGE_NODE_CAPTION_HEIGHT,
       );
+      resizeStartGeometryRef.current = toNodeGeometrySnapshot(node);
       const aspectRatio =
         file && file.original_width > 0 && file.original_height > 0
           ? file.original_width / file.original_height
@@ -494,17 +519,29 @@ export function ImageCanvasNode({
           isFreeformResize,
         );
 
-        updateNodePosition(node.id, nextSnapshot.x, nextSnapshot.y);
-        updateNodeSize(
-          node.id,
-          nextSnapshot.width,
-          nextSnapshot.imageHeight + IMAGE_NODE_CAPTION_HEIGHT,
-        );
+        previewNodeGeometry(node.id, {
+          x: nextSnapshot.x,
+          y: nextSnapshot.y,
+          width: nextSnapshot.width,
+          height: nextSnapshot.imageHeight + IMAGE_NODE_CAPTION_HEIGHT,
+          heightMode: node.heightMode,
+        });
       };
 
       const handlePointerUp = () => {
+        const startGeometry = resizeStartGeometryRef.current;
+        const currentNode = useCanvasStore.getState().nodes[node.id];
+        if (startGeometry && currentNode) {
+          commitNodeResize(
+            node.id,
+            startGeometry,
+            toNodeGeometrySnapshot(currentNode),
+          );
+        }
+
         clearResizeCursor();
         resizeStateRef.current = null;
+        resizeStartGeometryRef.current = null;
         isResizingRef.current = false;
         setIsResizing(false);
         window.removeEventListener("mousemove", handleMouseMove);
@@ -536,15 +573,11 @@ export function ImageCanvasNode({
       clearResizeCursor,
       dispatch,
       file,
-      node.height,
-      node.id,
-      node.width,
-      node.x,
-      node.y,
+      node,
+      commitNodeResize,
+      previewNodeGeometry,
       selectNode,
       setResizeCursor,
-      updateNodePosition,
-      updateNodeSize,
       zoom,
     ],
   );

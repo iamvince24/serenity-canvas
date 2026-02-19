@@ -16,6 +16,7 @@ import {
   type FocusEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { getCardColorStyle } from "../../constants/colors";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
@@ -40,6 +41,17 @@ type CardWidgetProps = {
   autoFocus?: boolean;
 };
 
+type SettingsDropdownLayout = {
+  left: number;
+  top: number;
+  maxHeight: number;
+};
+
+const SETTINGS_DROPDOWN_MIN_WIDTH = 192;
+const SETTINGS_DROPDOWN_OFFSET = 6;
+const SETTINGS_DROPDOWN_PADDING = 8;
+const SETTINGS_DROPDOWN_Z_INDEX = 1400;
+
 function toUploadErrorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
@@ -57,7 +69,7 @@ export function CardWidget({
   const nodes = useCanvasStore((state) => state.nodes);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const selectNode = useCanvasStore((state) => state.selectNode);
-  const updateNodeSize = useCanvasStore((state) => state.updateNodeSize);
+  const previewNodeSize = useCanvasStore((state) => state.previewNodeSize);
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
   const setNodeHeightMode = useCanvasStore((state) => state.setNodeHeightMode);
   const moveTextNodeUp = useCanvasStore((state) => state.moveTextNodeUp);
@@ -72,10 +84,14 @@ export function CardWidget({
   const cardEditorRef = useRef<CardEditorHandle | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const settingsRootRef = useRef<HTMLDivElement | null>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const settingsDropdownRef = useRef<HTMLDivElement | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [focusAtEndSignal, setFocusAtEndSignal] = useState(0);
+  const [settingsDropdownLayout, setSettingsDropdownLayout] =
+    useState<SettingsDropdownLayout | null>(null);
 
   const isSelected = selectedNodeIds.includes(node.id);
   const isDragging = interactionState === InteractionState.Dragging;
@@ -265,8 +281,8 @@ export function CardWidget({
       return;
     }
 
-    updateNodeSize(node.id, currentNode.width, nextHeight);
-  }, [node.id, updateNodeSize]);
+    previewNodeSize(node.id, currentNode.width, nextHeight);
+  }, [node.id, previewNodeSize]);
 
   const handleFitContent = useCallback(() => {
     setNodeHeightMode(node.id, "auto");
@@ -300,9 +316,32 @@ export function CardWidget({
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
       selectNode(node.id);
+      const buttonRect = event.currentTarget.getBoundingClientRect();
       setIsSettingsOpen((current) => {
         const next = !current;
-        if (!next) {
+        if (next) {
+          const nextLeft = Math.min(
+            Math.max(
+              buttonRect.right - SETTINGS_DROPDOWN_MIN_WIDTH,
+              SETTINGS_DROPDOWN_PADDING,
+            ),
+            Math.max(
+              SETTINGS_DROPDOWN_PADDING,
+              window.innerWidth -
+                SETTINGS_DROPDOWN_MIN_WIDTH -
+                SETTINGS_DROPDOWN_PADDING,
+            ),
+          );
+          const nextTop = buttonRect.bottom + SETTINGS_DROPDOWN_OFFSET;
+          setSettingsDropdownLayout({
+            left: nextLeft,
+            top: nextTop,
+            maxHeight: Math.max(
+              120,
+              window.innerHeight - nextTop - SETTINGS_DROPDOWN_PADDING,
+            ),
+          });
+        } else {
           setIsColorPickerOpen(false);
         }
 
@@ -312,6 +351,80 @@ export function CardWidget({
     [node.id, selectNode],
   );
 
+  const updateSettingsDropdownLayout = useCallback(() => {
+    const button = settingsButtonRef.current;
+    if (!button) {
+      return;
+    }
+
+    const buttonRect = button.getBoundingClientRect();
+    const dropdown = settingsDropdownRef.current;
+    const dropdownWidth = Math.max(
+      SETTINGS_DROPDOWN_MIN_WIDTH,
+      dropdown?.offsetWidth ?? SETTINGS_DROPDOWN_MIN_WIDTH,
+    );
+    const dropdownHeight = dropdown?.offsetHeight ?? 0;
+
+    const minLeft = SETTINGS_DROPDOWN_PADDING;
+    const maxLeft = Math.max(
+      minLeft,
+      window.innerWidth - dropdownWidth - SETTINGS_DROPDOWN_PADDING,
+    );
+    const preferredLeft = buttonRect.right - dropdownWidth;
+    const nextLeft = Math.min(Math.max(preferredLeft, minLeft), maxLeft);
+
+    const belowTop = buttonRect.bottom + SETTINGS_DROPDOWN_OFFSET;
+    const aboveTop = buttonRect.top - dropdownHeight - SETTINGS_DROPDOWN_OFFSET;
+    const shouldRenderAbove =
+      dropdownHeight > 0 &&
+      belowTop + dropdownHeight >
+        window.innerHeight - SETTINGS_DROPDOWN_PADDING &&
+      aboveTop >= SETTINGS_DROPDOWN_PADDING;
+    const nextTop = shouldRenderAbove ? aboveTop : belowTop;
+    const nextMaxHeight = shouldRenderAbove
+      ? Math.max(
+          120,
+          buttonRect.top - SETTINGS_DROPDOWN_OFFSET - SETTINGS_DROPDOWN_PADDING,
+        )
+      : Math.max(120, window.innerHeight - nextTop - SETTINGS_DROPDOWN_PADDING);
+
+    setSettingsDropdownLayout((current) => {
+      if (
+        current &&
+        Math.abs(current.left - nextLeft) < 0.5 &&
+        Math.abs(current.top - nextTop) < 0.5 &&
+        Math.abs(current.maxHeight - nextMaxHeight) < 0.5
+      ) {
+        return current;
+      }
+
+      return {
+        left: nextLeft,
+        top: nextTop,
+        maxHeight: nextMaxHeight,
+      };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isSettingsVisible) {
+      return;
+    }
+
+    let frameId: number | null = null;
+    const syncPosition = () => {
+      updateSettingsDropdownLayout();
+      frameId = window.requestAnimationFrame(syncPosition);
+    };
+    frameId = window.requestAnimationFrame(syncPosition);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [isSettingsVisible, updateSettingsDropdownLayout]);
+
   useEffect(() => {
     if (!isSettingsVisible) {
       return;
@@ -319,12 +432,17 @@ export function CardWidget({
 
     const handleMouseDown = (event: MouseEvent) => {
       const settingsRoot = settingsRootRef.current;
-      if (!settingsRoot) {
+      const settingsDropdown = settingsDropdownRef.current;
+      if (!settingsRoot && !settingsDropdown) {
         return;
       }
 
       const target = event.target;
-      if (target instanceof Node && settingsRoot.contains(target)) {
+      if (
+        target instanceof Node &&
+        ((settingsRoot && settingsRoot.contains(target)) ||
+          (settingsDropdown && settingsDropdown.contains(target)))
+      ) {
         return;
       }
 
@@ -337,6 +455,23 @@ export function CardWidget({
       window.removeEventListener("mousedown", handleMouseDown);
     };
   }, [isSettingsVisible]);
+
+  const settingsDropdownStyle: CSSProperties = settingsDropdownLayout
+    ? {
+        position: "fixed",
+        left: `${settingsDropdownLayout.left}px`,
+        top: `${settingsDropdownLayout.top}px`,
+        zIndex: SETTINGS_DROPDOWN_Z_INDEX,
+        maxHeight: `${settingsDropdownLayout.maxHeight}px`,
+        overflowY: "auto",
+      }
+    : {
+        position: "fixed",
+        left: 0,
+        top: 0,
+        zIndex: SETTINGS_DROPDOWN_Z_INDEX,
+        visibility: "hidden",
+      };
 
   useEffect(() => {
     if (node.heightMode !== "auto") {
@@ -400,105 +535,111 @@ export function CardWidget({
             type="button"
             className="card-widget__settings-button"
             aria-label="Open card settings"
+            ref={settingsButtonRef}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={handleSettingsButtonClick}
           >
             <Settings2 size={14} />
           </button>
 
-          {isSettingsVisible ? (
-            <div
-              className="card-widget__settings-dropdown"
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="card-widget__settings-item"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleFitContent();
-                }}
-              >
-                Fit Content
-              </button>
-              <button
-                type="button"
-                className="card-widget__settings-item"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setIsColorPickerOpen((current) => !current);
-                }}
-              >
-                Color
-              </button>
-              <div className="card-widget__settings-divider" />
-              <button
-                type="button"
-                className="card-widget__settings-item"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveTextNodeToFront(node.id);
-                }}
-                disabled={disableMoveToFront}
-              >
-                <ChevronsUp size={14} />
-                Bring to Front
-              </button>
-              <button
-                type="button"
-                className="card-widget__settings-item"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveTextNodeUp(node.id);
-                }}
-                disabled={disableMoveUp}
-              >
-                <ChevronUp size={14} />
-                Bring Forward
-              </button>
-              <button
-                type="button"
-                className="card-widget__settings-item"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveTextNodeDown(node.id);
-                }}
-                disabled={disableMoveDown}
-              >
-                <ChevronDown size={14} />
-                Send Backward
-              </button>
-              <button
-                type="button"
-                className="card-widget__settings-item"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  moveTextNodeToBack(node.id);
-                }}
-                disabled={disableMoveToBack}
-              >
-                <ChevronsDown size={14} />
-                Send to Back
-              </button>
-
-              {isColorPickerOpen ? (
-                <>
+          {isSettingsVisible && typeof document !== "undefined"
+            ? createPortal(
+                <div
+                  ref={settingsDropdownRef}
+                  className="card-widget__settings-dropdown"
+                  style={settingsDropdownStyle}
+                  onPointerDown={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className="card-widget__settings-item"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleFitContent();
+                    }}
+                  >
+                    Fit Content
+                  </button>
+                  <button
+                    type="button"
+                    className="card-widget__settings-item"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsColorPickerOpen((current) => !current);
+                    }}
+                  >
+                    Color
+                  </button>
                   <div className="card-widget__settings-divider" />
-                  <ColorPicker
-                    nodeId={node.id}
-                    color={node.color}
-                    onSelectColor={() => setIsColorPickerOpen(false)}
-                  />
-                </>
-              ) : null}
-            </div>
-          ) : null}
+                  <button
+                    type="button"
+                    className="card-widget__settings-item"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveTextNodeToFront(node.id);
+                    }}
+                    disabled={disableMoveToFront}
+                  >
+                    <ChevronsUp size={14} />
+                    Bring to Front
+                  </button>
+                  <button
+                    type="button"
+                    className="card-widget__settings-item"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveTextNodeUp(node.id);
+                    }}
+                    disabled={disableMoveUp}
+                  >
+                    <ChevronUp size={14} />
+                    Bring Forward
+                  </button>
+                  <button
+                    type="button"
+                    className="card-widget__settings-item"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveTextNodeDown(node.id);
+                    }}
+                    disabled={disableMoveDown}
+                  >
+                    <ChevronDown size={14} />
+                    Send Backward
+                  </button>
+                  <button
+                    type="button"
+                    className="card-widget__settings-item"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveTextNodeToBack(node.id);
+                    }}
+                    disabled={disableMoveToBack}
+                  >
+                    <ChevronsDown size={14} />
+                    Send to Back
+                  </button>
+
+                  {isColorPickerOpen ? (
+                    <>
+                      <div className="card-widget__settings-divider" />
+                      <ColorPicker
+                        nodeId={node.id}
+                        color={node.color}
+                        onSelectColor={() => setIsColorPickerOpen(false)}
+                      />
+                    </>
+                  ) : null}
+                </div>,
+                document.body,
+              )
+            : null}
         </div>
       </div>
 

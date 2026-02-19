@@ -33,6 +33,7 @@ vi.mock("../useDragHandle", () => ({
 
 describe("CardWidget layer ordering actions", () => {
   beforeEach(() => {
+    useCanvasStore.getState().clearHistory();
     useCanvasStore.setState({
       viewport: { x: 0, y: 0, zoom: 1 },
       nodes: {
@@ -75,6 +76,8 @@ describe("CardWidget layer ordering actions", () => {
       files: {},
       selectedNodeIds: ["text-1"],
       interactionState: InteractionState.Idle,
+      canUndo: false,
+      canRedo: false,
     });
   });
 
