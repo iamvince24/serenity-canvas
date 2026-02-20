@@ -16,24 +16,27 @@ import {
   type CanvasNode,
   type ImageNode,
 } from "../../types/canvas";
-import { CardOverlay } from "./CardOverlay";
-import { EdgeContextMenu } from "./EdgeContextMenu";
-import { EdgeLabelEditor } from "./EdgeLabelEditor";
-import { EdgeLine } from "./EdgeLine";
-import { ImageCanvasNode } from "./ImageCanvasNode";
+import { CardOverlay } from "./card/CardOverlay";
+import { EdgeContextMenu } from "./edges/EdgeContextMenu";
+import { EdgeLabelEditor } from "./edges/EdgeLabelEditor";
+import { EdgeLine } from "./edges/EdgeLine";
+import { ImageCanvasNode } from "./images/ImageCanvasNode";
 import {
   createImageNodeCenteredAt,
   createTextNodeCenteredAt,
-} from "./nodeFactory";
-import { type NodeContextMenuSlot, type OverlaySlot } from "./overlaySlot";
-import { InteractionEvent, InteractionState } from "./stateMachine";
-import { toCanvasPoint } from "./canvasCoordinates";
-import { useEdgeOverlay } from "./useEdgeOverlay";
-import { useCanvasKeyboard } from "./useCanvasKeyboard";
-import { useCanvasWheel } from "./useCanvasWheel";
-import { useConnectionDrag } from "./useConnectionDrag";
-import { useImageUpload } from "./useImageUpload";
-import { NodeContextMenu, type ContextMenuNodeType } from "./NodeContextMenu";
+} from "./nodes/nodeFactory";
+import { type NodeContextMenuSlot, type OverlaySlot } from "./core/overlaySlot";
+import { InteractionEvent, InteractionState } from "./core/stateMachine";
+import { toCanvasPoint } from "./core/canvasCoordinates";
+import { useEdgeOverlay } from "./edges/useEdgeOverlay";
+import { useCanvasKeyboard } from "./hooks/useCanvasKeyboard";
+import { useCanvasWheel } from "./hooks/useCanvasWheel";
+import { useConnectionDrag } from "./edges/useConnectionDrag";
+import { useImageUpload } from "./images/useImageUpload";
+import {
+  NodeContextMenu,
+  type ContextMenuNodeType,
+} from "./nodes/NodeContextMenu";
 
 type StageSize = {
   width: number;

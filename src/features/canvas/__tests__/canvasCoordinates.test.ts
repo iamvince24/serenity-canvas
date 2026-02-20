@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toCanvasPoint } from "../canvasCoordinates";
+import { toCanvasPoint } from "../core/canvasCoordinates";
 
 function createRect(left: number, top: number): DOMRect {
   return {

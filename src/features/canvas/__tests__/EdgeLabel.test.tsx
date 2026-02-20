@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { EdgeLabel } from "../EdgeLabel";
+import { EdgeLabel } from "../edges/EdgeLabel";
 
 vi.mock("react-konva", () => ({
   Group: ({ children }: { children: ReactNode }) => (

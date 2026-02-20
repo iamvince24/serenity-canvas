@@ -17,248 +17,40 @@ import {
   UpdateContentCommand,
   UpdateHeightModeCommand,
   type NodeCommandContext,
-  type NodeGeometrySnapshot,
-  type NodePositionSnapshot,
 } from "../commands/nodeCommands";
-import { releaseImage } from "../features/canvas/imageUrlCache";
+import { releaseImage } from "../features/canvas/images/imageUrlCache";
 import {
   appendNodeToOrder,
   removeNodeFromOrder,
   reorderMoveDownInSubset,
   reorderMoveUpInSubset,
   reorderToBackInSubset,
-  reorderToFront,
   reorderToFrontInSubset,
-} from "../features/canvas/layerOrder";
-import type { PersistenceCanvasNode } from "../features/canvas/nodePersistenceAdapter";
-import { migrateLegacyNode } from "../features/canvas/nodePersistenceAdapter";
+} from "../features/canvas/nodes/layerOrder";
+import { migrateLegacyNode } from "../features/canvas/nodes/nodePersistenceAdapter";
+import { InteractionState } from "../features/canvas/core/stateMachine";
+import { type Edge } from "../types/canvas";
 import {
-  InteractionEvent,
-  InteractionState,
-  transition,
-} from "../features/canvas/stateMachine";
-import {
-  type CanvasMode,
-  isTextNode,
-  type CanvasNode,
-  type CanvasState,
-  type Edge,
-  type FileRecord,
-  type NodeHeightMode,
-  type ViewportState,
-} from "../types/canvas";
-
-// Write operations for canvas state updates.
-type CanvasActions = {
-  setViewport: (viewport: ViewportState) => void;
-  addNode: (node: CanvasNode | PersistenceCanvasNode) => void;
-  addFile: (record: FileRecord) => void;
-  removeFile: (id: string) => void;
-  updateNodePosition: (id: string, x: number, y: number) => void;
-  previewNodePosition: (id: string, x: number, y: number) => void;
-  commitNodeMove: (
-    id: string,
-    from: NodePositionSnapshot,
-    to: NodePositionSnapshot,
-  ) => void;
-  updateNodeSize: (id: string, width: number, height: number) => void;
-  previewNodeSize: (id: string, width: number, height: number) => void;
-  previewNodeGeometry: (id: string, geometry: NodeGeometrySnapshot) => void;
-  commitNodeResize: (
-    id: string,
-    from: NodeGeometrySnapshot,
-    to: NodeGeometrySnapshot,
-  ) => void;
-  updateNodeContent: (id: string, content: string) => void;
-  updateNodeColor: (id: string, color: CanvasNode["color"]) => void;
-  setNodeHeightMode: (id: string, mode: NodeHeightMode) => void;
-  addEdge: (edge: Edge) => void;
-  updateEdge: (id: string, patch: Partial<Omit<Edge, "id">>) => void;
-  deleteEdge: (id: string) => void;
-  deleteSelectedEdges: () => void;
-  setCanvasMode: (mode: CanvasMode) => void;
-  dispatch: (event: InteractionEvent) => void;
-  deleteNode: (id: string) => void;
-  deleteSelectedNodes: () => void;
-  selectNode: (nodeId: string | null) => void;
-  selectEdge: (edgeId: string | null) => void;
-  deselectAll: () => void;
-  moveTextNodeUp: (id: string) => void;
-  moveTextNodeDown: (id: string) => void;
-  moveTextNodeToFront: (id: string) => void;
-  moveTextNodeToBack: (id: string) => void;
-  undo: () => void;
-  redo: () => void;
-  clearHistory: () => void;
-};
-
-type CanvasStore = CanvasState & {
-  canvasMode: CanvasMode;
-  interactionState: InteractionState;
-  canUndo: boolean;
-  canRedo: boolean;
-} & CanvasActions;
-
-// Default camera starts at world origin with 1:1 zoom.
-const initialViewport: ViewportState = {
-  x: 0,
-  y: 0,
-  zoom: 1,
-};
-
-type NodesMap = CanvasState["nodes"];
-type FilesMap = CanvasState["files"];
-type EdgesMap = CanvasState["edges"];
-
-function patchNode(
-  nodes: NodesMap,
-  id: string,
-  patch: Partial<CanvasNode>,
-): NodesMap {
-  const current = nodes[id];
-  if (!current) {
-    return nodes;
-  }
-
-  return {
-    ...nodes,
-    [id]: {
-      ...current,
-      ...patch,
-    } as CanvasNode,
-  };
-}
-
-function patchEdge(
-  edges: EdgesMap,
-  id: string,
-  patch: Partial<Edge>,
-): EdgesMap {
-  const current = edges[id];
-  if (!current) {
-    return edges;
-  }
-
-  return {
-    ...edges,
-    [id]: {
-      ...current,
-      ...patch,
-    },
-  };
-}
-
-function removeFilesByIds(files: FilesMap, ids: string[]): FilesMap {
-  if (ids.length === 0) {
-    return files;
-  }
-
-  const nextFiles = { ...files };
-  for (const id of ids) {
-    delete nextFiles[id];
-  }
-  return nextFiles;
-}
-
-function removeEdgesByIds(edges: EdgesMap, ids: string[]): EdgesMap {
-  if (ids.length === 0) {
-    return edges;
-  }
-
-  const nextEdges = { ...edges };
-  for (const id of ids) {
-    delete nextEdges[id];
-  }
-  return nextEdges;
-}
-
-function isEdgeEqual(left: Edge, right: Edge): boolean {
-  return (
-    left.id === right.id &&
-    left.fromNode === right.fromNode &&
-    left.toNode === right.toNode &&
-    left.direction === right.direction &&
-    left.label === right.label &&
-    left.lineStyle === right.lineStyle &&
-    left.color === right.color
-  );
-}
-
-function getTextNodeIds(nodes: NodesMap): string[] {
-  return Object.values(nodes)
-    .filter(isTextNode)
-    .map((node) => node.id);
-}
-
-function isNodeOrderEqual(left: string[], right: string[]): boolean {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((id, index) => id === right[index]);
-}
-
-function isPositionEqual(
-  left: NodePositionSnapshot,
-  right: NodePositionSnapshot,
-): boolean {
-  return left.x === right.x && left.y === right.y;
-}
-
-function isGeometryEqual(
-  left: NodeGeometrySnapshot,
-  right: NodeGeometrySnapshot,
-): boolean {
-  return (
-    left.x === right.x &&
-    left.y === right.y &&
-    left.width === right.width &&
-    left.height === right.height &&
-    left.heightMode === right.heightMode
-  );
-}
-
-function toNodeGeometry(node: CanvasNode): NodeGeometrySnapshot {
-  return {
-    x: node.x,
-    y: node.y,
-    width: node.width,
-    height: node.height,
-    heightMode: node.heightMode,
-  };
-}
-
-function getNodeContent(node: CanvasNode): string {
-  return node.type === "text" ? node.contentMarkdown : node.content;
-}
-
-function sanitizeNodeOrder(nodeOrder: string[], nodes: NodesMap): string[] {
-  const filtered = nodeOrder.filter((id) => Boolean(nodes[id]));
-  const seen = new Set(filtered);
-
-  for (const nodeId of Object.keys(nodes)) {
-    if (!seen.has(nodeId)) {
-      filtered.push(nodeId);
-      seen.add(nodeId);
-    }
-  }
-
-  return filtered;
-}
-
-function getConnectedEdgeIds(edges: EdgesMap, nodeId: string): string[] {
-  return Object.values(edges)
-    .filter((edge) => edge.fromNode === nodeId || edge.toNode === nodeId)
-    .map((edge) => edge.id);
-}
-
-function isEdgeValid(edge: Edge, nodes: NodesMap): boolean {
-  if (edge.fromNode === edge.toNode) {
-    return false;
-  }
-
-  return Boolean(nodes[edge.fromNode] && nodes[edge.toNode]);
-}
+  getConnectedEdgeIds,
+  getNodeContent,
+  getTextNodeIds,
+  isEdgeEqual,
+  isEdgeValid,
+  isGeometryEqual,
+  isNodeOrderEqual,
+  isPositionEqual,
+  patchEdge,
+  patchNode,
+  removeEdgesByIds,
+  sanitizeNodeOrder,
+  toNodeGeometry,
+} from "./storeHelpers";
+import type { CanvasStore } from "./storeTypes";
+import { createViewportSlice } from "./slices/viewportSlice";
+import { createFileSlice } from "./slices/fileSlice";
+import { createInteractionSlice } from "./slices/interactionSlice";
+import { createSelectionSlice } from "./slices/selectionSlice";
+import { createHistorySlice } from "./slices/historySlice";
 
 export const useCanvasStore = create<CanvasStore>((set, get) => {
   const history = new HistoryManager(50);
@@ -473,20 +265,14 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
   };
 
   return {
-    viewport: initialViewport,
     nodes: {},
     nodeOrder: [],
-    files: {},
     edges: {},
-    selectedNodeIds: [],
-    selectedEdgeIds: [],
-    canvasMode: "select",
-    interactionState: InteractionState.Idle,
-    canUndo: false,
-    canRedo: false,
-    setViewport: (viewport) => {
-      set({ viewport });
-    },
+    ...createViewportSlice(set),
+    ...createFileSlice(set),
+    ...createInteractionSlice(set),
+    ...createSelectionSlice(set),
+    ...createHistorySlice(history, syncHistoryState),
     addNode: (node) => {
       const migrated = migrateLegacyNode(node);
       executeCommand(
@@ -496,19 +282,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           migrated.extractedFile,
         ),
       );
-    },
-    addFile: (record) => {
-      set((state) => ({
-        files: {
-          ...state.files,
-          [record.id]: record,
-        },
-      }));
-    },
-    removeFile: (id) => {
-      set((state) => ({
-        files: removeFilesByIds(state.files, [id]),
-      }));
     },
     updateNodePosition: (id, x, y) => {
       const node = get().nodes[id];
@@ -673,41 +446,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
 
       executeCommand(new CompositeCommand(commands, "edge.delete-selected"));
     },
-    setCanvasMode: (mode) => {
-      set((state) => {
-        if (state.canvasMode === mode) {
-          return state;
-        }
-
-        if (
-          state.interactionState === InteractionState.Connecting &&
-          mode === "select"
-        ) {
-          return {
-            canvasMode: mode,
-            interactionState: transition(
-              state.interactionState,
-              InteractionEvent.ESCAPE,
-            ),
-          };
-        }
-
-        if (state.interactionState !== InteractionState.Idle) {
-          return state;
-        }
-
-        return {
-          canvasMode: mode,
-        };
-      });
-    },
-    dispatch: (event) => {
-      set((state) => {
-        return {
-          interactionState: transition(state.interactionState, event),
-        };
-      });
-    },
     deleteNode: (id) => {
       const state = get();
       const node = state.nodes[id];
@@ -789,50 +527,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
 
       executeCommand(new CompositeCommand(commands, "node.delete-selected"));
     },
-    selectNode: (nodeId) => {
-      set((state) => {
-        if (!nodeId || !state.nodes[nodeId]) {
-          return {
-            selectedNodeIds: [],
-            selectedEdgeIds: [],
-          };
-        }
-
-        const selectedNode = state.nodes[nodeId];
-        // Keep current behavior: selecting an image brings it to the front so
-        // overlapping images remain directly manipulable.
-        const nextNodeOrder =
-          selectedNode.type === "image"
-            ? reorderToFront(state.nodeOrder, nodeId)
-            : state.nodeOrder;
-
-        return {
-          nodeOrder: nextNodeOrder,
-          selectedNodeIds: [nodeId],
-          selectedEdgeIds: [],
-        };
-      });
-    },
-    selectEdge: (edgeId) => {
-      set((state) => {
-        if (!edgeId || !state.edges[edgeId]) {
-          return {
-            selectedEdgeIds: [],
-          };
-        }
-
-        return {
-          selectedNodeIds: [],
-          selectedEdgeIds: [edgeId],
-        };
-      });
-    },
-    deselectAll: () => {
-      set({
-        selectedNodeIds: [],
-        selectedEdgeIds: [],
-      });
-    },
     moveTextNodeUp: (id) => {
       const state = get();
       const node = state.nodes[id];
@@ -912,24 +606,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       executeCommand(
         new ReorderNodeCommand(commandContext, state.nodeOrder, nextNodeOrder),
       );
-    },
-    undo: () => {
-      if (!history.undo()) {
-        return;
-      }
-
-      syncHistoryState();
-    },
-    redo: () => {
-      if (!history.redo()) {
-        return;
-      }
-
-      syncHistoryState();
-    },
-    clearHistory: () => {
-      history.clear();
-      syncHistoryState();
     },
   };
 });

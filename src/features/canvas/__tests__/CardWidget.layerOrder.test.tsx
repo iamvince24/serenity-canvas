@@ -2,11 +2,11 @@ import { forwardRef, type Ref } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import { InteractionState } from "../stateMachine";
-import type { CardEditorHandle } from "../CardEditor";
-import { CardWidget } from "../CardWidget";
+import { InteractionState } from "../core/stateMachine";
+import type { CardEditorHandle } from "../editor/CardEditor";
+import { CardWidget } from "../card/CardWidget";
 
-vi.mock("../CardEditor", () => ({
+vi.mock("../editor/CardEditor", () => ({
   CardEditor: forwardRef(function MockCardEditor(
     {
       initialMarkdown,
@@ -20,14 +20,14 @@ vi.mock("../CardEditor", () => ({
   }),
 }));
 
-vi.mock("../ResizeHandle", () => ({
+vi.mock("../card/ResizeHandle", () => ({
   LeftWidthResizeHandle: () => null,
   WidthResizeHandle: () => null,
   HeightResizeHandle: () => null,
   CornerResizeHandle: () => null,
 }));
 
-vi.mock("../useDragHandle", () => ({
+vi.mock("../card/useDragHandle", () => ({
   useDragHandle: () => ({}),
 }));
 

@@ -1,7 +1,7 @@
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ImageBlockExtension } from "../imageBlockExtension";
+import { ImageBlockExtension } from "../images/imageBlockExtension";
 
 vi.mock("@tiptap/react", () => ({
   ReactNodeViewRenderer: () => () => ({

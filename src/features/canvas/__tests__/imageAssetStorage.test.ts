@@ -7,7 +7,7 @@ import {
   hasImageAsset,
   saveImageAsset,
   type ImageAssetRecord,
-} from "../imageAssetStorage";
+} from "../images/imageAssetStorage";
 
 describe("imageAssetStorage", () => {
   const createTestRecord = (

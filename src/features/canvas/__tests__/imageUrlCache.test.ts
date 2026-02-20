@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getImageAssetBlob } from "../imageAssetStorage";
+import { getImageAssetBlob } from "../images/imageAssetStorage";
 import {
   acquireImage,
   evictImage,
   injectImage,
   releaseImage,
-} from "../imageUrlCache";
+} from "../images/imageUrlCache";
 
-vi.mock("../imageAssetStorage", () => ({
+vi.mock("../images/imageAssetStorage", () => ({
   getImageAssetBlob: vi.fn(),
 }));
 

@@ -4,7 +4,7 @@ import {
   markdownToPlainText,
   markdownToTiptapDoc,
   tiptapDocToMarkdown,
-} from "../markdownCodec";
+} from "../editor/markdownCodec";
 
 describe("markdownCodec imageBlock", () => {
   it("asset image markdown 可 round-trip", () => {

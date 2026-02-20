@@ -2,9 +2,9 @@ import { forwardRef, type ReactNode, type Ref } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import type { CardEditorHandle } from "../CardEditor";
+import type { CardEditorHandle } from "../editor/CardEditor";
 import { Canvas } from "../Canvas";
-import { InteractionState } from "../stateMachine";
+import { InteractionState } from "../core/stateMachine";
 
 vi.mock("react-konva", () => ({
   Stage: ({ children }: { children: ReactNode }) => (
@@ -14,7 +14,7 @@ vi.mock("react-konva", () => ({
   Line: () => null,
 }));
 
-vi.mock("../CardEditor", () => ({
+vi.mock("../editor/CardEditor", () => ({
   CardEditor: forwardRef(function MockCardEditor(
     {
       initialMarkdown,
@@ -28,18 +28,18 @@ vi.mock("../CardEditor", () => ({
   }),
 }));
 
-vi.mock("../ResizeHandle", () => ({
+vi.mock("../card/ResizeHandle", () => ({
   LeftWidthResizeHandle: () => null,
   WidthResizeHandle: () => null,
   HeightResizeHandle: () => null,
   CornerResizeHandle: () => null,
 }));
 
-vi.mock("../useDragHandle", () => ({
+vi.mock("../card/useDragHandle", () => ({
   useDragHandle: () => ({}),
 }));
 
-vi.mock("../useConnectionDrag", () => ({
+vi.mock("../edges/useConnectionDrag", () => ({
   useConnectionDrag: () => ({
     connectingSource: null,
     hoveredTarget: null,
@@ -48,25 +48,25 @@ vi.mock("../useConnectionDrag", () => ({
   }),
 }));
 
-vi.mock("../useCanvasKeyboard", () => ({
+vi.mock("../hooks/useCanvasKeyboard", () => ({
   useCanvasKeyboard: () => {},
 }));
 
-vi.mock("../useCanvasWheel", () => ({
+vi.mock("../hooks/useCanvasWheel", () => ({
   useCanvasWheel: () => {},
 }));
 
-vi.mock("../useImageUpload", () => ({
+vi.mock("../images/useImageUpload", () => ({
   useImageUpload: () => ({
     uploadImageFile: vi.fn(),
   }),
 }));
 
-vi.mock("../EdgeLine", () => ({
+vi.mock("../edges/EdgeLine", () => ({
   EdgeLine: () => null,
 }));
 
-vi.mock("../ImageCanvasNode", () => ({
+vi.mock("../images/ImageCanvasNode", () => ({
   ImageCanvasNode: () => null,
 }));
 

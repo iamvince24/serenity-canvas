@@ -2,14 +2,14 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { TextNode } from "../../../types/canvas";
-import { InteractionState } from "../stateMachine";
-import { CardOverlay } from "../CardOverlay";
+import { InteractionState } from "../core/stateMachine";
+import { CardOverlay } from "../card/CardOverlay";
 
-vi.mock("../CardWidget", () => ({
+vi.mock("../card/CardWidget", () => ({
   CardWidget: () => null,
 }));
 
-vi.mock("../ImageCaptionWidget", () => ({
+vi.mock("../images/ImageCaptionWidget", () => ({
   ImageCaptionWidget: () => null,
 }));
 

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import { InteractionState } from "../stateMachine";
-import { EdgeContextMenu } from "../EdgeContextMenu";
+import { InteractionState } from "../core/stateMachine";
+import { EdgeContextMenu } from "../edges/EdgeContextMenu";
 
 function resetStore() {
   useCanvasStore.getState().clearHistory();

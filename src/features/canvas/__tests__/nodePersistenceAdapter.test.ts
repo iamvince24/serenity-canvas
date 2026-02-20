@@ -10,7 +10,7 @@ import {
   type PersistenceFileRecord,
   type PersistenceImageNode,
   type PersistenceTextNode,
-} from "../nodePersistenceAdapter";
+} from "../nodes/nodePersistenceAdapter";
 
 describe("toPersistenceNode", () => {
   it("TextNode: contentMarkdown -> content_markdown", () => {

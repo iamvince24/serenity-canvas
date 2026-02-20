@@ -2,8 +2,8 @@ import { ImagePlus, MousePointer2, Redo2, Spline, Undo2 } from "lucide-react";
 import { useCallback, useRef, type ChangeEvent } from "react";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
-import { createImageNodeCenteredAt } from "./nodeFactory";
-import { useImageUpload } from "./useImageUpload";
+import { createImageNodeCenteredAt } from "./nodes/nodeFactory";
+import { useImageUpload } from "./images/useImageUpload";
 
 export function Toolbar() {
   const viewport = useCanvasStore((state) => state.viewport);

@@ -5,13 +5,13 @@ import {
   createNodeId,
   createTextNodeCenteredAt,
   getImageNodeHeightForWidth,
-} from "../nodeFactory";
-import type { ImageNodeUploadPayload } from "../nodeFactory";
+} from "../nodes/nodeFactory";
+import type { ImageNodeUploadPayload } from "../nodes/nodeFactory";
 import {
   DEFAULT_NODE_HEIGHT,
   DEFAULT_NODE_WIDTH,
   IMAGE_NODE_CAPTION_HEIGHT,
-} from "../constants";
+} from "../core/constants";
 
 describe("createNodeId", () => {
   it("回傳非空字串", () => {

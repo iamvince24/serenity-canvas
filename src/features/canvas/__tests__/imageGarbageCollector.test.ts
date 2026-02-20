@@ -5,16 +5,16 @@ import type {
   ImageNode,
   TextNode,
 } from "../../../types/canvas";
-import { collectGarbage } from "../imageGarbageCollector";
-import { deleteImageAsset, getAllAssetIds } from "../imageAssetStorage";
-import { evictImage } from "../imageUrlCache";
+import { collectGarbage } from "../images/imageGarbageCollector";
+import { deleteImageAsset, getAllAssetIds } from "../images/imageAssetStorage";
+import { evictImage } from "../images/imageUrlCache";
 
-vi.mock("../imageAssetStorage", () => ({
+vi.mock("../images/imageAssetStorage", () => ({
   deleteImageAsset: vi.fn(),
   getAllAssetIds: vi.fn(),
 }));
 
-vi.mock("../imageUrlCache", () => ({
+vi.mock("../images/imageUrlCache", () => ({
   evictImage: vi.fn(),
 }));
 

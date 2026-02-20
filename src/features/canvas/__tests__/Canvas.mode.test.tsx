@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { Canvas } from "../Canvas";
-import { InteractionState } from "../stateMachine";
+import { InteractionState } from "../core/stateMachine";
 
 vi.mock("react-konva", () => ({
   Stage: ({
@@ -34,7 +34,7 @@ vi.mock("react-konva", () => ({
   Line: () => null,
 }));
 
-vi.mock("../useConnectionDrag", () => ({
+vi.mock("../edges/useConnectionDrag", () => ({
   useConnectionDrag: () => ({
     connectingSource: null,
     hoveredTarget: null,
@@ -44,29 +44,29 @@ vi.mock("../useConnectionDrag", () => ({
   }),
 }));
 
-vi.mock("../useCanvasKeyboard", () => ({
+vi.mock("../hooks/useCanvasKeyboard", () => ({
   useCanvasKeyboard: () => {},
 }));
 
-vi.mock("../useCanvasWheel", () => ({
+vi.mock("../hooks/useCanvasWheel", () => ({
   useCanvasWheel: () => {},
 }));
 
-vi.mock("../useImageUpload", () => ({
+vi.mock("../images/useImageUpload", () => ({
   useImageUpload: () => ({
     uploadImageFile: vi.fn(),
   }),
 }));
 
-vi.mock("../CardOverlay", () => ({
+vi.mock("../card/CardOverlay", () => ({
   CardOverlay: () => null,
 }));
 
-vi.mock("../EdgeLine", () => ({
+vi.mock("../edges/EdgeLine", () => ({
   EdgeLine: () => null,
 }));
 
-vi.mock("../ImageCanvasNode", () => ({
+vi.mock("../images/ImageCanvasNode", () => ({
   ImageCanvasNode: () => null,
 }));
 

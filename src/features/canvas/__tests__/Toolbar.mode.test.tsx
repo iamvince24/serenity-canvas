@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import { InteractionState } from "../stateMachine";
+import { InteractionState } from "../core/stateMachine";
 import { Toolbar } from "../Toolbar";
 
-vi.mock("../useImageUpload", () => ({
+vi.mock("../images/useImageUpload", () => ({
   useImageUpload: () => ({
     uploadImageFile: vi.fn(),
   }),

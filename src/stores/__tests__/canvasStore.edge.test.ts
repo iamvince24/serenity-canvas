@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { InteractionState } from "../../features/canvas/stateMachine";
+import { InteractionState } from "../../features/canvas/core/stateMachine";
 import type { Edge, TextNode } from "../../types/canvas";
 import { useCanvasStore } from "../canvasStore";
 

@@ -4,7 +4,7 @@ import {
   findClosestNodeAnchor,
   getEdgeBounds,
   getEdgeRoute,
-} from "../edgeUtils";
+} from "../edges/edgeUtils";
 
 function createTextNode(id: string, x: number, y: number): TextNode {
   return {

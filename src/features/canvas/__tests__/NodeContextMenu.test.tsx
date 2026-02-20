@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import { InteractionState } from "../stateMachine";
-import { NodeContextMenu } from "../NodeContextMenu";
+import { InteractionState } from "../core/stateMachine";
+import { NodeContextMenu } from "../nodes/NodeContextMenu";
 
 describe("NodeContextMenu", () => {
   beforeEach(() => {

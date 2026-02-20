@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NodeViewProps } from "@tiptap/react";
-import { ImageBlockView } from "../ImageBlockView";
-import { acquireImage, releaseImage } from "../imageUrlCache";
+import { ImageBlockView } from "../images/ImageBlockView";
+import { acquireImage, releaseImage } from "../images/imageUrlCache";
 
 vi.mock("@tiptap/react", () => ({
   NodeViewWrapper: ({
@@ -15,7 +15,7 @@ vi.mock("@tiptap/react", () => ({
   }) => <div className={className}>{children}</div>,
 }));
 
-vi.mock("../imageUrlCache", () => ({
+vi.mock("../images/imageUrlCache", () => ({
   acquireImage: vi.fn(),
   releaseImage: vi.fn(),
 }));

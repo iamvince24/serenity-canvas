@@ -2,13 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { CanvasNode, Edge } from "../../../types/canvas";
-import { EdgeLine } from "../EdgeLine";
+import { EdgeLine } from "../edges/EdgeLine";
 
-vi.mock("../EdgeLabel", () => ({
+vi.mock("../edges/EdgeLabel", () => ({
   EdgeLabel: () => null,
 }));
 
-vi.mock("../edgeLabelLayout", () => ({
+vi.mock("../edges/edgeLabelLayout", () => ({
   getEdgeLabelLayout: (label: string) =>
     label.trim()
       ? {

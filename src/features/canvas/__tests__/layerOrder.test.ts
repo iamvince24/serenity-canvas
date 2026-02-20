@@ -8,7 +8,7 @@ import {
   reorderToBack,
   reorderToFrontInSubset,
   reorderToFront,
-} from "../layerOrder";
+} from "../nodes/layerOrder";
 
 describe("layer order helpers", () => {
   it("reorderMoveUp: 與上一層交換", () => {

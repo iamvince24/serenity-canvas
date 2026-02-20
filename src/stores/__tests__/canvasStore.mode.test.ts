@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { InteractionState } from "../../features/canvas/stateMachine";
+import { InteractionState } from "../../features/canvas/core/stateMachine";
 import { useCanvasStore } from "../canvasStore";
 
 function resetStore() {

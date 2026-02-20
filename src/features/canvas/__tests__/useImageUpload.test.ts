@@ -1,20 +1,20 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compressImageWithWorker } from "../../../workers/imageCompression";
-import { hasImageAsset, saveImageAsset } from "../imageAssetStorage";
-import { injectImage } from "../imageUrlCache";
-import { computeAssetId, useImageUpload } from "../useImageUpload";
+import { hasImageAsset, saveImageAsset } from "../images/imageAssetStorage";
+import { injectImage } from "../images/imageUrlCache";
+import { computeAssetId, useImageUpload } from "../images/useImageUpload";
 
 vi.mock("../../../workers/imageCompression", () => ({
   compressImageWithWorker: vi.fn(),
 }));
 
-vi.mock("../imageAssetStorage", () => ({
+vi.mock("../images/imageAssetStorage", () => ({
   hasImageAsset: vi.fn(),
   saveImageAsset: vi.fn(),
 }));
 
-vi.mock("../imageUrlCache", () => ({
+vi.mock("../images/imageUrlCache", () => ({
   injectImage: vi.fn(),
 }));
 
