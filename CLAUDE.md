@@ -34,7 +34,7 @@ Image nodes render on a Konva `<Stage>/<Layer>` (HTML canvas). Text nodes render
 
 ### State Management
 
-Single Zustand store (`src/stores/canvasStore.ts`) holds all canvas state and actions. A finite-state machine (`stateMachine.ts`) governs interaction modes: `Idle | Dragging | Panning | BoxSelecting | Resizing | Connecting`. The store dispatches events through `transition(current, event) → next`.
+Zustand store at `src/stores/canvasStore.ts` composes five slices (`viewportSlice`, `selectionSlice`, `interactionSlice`, `historySlice`, `fileSlice`) plus shared types in `storeTypes.ts` and pure helpers in `storeHelpers.ts`. A finite-state machine (`core/stateMachine.ts`) governs interaction modes: `Idle | Dragging | Panning | BoxSelecting | Resizing | Connecting`. The store dispatches events through `transition(current, event) → next`.
 
 ### Command Pattern + Undo/Redo
 
@@ -55,7 +55,7 @@ File drop/paste → `useImageUpload` → Web Worker compression (Comlink, target
 ## Key Conventions
 
 - **Imports**: Use `@/` alias for `src/` imports; relative imports within a feature
-- **Types**: `type` imports enforced by `verbatimModuleSyntax`; tagged unions with discriminant fields (`node.type === "text" | "image"`); no `any`
+- **Types**: `type` imports enforced by `verbatimModuleSyntax`; tagged unions with discriminant fields (`node.type === "text" | "image"`); no `any`; domain types split across `types/node.ts`, `types/edge.ts`, `types/viewport.ts`, re-exported from `types/canvas.ts`
 - **State updates**: Immutable spread patterns; undoable changes via Command objects; direct `set()` only for transient state
 - **Hooks**: One interaction concern per hook (`useConnectionDrag`, `useResizeDrag`, etc.); use individual `useCanvasStore(s => s.field)` selectors, never the whole store
 - **Tests**: Files in `__tests__/` subdirectory; naming `FileName.description.test.ts(x)`; AAA pattern; `fake-indexeddb` for IDB mocking (auto-imported in setup)
@@ -68,20 +68,73 @@ File drop/paste → `useImageUpload` → Web Worker compression (Comlink, target
 
 ```
 src/
-├── features/canvas/     # All canvas feature code (flat structure)
-│   ├── Canvas.tsx       # Root canvas component
-│   ├── stateMachine.ts  # Pure FSM for interaction states
-│   ├── *Widget.tsx      # Drag handles and toolbar overlays
-│   ├── *Overlay.tsx     # DOM overlays positioned over Konva
-│   ├── use*.ts          # Focused interaction hooks
-│   └── __tests__/       # Co-located tests
-├── stores/              # Zustand stores (canvasStore, uploadNoticeStore)
-├── commands/            # Command pattern (node/edge commands, history manager)
-├── types/canvas.ts      # Core domain types (CanvasNode, TextNode, ImageNode, Edge)
-├── constants/colors.ts  # Color palette and preset lookup
-├── workers/             # Web Worker for image compression (Comlink)
-├── components/ui/       # shadcn/ui primitives
-└── lib/utils.ts         # cn() utility
+├── features/canvas/        # Canvas feature — organized into subdirectories
+│   ├── Canvas.tsx          # Root canvas component (Konva Stage + overlay composition)
+│   ├── Toolbar.tsx         # Floating toolbar (mode toggle, add node, undo/redo)
+│   ├── core/               # FSM, coordinate conversion, overlay slot, constants
+│   │   ├── stateMachine.ts # Pure FSM for interaction states
+│   │   ├── canvasCoordinates.ts
+│   │   ├── overlaySlot.ts  # Tagged union: idle | nodeContextMenu | edgeContextMenu | …
+│   │   └── constants.ts
+│   ├── card/               # Text card rendering and interaction
+│   │   ├── CardOverlay.tsx # DOM overlay layer synchronized with Konva viewport
+│   │   ├── CardWidget.tsx  # Tiptap text card with drag, resize, color picker
+│   │   ├── ColorPicker.tsx
+│   │   ├── ResizeHandle.tsx
+│   │   ├── useDragHandle.ts
+│   │   └── useResizeDrag.ts
+│   ├── edges/              # Edge rendering and interaction
+│   │   ├── EdgeLine.tsx    # Konva edge renderer (Arrow/Line)
+│   │   ├── EdgeLabel.tsx   # Konva label on edge
+│   │   ├── EdgeLabelEditor.tsx
+│   │   ├── EdgeContextMenu.tsx
+│   │   ├── edgeUtils.ts    # Pure routing helpers
+│   │   ├── edgeLabelLayout.ts
+│   │   ├── useConnectionDrag.ts
+│   │   └── useEdgeOverlay.ts
+│   ├── nodes/              # Node utilities and context menu
+│   │   ├── NodeContextMenu.tsx
+│   │   ├── NodeAnchors.tsx
+│   │   ├── layerOrder.ts   # Pure z-order helpers
+│   │   ├── nodeFactory.ts  # createTextNode / createImageNode factories
+│   │   ├── nodePersistenceAdapter.ts
+│   │   └── keyboardNavigation.ts
+│   ├── images/             # Image node pipeline
+│   │   ├── ImageCanvasNode.tsx
+│   │   ├── ImageBlockView.tsx
+│   │   ├── ImageCaptionWidget.tsx
+│   │   ├── imageAssetStorage.ts
+│   │   ├── imageUrlCache.ts
+│   │   ├── imageGarbageCollector.ts
+│   │   ├── imageBlockExtension.ts
+│   │   ├── editorImageTransfer.ts
+│   │   └── useImageUpload.ts
+│   ├── editor/             # Tiptap editor and markdown codec
+│   │   ├── CardEditor.tsx
+│   │   ├── markdownCodec.ts
+│   │   ├── slashCommandExtension.ts
+│   │   └── SlashCommandMenu.tsx
+│   ├── hooks/              # Canvas-level global hooks
+│   │   ├── useCanvasKeyboard.ts
+│   │   └── useCanvasWheel.ts
+│   └── __tests__/          # Co-located tests
+├── stores/                 # Zustand stores
+│   ├── canvasStore.ts      # Root store composing all slices
+│   ├── storeTypes.ts       # CanvasStore / CanvasActions types
+│   ├── storeHelpers.ts     # Pure store utilities
+│   ├── slices/             # viewportSlice, selectionSlice, interactionSlice, historySlice, fileSlice
+│   └── uploadNoticeStore.ts
+├── commands/               # Command pattern (nodeCommands, edgeCommands, historyManager)
+├── types/                  # Domain types split by concern
+│   ├── canvas.ts           # Re-exports + CanvasMode / CanvasState root shape
+│   ├── node.ts             # TextNode, ImageNode, BaseNode, NodeHeightMode
+│   ├── edge.ts             # Edge, EdgeDirection, EdgeLineStyle
+│   └── viewport.ts         # ViewportState
+├── constants/colors.ts     # Color palette and preset lookup
+├── workers/                # Web Worker for image compression (Comlink)
+├── pages/                  # CanvasPage, HomePage
+├── components/ui/          # shadcn/ui primitives
+└── lib/utils.ts            # cn() utility
 ```
 
 Detailed architecture specs live in `docs/spec/` (written in Traditional Chinese).
