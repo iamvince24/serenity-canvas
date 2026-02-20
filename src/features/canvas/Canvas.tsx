@@ -19,67 +19,33 @@ import {
 import { CardOverlay } from "./CardOverlay";
 import { EdgeContextMenu } from "./EdgeContextMenu";
 import { EdgeLabelEditor } from "./EdgeLabelEditor";
-import { EdgeLine, type EdgeEndpoint } from "./EdgeLine";
+import { EdgeLine } from "./EdgeLine";
 import { ImageCanvasNode } from "./ImageCanvasNode";
 import {
   createImageNodeCenteredAt,
   createTextNodeCenteredAt,
 } from "./nodeFactory";
+import { type NodeContextMenuSlot, type OverlaySlot } from "./overlaySlot";
 import { InteractionEvent, InteractionState } from "./stateMachine";
+import { toCanvasPoint } from "./canvasCoordinates";
+import { useEdgeOverlay } from "./useEdgeOverlay";
 import { useCanvasKeyboard } from "./useCanvasKeyboard";
 import { useCanvasWheel } from "./useCanvasWheel";
 import { useConnectionDrag } from "./useConnectionDrag";
 import { useImageUpload } from "./useImageUpload";
 import { NodeContextMenu, type ContextMenuNodeType } from "./NodeContextMenu";
-import {
-  findClosestNodeAnchor,
-  getEdgeRoute,
-  type AnchorCandidate,
-  type Point,
-} from "./edgeUtils";
 
 type StageSize = {
   width: number;
   height: number;
 };
 
-type ContextMenuState = {
+type ContextMenuPayload = {
   nodeId: string;
   nodeType: ContextMenuNodeType;
   clientX: number;
   clientY: number;
 };
-
-type EdgeContextMenuState = {
-  edgeId: string;
-  clientX: number;
-  clientY: number;
-};
-
-type EdgeLabelEditorState = {
-  edgeId: string;
-  canvasX: number;
-  canvasY: number;
-};
-
-type EdgeLabelDraftState = {
-  edgeId: string;
-  label: string;
-};
-
-type EdgeEndpointDragState = {
-  edgeId: string;
-  endpoint: EdgeEndpoint;
-  pointer: Point;
-  hoveredAnchor: AnchorCandidate | null;
-};
-
-type EdgePreview = {
-  start: Point;
-  end: Point;
-};
-
-const EDGE_ENDPOINT_SNAP_DISTANCE = 24;
 
 function getWindowSize(): StageSize {
   return {
@@ -131,16 +97,9 @@ export function Canvas() {
     useState<HTMLDivElement | null>(null);
   const [autoFocusNodeId, setAutoFocusNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [contextMenuState, setContextMenuState] =
-    useState<ContextMenuState | null>(null);
-  const [edgeContextMenuState, setEdgeContextMenuState] =
-    useState<EdgeContextMenuState | null>(null);
-  const [edgeLabelEditorState, setEdgeLabelEditorState] =
-    useState<EdgeLabelEditorState | null>(null);
-  const [edgeLabelDraftState, setEdgeLabelDraftState] =
-    useState<EdgeLabelDraftState | null>(null);
-  const [edgeEndpointDragState, setEdgeEndpointDragState] =
-    useState<EdgeEndpointDragState | null>(null);
+  const [overlaySlot, setOverlaySlot] = useState<OverlaySlot>({
+    type: "idle",
+  });
 
   const orderedNodeIds = useMemo(() => {
     const orderedIds: string[] = [];
@@ -229,168 +188,50 @@ export function Canvas() {
     setOverlayContainer(element);
   }, []);
 
-  const toCanvasPointer = useCallback(
-    (clientX: number, clientY: number): Point | null => {
-      if (!overlayContainer) {
-        return null;
-      }
-
-      const rect = overlayContainer.getBoundingClientRect();
-      const zoom = viewport.zoom > 0 ? viewport.zoom : 1;
-      return {
-        x: (clientX - rect.left - viewport.x) / zoom,
-        y: (clientY - rect.top - viewport.y) / zoom,
-      };
-    },
-    [overlayContainer, viewport.x, viewport.y, viewport.zoom],
-  );
-
-  const getEdgeDragHoveredAnchor = useCallback(
-    (
-      edgeId: string,
-      endpoint: EdgeEndpoint,
-      pointer: Point,
-    ): AnchorCandidate | null => {
-      const state = useCanvasStore.getState();
-      const edge = state.edges[edgeId];
-      if (!edge) {
-        return null;
-      }
-
-      const excludeNodeId = endpoint === "from" ? edge.toNode : edge.fromNode;
-      return findClosestNodeAnchor(state.nodes, pointer, {
-        excludeNodeId,
-        maxDistance: EDGE_ENDPOINT_SNAP_DISTANCE,
-      });
-    },
-    [],
-  );
+  const {
+    clearAllEdgeOverlays,
+    clearEdgeTransientState,
+    edgeContextMenuState,
+    edgeLabelEditorState,
+    edgeLabelDraftState,
+    edgeEndpointDragState,
+    openEdgeContextMenu,
+    closeEdgeContextMenu,
+    openEdgeLabelEditor,
+    closeEdgeLabelEditor,
+    openEdgeEndpointDrag,
+    cancelEdgeEndpointDrag,
+    setEdgeLabelDraft,
+    edgeEndpointPreview,
+    canShowEdgeEndpointHandles,
+  } = useEdgeOverlay({
+    container: overlayContainer,
+    viewport,
+    nodes,
+    edges,
+    canvasMode,
+    selectedEdgeIds,
+    overlaySlot,
+    setOverlaySlot,
+  });
 
   const openNodeContextMenu = useCallback(
-    (payload: ContextMenuState) => {
+    (payload: ContextMenuPayload) => {
+      clearAllEdgeOverlays();
       selectNode(payload.nodeId);
-      setContextMenuState(payload);
-      setEdgeContextMenuState(null);
-      setEdgeLabelEditorState(null);
-      setEdgeLabelDraftState(null);
-      setEdgeEndpointDragState(null);
+      setOverlaySlot({
+        type: "nodeContextMenu",
+        ...payload,
+      });
     },
-    [selectNode],
+    [clearAllEdgeOverlays, selectNode, setOverlaySlot],
   );
 
   const closeNodeContextMenu = useCallback(() => {
-    setContextMenuState(null);
-  }, []);
-
-  const openEdgeContextMenu = useCallback(
-    (edgeId: string, clientX: number, clientY: number) => {
-      const state = useCanvasStore.getState();
-      if (!state.edges[edgeId]) {
-        return;
-      }
-
-      const activeElement =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-      if (activeElement?.dataset.edgeLabelInput === "true") {
-        activeElement.blur();
-      }
-
-      selectEdge(edgeId);
-      setContextMenuState(null);
-      setEdgeLabelEditorState(null);
-      setEdgeLabelDraftState(null);
-      setEdgeEndpointDragState(null);
-      setEdgeContextMenuState({ edgeId, clientX, clientY });
-    },
-    [selectEdge],
-  );
-
-  const closeEdgeContextMenu = useCallback(() => {
-    setEdgeContextMenuState(null);
-  }, []);
-
-  const openEdgeLabelEditor = useCallback(
-    (edgeId: string) => {
-      if (edgeContextMenuState) {
-        setEdgeContextMenuState(null);
-        return;
-      }
-
-      const state = useCanvasStore.getState();
-      const edge = state.edges[edgeId];
-      if (!edge) {
-        return;
-      }
-
-      const route = getEdgeRoute(edge, state.nodes);
-      if (!route) {
-        return;
-      }
-
-      const start = route.start;
-      const end =
-        route.start.x === route.end.x && route.start.y === route.end.y
-          ? { x: route.end.x + 0.001, y: route.end.y }
-          : route.end;
-
-      selectEdge(edgeId);
-      setContextMenuState(null);
-      setEdgeEndpointDragState(null);
-      setEdgeLabelEditorState({
-        edgeId,
-        canvasX: (start.x + end.x) / 2,
-        canvasY: (start.y + end.y) / 2,
-      });
-      setEdgeLabelDraftState({
-        edgeId,
-        label: edge.label,
-      });
-    },
-    [edgeContextMenuState, selectEdge],
-  );
-
-  const closeEdgeLabelEditor = useCallback(() => {
-    setEdgeLabelEditorState(null);
-    setEdgeLabelDraftState(null);
-  }, []);
-
-  const openEdgeEndpointDrag = useCallback(
-    (
-      edgeId: string,
-      endpoint: EdgeEndpoint,
-      clientX: number,
-      clientY: number,
-    ) => {
-      if (canvasMode !== "select") {
-        return;
-      }
-
-      const pointer = toCanvasPointer(clientX, clientY);
-      if (!pointer) {
-        return;
-      }
-
-      const state = useCanvasStore.getState();
-      if (!state.edges[edgeId]) {
-        return;
-      }
-
-      selectEdge(edgeId);
-      setContextMenuState(null);
-      setEdgeContextMenuState(null);
-      setEdgeLabelEditorState(null);
-      setEdgeLabelDraftState(null);
-      setEdgeEndpointDragState({
-        edgeId,
-        endpoint,
-        pointer,
-        hoveredAnchor: getEdgeDragHoveredAnchor(edgeId, endpoint, pointer),
-      });
-    },
-    [canvasMode, getEdgeDragHoveredAnchor, selectEdge, toCanvasPointer],
-  );
+    setOverlaySlot((current) =>
+      current.type === "nodeContextMenu" ? { type: "idle" } : current,
+    );
+  }, [setOverlaySlot]);
 
   const createImageNodeFromFile = useCallback(
     async (file: File, clientX: number, clientY: number) => {
@@ -402,14 +243,18 @@ export function Canvas() {
       try {
         const { fileRecord, nodePayload } = await uploadImageFile(file);
         const state = useCanvasStore.getState();
-        const bounds = container.getBoundingClientRect();
-        const canvasX =
-          (clientX - bounds.left - state.viewport.x) / state.viewport.zoom;
-        const canvasY =
-          (clientY - bounds.top - state.viewport.y) / state.viewport.zoom;
+        const canvasPoint = toCanvasPoint(
+          clientX,
+          clientY,
+          container,
+          state.viewport,
+        );
+        if (!canvasPoint) {
+          return;
+        }
         const imageNode = createImageNodeCenteredAt(
-          canvasX,
-          canvasY,
+          canvasPoint.x,
+          canvasPoint.y,
           nodePayload,
           fileRecord,
         );
@@ -449,13 +294,10 @@ export function Canvas() {
         state.deselectAll();
       }
 
-      setContextMenuState(null);
-      setEdgeContextMenuState(null);
-      setEdgeLabelEditorState(null);
-      setEdgeLabelDraftState(null);
-      setEdgeEndpointDragState(null);
+      setOverlaySlot({ type: "idle" });
+      clearAllEdgeOverlays();
     },
-    [],
+    [clearAllEdgeOverlays, setOverlaySlot],
   );
 
   const handleRootContextMenuCapture = useCallback(
@@ -471,12 +313,14 @@ export function Canvas() {
         return;
       }
 
-      setContextMenuState(null);
-      setEdgeContextMenuState(null);
-      setEdgeLabelDraftState(null);
-      setEdgeEndpointDragState(null);
+      setOverlaySlot((current) =>
+        current.type === "nodeContextMenu" || current.type === "edgeContextMenu"
+          ? { type: "idle" }
+          : current,
+      );
+      clearEdgeTransientState();
     },
-    [],
+    [clearEdgeTransientState, setOverlaySlot],
   );
 
   const handleRootPointerMoveCapture = useCallback(
@@ -497,11 +341,17 @@ export function Canvas() {
         return;
       }
 
-      const rect = overlayContainer.getBoundingClientRect();
-      const zoom = viewport.zoom > 0 ? viewport.zoom : 1;
-      const canvasX = (event.clientX - rect.left - viewport.x) / zoom;
-      const canvasY = (event.clientY - rect.top - viewport.y) / zoom;
-      const hoveredNode = findTopNodeAtCanvasPoint(canvasX, canvasY);
+      const pointer = toCanvasPoint(
+        event.clientX,
+        event.clientY,
+        overlayContainer,
+        viewport,
+      );
+      if (!pointer) {
+        return;
+      }
+
+      const hoveredNode = findTopNodeAtCanvasPoint(pointer.x, pointer.y);
 
       setHoveredNodeId((current) =>
         current === hoveredNode?.id ? current : (hoveredNode?.id ?? null),
@@ -511,9 +361,7 @@ export function Canvas() {
       edgeEndpointDragState,
       findTopNodeAtCanvasPoint,
       overlayContainer,
-      viewport.x,
-      viewport.y,
-      viewport.zoom,
+      viewport,
     ],
   );
 
@@ -581,139 +429,6 @@ export function Canvas() {
   useCanvasWheel({
     overlayContainer,
   });
-
-  useEffect(() => {
-    if (!edgeEndpointDragState) {
-      return;
-    }
-
-    const updateDragPointer = (clientX: number, clientY: number) => {
-      const pointer = toCanvasPointer(clientX, clientY);
-      if (!pointer) {
-        return;
-      }
-
-      setEdgeEndpointDragState((current) => {
-        if (!current) {
-          return current;
-        }
-
-        return {
-          ...current,
-          pointer,
-          hoveredAnchor: getEdgeDragHoveredAnchor(
-            current.edgeId,
-            current.endpoint,
-            pointer,
-          ),
-        };
-      });
-    };
-
-    const completeDrag = (clientX?: number, clientY?: number) => {
-      const pointer =
-        typeof clientX === "number" && typeof clientY === "number"
-          ? (toCanvasPointer(clientX, clientY) ?? edgeEndpointDragState.pointer)
-          : edgeEndpointDragState.pointer;
-      const hoveredAnchor = getEdgeDragHoveredAnchor(
-        edgeEndpointDragState.edgeId,
-        edgeEndpointDragState.endpoint,
-        pointer,
-      );
-      if (hoveredAnchor) {
-        const state = useCanvasStore.getState();
-        const edge = state.edges[edgeEndpointDragState.edgeId];
-        if (edge) {
-          state.updateEdge(
-            edge.id,
-            edgeEndpointDragState.endpoint === "from"
-              ? { fromNode: hoveredAnchor.nodeId }
-              : { toNode: hoveredAnchor.nodeId },
-          );
-          state.selectEdge(edge.id);
-        }
-      }
-
-      setEdgeEndpointDragState(null);
-    };
-
-    const handlePointerMove = (event: PointerEvent) => {
-      updateDragPointer(event.clientX, event.clientY);
-    };
-
-    const handlePointerUp = (event: PointerEvent) => {
-      event.preventDefault();
-      completeDrag(event.clientX, event.clientY);
-    };
-
-    const handlePointerCancel = () => {
-      setEdgeEndpointDragState(null);
-    };
-
-    const handleWindowKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      setEdgeEndpointDragState(null);
-    };
-
-    const handleMouseMove = (event: MouseEvent) => {
-      updateDragPointer(event.clientX, event.clientY);
-    };
-
-    const handleMouseUp = (event: MouseEvent) => {
-      completeDrag(event.clientX, event.clientY);
-    };
-
-    const handleTouchMove = (event: TouchEvent) => {
-      const touch = event.touches[0];
-      if (!touch) {
-        return;
-      }
-
-      event.preventDefault();
-      updateDragPointer(touch.clientX, touch.clientY);
-    };
-
-    const handleTouchEnd = (event: TouchEvent) => {
-      const touch = event.changedTouches[0];
-      if (!touch) {
-        completeDrag();
-        return;
-      }
-
-      completeDrag(touch.clientX, touch.clientY);
-    };
-
-    const handleTouchCancel = () => {
-      setEdgeEndpointDragState(null);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerCancel);
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("touchmove", handleTouchMove, { passive: false });
-    window.addEventListener("touchend", handleTouchEnd);
-    window.addEventListener("touchcancel", handleTouchCancel);
-    window.addEventListener("keydown", handleWindowKeyDown, true);
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerCancel);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleTouchEnd);
-      window.removeEventListener("touchcancel", handleTouchCancel);
-      window.removeEventListener("keydown", handleWindowKeyDown, true);
-    };
-  }, [edgeEndpointDragState, getEdgeDragHoveredAnchor, toCanvasPointer]);
 
   useEffect(() => {
     if (!autoFocusNodeId) {
@@ -835,7 +550,7 @@ export function Canvas() {
       if (edgeEndpointDragState) {
         event.preventDefault();
         event.stopPropagation();
-        setEdgeEndpointDragState(null);
+        cancelEdgeEndpointDrag();
         return;
       }
 
@@ -866,6 +581,7 @@ export function Canvas() {
       window.removeEventListener("keydown", handleEscape, true);
     };
   }, [
+    cancelEdgeEndpointDrag,
     closeEdgeContextMenu,
     closeEdgeLabelEditor,
     edgeEndpointDragState,
@@ -966,52 +682,14 @@ export function Canvas() {
     setAutoFocusNodeId(node.id);
   };
 
-  const edgeEndpointPreview = useMemo<{
-    edgeId: string;
-    preview: EdgePreview;
-  } | null>(() => {
-    if (!edgeEndpointDragState) {
-      return null;
-    }
-
-    const edge = edges[edgeEndpointDragState.edgeId];
-    if (!edge) {
-      return null;
-    }
-
-    const route = getEdgeRoute(edge, nodes);
-    if (!route) {
-      return null;
-    }
-
-    const movingPoint =
-      edgeEndpointDragState.hoveredAnchor?.point ??
-      edgeEndpointDragState.pointer;
-    const preview =
-      edgeEndpointDragState.endpoint === "from"
-        ? {
-            start: movingPoint,
-            end: route.end,
-          }
-        : {
-            start: route.start,
-            end: movingPoint,
-          };
-
-    return {
-      edgeId: edge.id,
-      preview,
-    };
-  }, [edgeEndpointDragState, edges, nodes]);
-
   // Disable stage drag when node drag or other interactions are in progress.
   const isStageDraggable =
     edgeEndpointDragState === null &&
     (interactionState === InteractionState.Idle ||
       interactionState === InteractionState.Panning);
-  const visibleContextMenuState =
-    contextMenuState && nodes[contextMenuState.nodeId]
-      ? contextMenuState
+  const visibleContextMenuState: NodeContextMenuSlot | null =
+    overlaySlot.type === "nodeContextMenu" && nodes[overlaySlot.nodeId]
+      ? overlaySlot
       : null;
   const visibleEdgeContextMenuState =
     edgeContextMenuState && edges[edgeContextMenuState.edgeId]
@@ -1027,11 +705,6 @@ export function Canvas() {
     edgeLabelDraftState && edges[edgeLabelDraftState.edgeId]
       ? edgeLabelDraftState
       : null;
-  const canShowEdgeEndpointHandles =
-    canvasMode === "select" &&
-    selectedEdgeIds.length === 1 &&
-    !visibleEdgeContextMenuState &&
-    !visibleEdgeLabelEditorState;
 
   return (
     <div
@@ -1167,26 +840,7 @@ export function Canvas() {
           viewport={viewport}
           containerRect={labelEditorContainerRect}
           onDraftChange={(value) =>
-            setEdgeLabelDraftState((current) => {
-              if (
-                !current ||
-                current.edgeId !== visibleEdgeLabelEditorState.edgeId
-              ) {
-                return {
-                  edgeId: visibleEdgeLabelEditorState.edgeId,
-                  label: value,
-                };
-              }
-
-              if (current.label === value) {
-                return current;
-              }
-
-              return {
-                ...current,
-                label: value,
-              };
-            })
+            setEdgeLabelDraft(visibleEdgeLabelEditorState.edgeId, value)
           }
           onClose={closeEdgeLabelEditor}
         />

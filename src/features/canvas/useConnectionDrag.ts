@@ -9,6 +9,7 @@ import {
 import { useCanvasStore } from "../../stores/canvasStore";
 import type { CanvasNode, ViewportState } from "../../types/canvas";
 import { InteractionEvent } from "./stateMachine";
+import { toCanvasPoint } from "./canvasCoordinates";
 import {
   findClosestNodeAnchor,
   getNodeAnchorPoint,
@@ -117,12 +118,7 @@ export function useConnectionDrag({
     }
 
     const nextViewport = viewportRef.current;
-    const rect = nextContainer.getBoundingClientRect();
-    const zoom = nextViewport.zoom > 0 ? nextViewport.zoom : 1;
-    return {
-      x: (clientX - rect.left - nextViewport.x) / zoom,
-      y: (clientY - rect.top - nextViewport.y) / zoom,
-    };
+    return toCanvasPoint(clientX, clientY, nextContainer, nextViewport);
   }, []);
 
   const cancelConnection = useCallback(() => {
