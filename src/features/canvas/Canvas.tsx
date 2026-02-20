@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { Layer, Line, Stage } from "react-konva";
+import { Layer, Line, Rect, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import {
@@ -26,11 +26,12 @@ import {
   createTextNodeCenteredAt,
 } from "./nodes/nodeFactory";
 import { type NodeContextMenuSlot, type OverlaySlot } from "./core/overlaySlot";
-import { InteractionEvent, InteractionState } from "./core/stateMachine";
+import { InteractionState } from "./core/stateMachine";
 import { toCanvasPoint } from "./core/canvasCoordinates";
 import { useEdgeOverlay } from "./edges/useEdgeOverlay";
 import { useCanvasKeyboard } from "./hooks/useCanvasKeyboard";
 import { useCanvasWheel } from "./hooks/useCanvasWheel";
+import { useMarqueeSelect } from "./hooks/useMarqueeSelect";
 import { useConnectionDrag } from "./edges/useConnectionDrag";
 import { useImageUpload } from "./images/useImageUpload";
 import {
@@ -82,13 +83,9 @@ export function Canvas() {
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const selectedEdgeIds = useCanvasStore((state) => state.selectedEdgeIds);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
-  const interactionState = useCanvasStore((state) => state.interactionState);
-  const setViewport = useCanvasStore((state) => state.setViewport);
   const setCanvasMode = useCanvasStore((state) => state.setCanvasMode);
-  const dispatch = useCanvasStore((state) => state.dispatch);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const selectEdge = useCanvasStore((state) => state.selectEdge);
-  const deselectAll = useCanvasStore((state) => state.deselectAll);
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
   const undo = useCanvasStore((state) => state.undo);
@@ -218,6 +215,27 @@ export function Canvas() {
     setOverlaySlot,
   });
 
+  const handleMarqueeStart = useCallback(() => {
+    setOverlaySlot({ type: "idle" });
+    clearAllEdgeOverlays();
+  }, [clearAllEdgeOverlays, setOverlaySlot]);
+
+  const {
+    marqueeState,
+    marqueeRect,
+    handleStagePointerDown: handleMarqueeStagePointerDown,
+    handlePointerMove: handleMarqueePointerMove,
+    handlePointerUp: handleMarqueePointerUp,
+    cancelMarquee,
+  } = useMarqueeSelect({
+    container: overlayContainer,
+    viewport,
+    nodes,
+    canvasMode,
+    isBlocked: edgeEndpointDragState !== null,
+    onMarqueeStart: handleMarqueeStart,
+  });
+
   const openNodeContextMenu = useCallback(
     (payload: ContextMenuPayload) => {
       clearAllEdgeOverlays();
@@ -289,14 +307,6 @@ export function Canvas() {
         return;
       }
 
-      const state = useCanvasStore.getState();
-      if (
-        state.selectedNodeIds.length > 0 ||
-        state.selectedEdgeIds.length > 0
-      ) {
-        state.deselectAll();
-      }
-
       setOverlaySlot({ type: "idle" });
       clearAllEdgeOverlays();
     },
@@ -328,6 +338,11 @@ export function Canvas() {
 
   const handleRootPointerMoveCapture = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      handleMarqueePointerMove(event);
+      if (marqueeState) {
+        return;
+      }
+
       if (edgeEndpointDragState) {
         return;
       }
@@ -363,10 +378,23 @@ export function Canvas() {
     [
       edgeEndpointDragState,
       findTopNodeAtCanvasPoint,
+      handleMarqueePointerMove,
+      marqueeState,
       overlayContainer,
       viewport,
     ],
   );
+
+  const handleRootPointerUpCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      handleMarqueePointerUp(event);
+    },
+    [handleMarqueePointerUp],
+  );
+
+  const handleRootPointerCancelCapture = useCallback(() => {
+    cancelMarquee();
+  }, [cancelMarquee]);
 
   const handleRootPointerLeave = useCallback(() => {
     setHoveredNodeId(null);
@@ -550,6 +578,13 @@ export function Canvas() {
         return;
       }
 
+      if (marqueeState) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelMarquee();
+        return;
+      }
+
       if (edgeEndpointDragState) {
         event.preventDefault();
         event.stopPropagation();
@@ -584,76 +619,39 @@ export function Canvas() {
       window.removeEventListener("keydown", handleEscape, true);
     };
   }, [
+    cancelMarquee,
     cancelEdgeEndpointDrag,
     closeEdgeContextMenu,
     closeEdgeLabelEditor,
     edgeEndpointDragState,
     edgeContextMenuState,
     edgeLabelEditorState,
+    marqueeState,
   ]);
 
-  const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
-    const stage = event.target.getStage();
-    if (!stage || event.target !== stage) {
-      // Ignore bubbled drag events from child nodes.
-      return;
-    }
-
-    setViewport({
-      ...viewport,
-      x: event.target.x(),
-      y: event.target.y(),
-    });
-    dispatch(InteractionEvent.PAN_END);
-  };
-
-  const handleDragMove = (event: KonvaEventObject<DragEvent>) => {
-    const stage = event.target.getStage();
-    if (!stage || event.target !== stage) {
-      // Ignore bubbled drag events from child nodes.
-      return;
-    }
-
-    const currentViewport = useCanvasStore.getState().viewport;
-    setViewport({
-      ...currentViewport,
-      x: event.target.x(),
-      y: event.target.y(),
-    });
-  };
-
-  const handlePointerDown = (
+  const handleStagePointerDown = (
     event: KonvaEventObject<MouseEvent | TouchEvent>,
   ) => {
     const stage = event.target.getStage();
     const isBackgroundTarget =
       stage && (event.target === stage || event.target.getType() === "Layer");
     if (isBackgroundTarget) {
-      // Clicking empty canvas clears current selection.
-      deselectAll();
-      dispatch(InteractionEvent.STAGE_POINTER_DOWN);
+      handleMarqueeStagePointerDown(event);
     }
   };
 
-  const handlePointerUp = (
-    event: KonvaEventObject<MouseEvent | TouchEvent>,
-  ) => {
-    const stage = event.target.getStage();
-    const isBackgroundTarget =
-      stage && (event.target === stage || event.target.getType() === "Layer");
-    if (isBackgroundTarget) {
-      dispatch(InteractionEvent.STAGE_POINTER_UP);
-    }
-  };
-
-  const handleDragStart = (event: KonvaEventObject<DragEvent>) => {
-    const stage = event.target.getStage();
-    const isBackgroundTarget =
-      stage && (event.target === stage || event.target.getType() === "Layer");
-    if (isBackgroundTarget) {
-      dispatch(InteractionEvent.PAN_START);
-    }
-  };
+  const handleEdgeEndpointDragStart = useCallback(
+    (
+      edgeId: string,
+      endpoint: "from" | "to",
+      clientX: number,
+      clientY: number,
+    ) => {
+      cancelMarquee();
+      openEdgeEndpointDrag(edgeId, endpoint, clientX, clientY);
+    },
+    [cancelMarquee, openEdgeEndpointDrag],
+  );
 
   const handleStageDoubleClick = (
     event: KonvaEventObject<MouseEvent | TouchEvent>,
@@ -685,11 +683,6 @@ export function Canvas() {
     setAutoFocusNodeId(node.id);
   };
 
-  // Disable stage drag when node drag or other interactions are in progress.
-  const isStageDraggable =
-    edgeEndpointDragState === null &&
-    (interactionState === InteractionState.Idle ||
-      interactionState === InteractionState.Panning);
   const visibleContextMenuState: NodeContextMenuSlot | null =
     overlaySlot.type === "nodeContextMenu" && nodes[overlaySlot.nodeId]
       ? overlaySlot
@@ -717,6 +710,8 @@ export function Canvas() {
       }`}
       onPointerDownCapture={handleRootPointerDownCapture}
       onPointerMoveCapture={handleRootPointerMoveCapture}
+      onPointerUpCapture={handleRootPointerUpCapture}
+      onPointerCancelCapture={handleRootPointerCancelCapture}
       onPointerLeave={handleRootPointerLeave}
       onContextMenuCapture={handleRootContextMenuCapture}
       onDragOver={handleDragOver}
@@ -729,14 +724,9 @@ export function Canvas() {
         y={viewport.y}
         scaleX={viewport.zoom}
         scaleY={viewport.zoom}
-        draggable={isStageDraggable}
-        onDragStart={handleDragStart}
-        onDragMove={handleDragMove}
-        onDragEnd={handleDragEnd}
-        onMouseDown={handlePointerDown}
-        onMouseUp={handlePointerUp}
-        onTouchStart={handlePointerDown}
-        onTouchEnd={handlePointerUp}
+        draggable={false}
+        onMouseDown={handleStagePointerDown}
+        onTouchStart={handleStagePointerDown}
         onDblClick={handleStageDoubleClick}
         onDblTap={handleStageDoubleClick}
       >
@@ -765,7 +755,7 @@ export function Canvas() {
                   ? edgeEndpointPreview.preview
                   : null
               }
-              onEndpointDragStart={openEdgeEndpointDrag}
+              onEndpointDragStart={handleEdgeEndpointDragStart}
             />
           ))}
 
@@ -797,6 +787,20 @@ export function Canvas() {
             />
           ))}
         </Layer>
+
+        {marqueeState && marqueeRect ? (
+          <Layer listening={false}>
+            <Rect
+              x={marqueeRect.x}
+              y={marqueeRect.y}
+              width={marqueeRect.width}
+              height={marqueeRect.height}
+              stroke="#8B9D83"
+              strokeWidth={1}
+              fill="rgba(139, 157, 131, 0.18)"
+            />
+          </Layer>
+        ) : null}
       </Stage>
 
       {overlayContainer ? (

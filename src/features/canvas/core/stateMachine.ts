@@ -64,7 +64,7 @@ export const transitions: Record<
     ...stayOn(InteractionState.Idle),
     [InteractionEvent.NODE_POINTER_DOWN]: InteractionState.Dragging,
     [InteractionEvent.NODE_DRAG_START]: InteractionState.Dragging,
-    [InteractionEvent.STAGE_POINTER_DOWN]: InteractionState.Panning,
+    [InteractionEvent.STAGE_POINTER_DOWN]: InteractionState.BoxSelecting,
     [InteractionEvent.PAN_START]: InteractionState.Panning,
     [InteractionEvent.BOX_SELECT_START]: InteractionState.BoxSelecting,
     [InteractionEvent.RESIZE_START]: InteractionState.Resizing,

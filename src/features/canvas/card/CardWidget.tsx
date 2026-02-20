@@ -8,6 +8,7 @@ import {
   type DragEvent as ReactDragEvent,
   type FocusEvent,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { getCardColorStyle } from "../../../constants/colors";
 import { useCanvasStore } from "../../../stores/canvasStore";
@@ -54,6 +55,9 @@ export function CardWidget({
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const selectNode = useCanvasStore((state) => state.selectNode);
+  const toggleNodeSelection = useCanvasStore(
+    (state) => state.toggleNodeSelection,
+  );
   const previewNodeSize = useCanvasStore((state) => state.previewNodeSize);
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
   const dragHandleProps = useDragHandle({ nodeId: node.id, zoom });
@@ -108,9 +112,17 @@ export function CardWidget({
     [node.heightMode],
   );
 
-  const handleContentPointerDown = useCallback(() => {
-    selectNode(node.id);
-  }, [node.id, selectNode]);
+  const handleContentPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.shiftKey) {
+        toggleNodeSelection(node.id);
+        return;
+      }
+
+      selectNode(node.id);
+    },
+    [node.id, selectNode, toggleNodeSelection],
+  );
 
   const handleCardContextMenu = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {

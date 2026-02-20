@@ -5,6 +5,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { ImageNode } from "../../../types/canvas";
@@ -33,6 +34,9 @@ export function ImageCaptionWidget({
 }: ImageCaptionWidgetProps) {
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const selectNode = useCanvasStore((state) => state.selectNode);
+  const toggleNodeSelection = useCanvasStore(
+    (state) => state.toggleNodeSelection,
+  );
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
   const [draftCaption, setDraftCaption] = useState(node.content);
   const [isEditing, setIsEditing] = useState(false);
@@ -87,6 +91,19 @@ export function ImageCaptionWidget({
     [node.id, onOpenContextMenu, selectNode],
   );
 
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLTextAreaElement>) => {
+      if (!event.shiftKey) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      toggleNodeSelection(node.id);
+    },
+    [node.id, toggleNodeSelection],
+  );
+
   return (
     <div style={widgetStyle} data-card-node-id={node.id} role="presentation">
       <textarea
@@ -101,6 +118,7 @@ export function ImageCaptionWidget({
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onContextMenu={handleContextMenu}
+        onPointerDown={handlePointerDown}
         className="resize-none rounded-b-[10px] border-none bg-transparent text-[14px] leading-[1.35] text-[#1C1C1A] outline-none placeholder:text-foreground-subtle"
         style={{
           position: "absolute",

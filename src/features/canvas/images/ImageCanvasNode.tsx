@@ -317,6 +317,9 @@ export function ImageCanvasNode({
 }: ImageCanvasNodeProps) {
   const file = useCanvasStore((state) => state.files[node.asset_id]);
   const selectNode = useCanvasStore((state) => state.selectNode);
+  const toggleNodeSelection = useCanvasStore(
+    (state) => state.toggleNodeSelection,
+  );
   const previewNodePosition = useCanvasStore(
     (state) => state.previewNodePosition,
   );
@@ -405,9 +408,14 @@ export function ImageCanvasNode({
   const handleGroupPointerDown = useCallback(
     (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
       event.cancelBubble = true;
+      if (event.evt instanceof MouseEvent && event.evt.shiftKey) {
+        toggleNodeSelection(node.id);
+        return;
+      }
+
       selectNode(node.id);
     },
-    [node.id, selectNode],
+    [node.id, selectNode, toggleNodeSelection],
   );
 
   const handleGroupContextMenu = useCallback(

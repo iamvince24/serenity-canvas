@@ -29,6 +29,9 @@ const INITIAL_DRAG_STATE: DragState = {
 
 export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
   const selectNode = useCanvasStore((state) => state.selectNode);
+  const toggleNodeSelection = useCanvasStore(
+    (state) => state.toggleNodeSelection,
+  );
   const previewNodePosition = useCanvasStore(
     (state) => state.previewNodePosition,
   );
@@ -67,6 +70,13 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
         return;
       }
 
+      if (event.shiftKey) {
+        toggleNodeSelection(nodeId);
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
       const node = useCanvasStore.getState().nodes[nodeId];
       if (!node) {
         return;
@@ -90,7 +100,7 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
       event.preventDefault();
       event.stopPropagation();
     },
-    [dispatch, nodeId, selectNode, zoom],
+    [dispatch, nodeId, selectNode, toggleNodeSelection, zoom],
   );
 
   const onPointerMove = useCallback<PointerEventHandler<HTMLDivElement>>(
