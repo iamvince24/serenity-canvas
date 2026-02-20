@@ -4,6 +4,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useCanvasStore } from "../../stores/canvasStore";
 import type { ImageNode } from "../../types/canvas";
@@ -12,15 +13,23 @@ import {
   IMAGE_NODE_CAPTION_PADDING,
   IMAGE_RESIZE_EDGE_HIT,
 } from "./constants";
+import type { ContextMenuNodeType } from "./NodeContextMenu";
 
 type ImageCaptionWidgetProps = {
   node: ImageNode;
   layerIndex: number;
+  onOpenContextMenu: (payload: {
+    nodeId: string;
+    nodeType: ContextMenuNodeType;
+    clientX: number;
+    clientY: number;
+  }) => void;
 };
 
 export function ImageCaptionWidget({
   node,
   layerIndex,
+  onOpenContextMenu,
 }: ImageCaptionWidgetProps) {
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const selectNode = useCanvasStore((state) => state.selectNode);
@@ -63,6 +72,21 @@ export function ImageCaptionWidget({
     [node.content],
   );
 
+  const handleContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLTextAreaElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      selectNode(node.id);
+      onOpenContextMenu({
+        nodeId: node.id,
+        nodeType: "image",
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    },
+    [node.id, onOpenContextMenu, selectNode],
+  );
+
   return (
     <div style={widgetStyle} data-card-node-id={node.id} role="presentation">
       <textarea
@@ -76,6 +100,7 @@ export function ImageCaptionWidget({
         }}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
+        onContextMenu={handleContextMenu}
         className="resize-none rounded-b-[10px] border-none bg-transparent text-[14px] leading-[1.35] text-[#1C1C1A] outline-none placeholder:text-foreground-subtle"
         style={{
           position: "absolute",

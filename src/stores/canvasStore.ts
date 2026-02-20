@@ -2,6 +2,12 @@ import { create } from "zustand";
 import { CompositeCommand, type Command } from "../commands/types";
 import { HistoryManager } from "../commands/historyManager";
 import {
+  AddEdgeCommand,
+  DeleteEdgeCommand,
+  UpdateEdgeCommand,
+  type EdgeCommandContext,
+} from "../commands/edgeCommands";
+import {
   AddNodeCommand,
   DeleteNodeCommand,
   MoveNodeCommand,
@@ -32,9 +38,11 @@ import {
   transition,
 } from "../features/canvas/stateMachine";
 import {
+  type CanvasMode,
   isTextNode,
   type CanvasNode,
   type CanvasState,
+  type Edge,
   type FileRecord,
   type NodeHeightMode,
   type ViewportState,
@@ -64,10 +72,17 @@ type CanvasActions = {
   updateNodeContent: (id: string, content: string) => void;
   updateNodeColor: (id: string, color: CanvasNode["color"]) => void;
   setNodeHeightMode: (id: string, mode: NodeHeightMode) => void;
+  addEdge: (edge: Edge) => void;
+  updateEdge: (id: string, patch: Partial<Omit<Edge, "id">>) => void;
+  deleteEdge: (id: string) => void;
+  deleteSelectedEdges: () => void;
+  setCanvasMode: (mode: CanvasMode) => void;
   dispatch: (event: InteractionEvent) => void;
   deleteNode: (id: string) => void;
   deleteSelectedNodes: () => void;
   selectNode: (nodeId: string | null) => void;
+  selectEdge: (edgeId: string | null) => void;
+  deselectAll: () => void;
   moveTextNodeUp: (id: string) => void;
   moveTextNodeDown: (id: string) => void;
   moveTextNodeToFront: (id: string) => void;
@@ -78,6 +93,7 @@ type CanvasActions = {
 };
 
 type CanvasStore = CanvasState & {
+  canvasMode: CanvasMode;
   interactionState: InteractionState;
   canUndo: boolean;
   canRedo: boolean;
@@ -92,6 +108,7 @@ const initialViewport: ViewportState = {
 
 type NodesMap = CanvasState["nodes"];
 type FilesMap = CanvasState["files"];
+type EdgesMap = CanvasState["edges"];
 
 function patchNode(
   nodes: NodesMap,
@@ -112,6 +129,25 @@ function patchNode(
   };
 }
 
+function patchEdge(
+  edges: EdgesMap,
+  id: string,
+  patch: Partial<Edge>,
+): EdgesMap {
+  const current = edges[id];
+  if (!current) {
+    return edges;
+  }
+
+  return {
+    ...edges,
+    [id]: {
+      ...current,
+      ...patch,
+    },
+  };
+}
+
 function removeFilesByIds(files: FilesMap, ids: string[]): FilesMap {
   if (ids.length === 0) {
     return files;
@@ -122,6 +158,30 @@ function removeFilesByIds(files: FilesMap, ids: string[]): FilesMap {
     delete nextFiles[id];
   }
   return nextFiles;
+}
+
+function removeEdgesByIds(edges: EdgesMap, ids: string[]): EdgesMap {
+  if (ids.length === 0) {
+    return edges;
+  }
+
+  const nextEdges = { ...edges };
+  for (const id of ids) {
+    delete nextEdges[id];
+  }
+  return nextEdges;
+}
+
+function isEdgeEqual(left: Edge, right: Edge): boolean {
+  return (
+    left.id === right.id &&
+    left.fromNode === right.fromNode &&
+    left.toNode === right.toNode &&
+    left.direction === right.direction &&
+    left.label === right.label &&
+    left.lineStyle === right.lineStyle &&
+    left.color === right.color
+  );
 }
 
 function getTextNodeIds(nodes: NodesMap): string[] {
@@ -186,6 +246,20 @@ function sanitizeNodeOrder(nodeOrder: string[], nodes: NodesMap): string[] {
   return filtered;
 }
 
+function getConnectedEdgeIds(edges: EdgesMap, nodeId: string): string[] {
+  return Object.values(edges)
+    .filter((edge) => edge.fromNode === nodeId || edge.toNode === nodeId)
+    .map((edge) => edge.id);
+}
+
+function isEdgeValid(edge: Edge, nodes: NodesMap): boolean {
+  if (edge.fromNode === edge.toNode) {
+    return false;
+  }
+
+  return Boolean(nodes[edge.fromNode] && nodes[edge.toNode]);
+}
+
 export const useCanvasStore = create<CanvasStore>((set, get) => {
   const history = new HistoryManager(50);
 
@@ -202,7 +276,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     syncHistoryState();
   };
 
-  const commandContext: NodeCommandContext = {
+  const commandContext: NodeCommandContext & EdgeCommandContext = {
     addNode: (node, file) => {
       set((state) => {
         const nextFiles = file
@@ -235,12 +309,17 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
 
         const remainingNodes = { ...state.nodes };
         delete remainingNodes[id];
+        const connectedEdgeIds = getConnectedEdgeIds(state.edges, id);
 
         return {
           nodes: remainingNodes,
           nodeOrder: removeNodeFromOrder(state.nodeOrder, id),
+          edges: removeEdgesByIds(state.edges, connectedEdgeIds),
           selectedNodeIds: state.selectedNodeIds.filter(
             (selectedNodeId) => selectedNodeId !== id,
+          ),
+          selectedEdgeIds: state.selectedEdgeIds.filter(
+            (selectedEdgeId) => !connectedEdgeIds.includes(selectedEdgeId),
           ),
           interactionState: InteractionState.Idle,
         };
@@ -352,6 +431,45 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         };
       });
     },
+    addEdge: (edge) => {
+      set((state) => {
+        if (!isEdgeValid(edge, state.nodes)) {
+          return state;
+        }
+
+        return {
+          edges: {
+            ...state.edges,
+            [edge.id]: edge,
+          },
+        };
+      });
+    },
+    deleteEdge: (edgeId) => {
+      set((state) => {
+        if (!state.edges[edgeId]) {
+          return state;
+        }
+
+        return {
+          edges: removeEdgesByIds(state.edges, [edgeId]),
+          selectedEdgeIds: state.selectedEdgeIds.filter(
+            (selectedEdgeId) => selectedEdgeId !== edgeId,
+          ),
+        };
+      });
+    },
+    setEdge: (edge) => {
+      set((state) => {
+        if (!state.edges[edge.id] || !isEdgeValid(edge, state.nodes)) {
+          return state;
+        }
+
+        return {
+          edges: patchEdge(state.edges, edge.id, edge),
+        };
+      });
+    },
   };
 
   return {
@@ -359,7 +477,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     nodes: {},
     nodeOrder: [],
     files: {},
+    edges: {},
     selectedNodeIds: [],
+    selectedEdgeIds: [],
+    canvasMode: "select",
     interactionState: InteractionState.Idle,
     canUndo: false,
     canRedo: false,
@@ -491,6 +612,95 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         new UpdateHeightModeCommand(commandContext, id, node.heightMode, mode),
       );
     },
+    addEdge: (edge) => {
+      const state = get();
+      if (state.edges[edge.id] || !isEdgeValid(edge, state.nodes)) {
+        return;
+      }
+
+      executeCommand(new AddEdgeCommand(commandContext, edge));
+    },
+    updateEdge: (id, patch) => {
+      const state = get();
+      const currentEdge = state.edges[id];
+      if (!currentEdge) {
+        return;
+      }
+
+      const nextEdge: Edge = {
+        ...currentEdge,
+        ...patch,
+        id: currentEdge.id,
+      };
+      if (
+        !isEdgeValid(nextEdge, state.nodes) ||
+        isEdgeEqual(currentEdge, nextEdge)
+      ) {
+        return;
+      }
+
+      executeCommand(
+        new UpdateEdgeCommand(commandContext, currentEdge, nextEdge),
+      );
+    },
+    deleteEdge: (id) => {
+      const edge = get().edges[id];
+      if (!edge) {
+        return;
+      }
+
+      executeCommand(new DeleteEdgeCommand(commandContext, edge));
+    },
+    deleteSelectedEdges: () => {
+      const state = get();
+      if (state.selectedEdgeIds.length === 0) {
+        return;
+      }
+
+      const commands = state.selectedEdgeIds
+        .map((edgeId) => state.edges[edgeId])
+        .filter((edge): edge is Edge => Boolean(edge))
+        .map((edge) => new DeleteEdgeCommand(commandContext, edge));
+
+      if (commands.length === 0) {
+        return;
+      }
+
+      if (commands.length === 1) {
+        executeCommand(commands[0]);
+        return;
+      }
+
+      executeCommand(new CompositeCommand(commands, "edge.delete-selected"));
+    },
+    setCanvasMode: (mode) => {
+      set((state) => {
+        if (state.canvasMode === mode) {
+          return state;
+        }
+
+        if (
+          state.interactionState === InteractionState.Connecting &&
+          mode === "select"
+        ) {
+          return {
+            canvasMode: mode,
+            interactionState: transition(
+              state.interactionState,
+              InteractionEvent.ESCAPE,
+            ),
+          };
+        }
+
+        if (state.interactionState !== InteractionState.Idle) {
+          return state;
+        }
+
+        return {
+          canvasMode: mode,
+        };
+      });
+    },
     dispatch: (event) => {
       set((state) => {
         return {
@@ -508,14 +718,27 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       const nextNodeOrder = removeNodeFromOrder(state.nodeOrder, id);
       const file =
         node.type === "image" ? state.files[node.asset_id] : undefined;
+      const connectedEdgeCommands = getConnectedEdgeIds(state.edges, node.id)
+        .map((edgeId) => state.edges[edgeId])
+        .filter((edge): edge is Edge => Boolean(edge))
+        .map((edge) => new DeleteEdgeCommand(commandContext, edge));
+      const nodeCommand = new DeleteNodeCommand(commandContext, {
+        node,
+        file,
+        previousNodeOrder: state.nodeOrder,
+        nextNodeOrder,
+      });
+
+      if (connectedEdgeCommands.length === 0) {
+        executeCommand(nodeCommand);
+        return;
+      }
 
       executeCommand(
-        new DeleteNodeCommand(commandContext, {
-          node,
-          file,
-          previousNodeOrder: state.nodeOrder,
-          nextNodeOrder,
-        }),
+        new CompositeCommand(
+          [...connectedEdgeCommands, nodeCommand],
+          "node.delete-with-edges",
+        ),
       );
     },
     deleteSelectedNodes: () => {
@@ -525,6 +748,16 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       }
 
       const commands: Command[] = [];
+      const selectedNodeIdSet = new Set(state.selectedNodeIds);
+      for (const edge of Object.values(state.edges)) {
+        if (
+          selectedNodeIdSet.has(edge.fromNode) ||
+          selectedNodeIdSet.has(edge.toNode)
+        ) {
+          commands.push(new DeleteEdgeCommand(commandContext, edge));
+        }
+      }
+
       let simulatedOrder = [...state.nodeOrder];
 
       for (const nodeId of state.selectedNodeIds) {
@@ -561,6 +794,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         if (!nodeId || !state.nodes[nodeId]) {
           return {
             selectedNodeIds: [],
+            selectedEdgeIds: [],
           };
         }
 
@@ -575,7 +809,28 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         return {
           nodeOrder: nextNodeOrder,
           selectedNodeIds: [nodeId],
+          selectedEdgeIds: [],
         };
+      });
+    },
+    selectEdge: (edgeId) => {
+      set((state) => {
+        if (!edgeId || !state.edges[edgeId]) {
+          return {
+            selectedEdgeIds: [],
+          };
+        }
+
+        return {
+          selectedNodeIds: [],
+          selectedEdgeIds: [edgeId],
+        };
+      });
+    },
+    deselectAll: () => {
+      set({
+        selectedNodeIds: [],
+        selectedEdgeIds: [],
       });
     },
     moveTextNodeUp: (id) => {

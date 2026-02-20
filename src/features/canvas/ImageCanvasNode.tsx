@@ -14,11 +14,18 @@ import {
 } from "./constants";
 import { acquireImage, releaseImage } from "./imageUrlCache";
 import { InteractionEvent } from "./stateMachine";
+import type { ContextMenuNodeType } from "./NodeContextMenu";
 
 type ImageCanvasNodeProps = {
   node: ImageNode;
   isSelected: boolean;
   zoom: number;
+  onOpenContextMenu: (payload: {
+    nodeId: string;
+    nodeType: ContextMenuNodeType;
+    clientX: number;
+    clientY: number;
+  }) => void;
 };
 
 type ResizeHandle =
@@ -306,6 +313,7 @@ export function ImageCanvasNode({
   node,
   isSelected,
   zoom,
+  onOpenContextMenu,
 }: ImageCanvasNodeProps) {
   const file = useCanvasStore((state) => state.files[node.asset_id]);
   const selectNode = useCanvasStore((state) => state.selectNode);
@@ -400,6 +408,21 @@ export function ImageCanvasNode({
       selectNode(node.id);
     },
     [node.id, selectNode],
+  );
+
+  const handleGroupContextMenu = useCallback(
+    (event: KonvaEventObject<PointerEvent>) => {
+      event.cancelBubble = true;
+      event.evt.preventDefault();
+      selectNode(node.id);
+      onOpenContextMenu({
+        nodeId: node.id,
+        nodeType: "image",
+        clientX: event.evt.clientX,
+        clientY: event.evt.clientY,
+      });
+    },
+    [node.id, onOpenContextMenu, selectNode],
   );
 
   const handleDragStart = useCallback(
@@ -608,6 +631,7 @@ export function ImageCanvasNode({
       draggable={!isResizing}
       onMouseDown={handleGroupPointerDown}
       onTouchStart={handleGroupPointerDown}
+      onContextMenu={handleGroupContextMenu}
       onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}

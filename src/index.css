@@ -572,6 +572,34 @@
     cursor: nwse-resize;
   }
 
+  .node-anchor {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid var(--sage-dark);
+    border-radius: 999px;
+    background: var(--elevated);
+    box-shadow: 0 1px 6px rgb(18 18 17 / 18%);
+    cursor: crosshair;
+    pointer-events: auto;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      box-shadow 120ms ease,
+      transform 120ms ease;
+  }
+
+  .node-anchor:hover {
+    border-color: var(--sage);
+    background: color-mix(in srgb, var(--sage-lighter) 70%, var(--elevated));
+  }
+
+  .node-anchor--active {
+    border-color: var(--sage);
+    background: var(--sage-lighter);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sage) 25%, transparent);
+  }
+
   .card-editor__content {
     min-height: 1.4em;
     white-space: pre-wrap;

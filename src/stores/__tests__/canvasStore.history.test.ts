@@ -39,7 +39,10 @@ function resetStore() {
     nodes: {},
     nodeOrder: [],
     files: {},
+    edges: {},
     selectedNodeIds: [],
+    selectedEdgeIds: [],
+    canvasMode: "select",
     interactionState: InteractionState.Idle,
     canUndo: false,
     canRedo: false,
@@ -50,6 +53,8 @@ function seedNodes(nodes: CanvasNode[], nodeOrder: string[]) {
   useCanvasStore.setState({
     nodes: Object.fromEntries(nodes.map((node) => [node.id, node])),
     nodeOrder,
+    edges: {},
+    selectedEdgeIds: [],
   });
 }
 

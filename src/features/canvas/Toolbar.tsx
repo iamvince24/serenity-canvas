@@ -1,4 +1,4 @@
-import { ImagePlus, Redo2, Undo2 } from "lucide-react";
+import { ImagePlus, MousePointer2, Redo2, Spline, Undo2 } from "lucide-react";
 import { useCallback, useRef, type ChangeEvent } from "react";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
@@ -7,9 +7,11 @@ import { useImageUpload } from "./useImageUpload";
 
 export function Toolbar() {
   const viewport = useCanvasStore((state) => state.viewport);
+  const canvasMode = useCanvasStore((state) => state.canvasMode);
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
   const selectNode = useCanvasStore((state) => state.selectNode);
+  const setCanvasMode = useCanvasStore((state) => state.setCanvasMode);
   const undo = useCanvasStore((state) => state.undo);
   const redo = useCanvasStore((state) => state.redo);
   const canUndo = useCanvasStore((state) => state.canUndo);
@@ -66,7 +68,38 @@ export function Toolbar() {
 
   return (
     <div className="pointer-events-none fixed left-1/2 top-4 z-40 -translate-x-1/2 md:top-6">
-      <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-elevated/95 p-1.5 shadow-sm backdrop-blur-sm">
+      <div className="pointer-events-auto flex w-[min(96vw,880px)] items-center justify-center gap-2 rounded-lg border border-border bg-elevated/95 p-1.5 shadow-sm backdrop-blur-sm">
+        <button
+          type="button"
+          className={`btn-secondary h-9 gap-2 px-3 text-sm ${
+            canvasMode === "select"
+              ? "border-sage-light bg-sage/20 text-sage-dark hover:bg-sage/20"
+              : ""
+          }`}
+          aria-label="Select mode"
+          aria-pressed={canvasMode === "select"}
+          title="Select (V)"
+          onClick={() => setCanvasMode("select")}
+        >
+          <MousePointer2 size={16} />
+          Select
+        </button>
+        <button
+          type="button"
+          className={`btn-secondary h-9 gap-2 px-3 text-sm ${
+            canvasMode === "connect"
+              ? "border-sage-light bg-sage/20 text-sage-dark hover:bg-sage/20"
+              : ""
+          }`}
+          aria-label="Connect mode"
+          aria-pressed={canvasMode === "connect"}
+          title="Connect (C)"
+          onClick={() => setCanvasMode("connect")}
+        >
+          <Spline size={16} />
+          Connect
+        </button>
+        <div className="h-5 w-px bg-border" aria-hidden="true" />
         <button
           type="button"
           className="btn-secondary h-9 w-9 justify-center px-0"

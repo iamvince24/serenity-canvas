@@ -31,7 +31,7 @@ vi.mock("../useDragHandle", () => ({
   useDragHandle: () => ({}),
 }));
 
-describe("CardWidget layer ordering actions", () => {
+describe("CardWidget context menu behavior", () => {
   beforeEach(() => {
     useCanvasStore.getState().clearHistory();
     useCanvasStore.setState({
@@ -48,87 +48,88 @@ describe("CardWidget layer ordering actions", () => {
           color: null,
           contentMarkdown: "first",
         },
-        "img-1": {
-          id: "img-1",
-          type: "image",
-          x: 20,
-          y: 20,
-          width: 320,
-          height: 300,
-          heightMode: "fixed",
-          color: null,
-          content: "image",
-          asset_id: "asset-1",
-        },
-        "text-2": {
-          id: "text-2",
-          type: "text",
-          x: 40,
-          y: 40,
-          width: 280,
-          height: 240,
-          heightMode: "fixed",
-          color: null,
-          contentMarkdown: "second",
-        },
       },
-      nodeOrder: ["text-1", "img-1", "text-2"],
+      nodeOrder: ["text-1"],
       files: {},
-      selectedNodeIds: ["text-1"],
+      edges: {},
+      selectedNodeIds: [],
+      selectedEdgeIds: [],
+      canvasMode: "select",
       interactionState: InteractionState.Idle,
       canUndo: false,
       canRedo: false,
     });
   });
 
-  it("點擊 Bring to Front 會只在文字子序列中重排", () => {
+  it("右鍵卡片會觸發設定選單 callback", () => {
     const node = useCanvasStore.getState().nodes["text-1"];
     if (!node || node.type !== "text") {
       throw new Error("text node not found");
     }
 
-    render(<CardWidget node={node} zoom={1} layerIndex={0} />);
+    const onOpenContextMenu = vi.fn();
+    render(
+      <CardWidget
+        node={node}
+        zoom={1}
+        layerIndex={0}
+        onOpenContextMenu={onOpenContextMenu}
+      />,
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Open card settings" }));
-    fireEvent.click(screen.getByRole("button", { name: "Bring to Front" }));
+    const card = document.querySelector(
+      '[data-card-node-id="text-1"]',
+    ) as HTMLDivElement | null;
+    if (!card) {
+      throw new Error("card element not found");
+    }
 
-    expect(useCanvasStore.getState().nodeOrder).toEqual([
-      "text-2",
-      "img-1",
-      "text-1",
-    ]);
+    fireEvent.contextMenu(card, { clientX: 120, clientY: 180 });
+
+    expect(onOpenContextMenu).toHaveBeenCalledWith({
+      nodeId: "text-1",
+      nodeType: "text",
+      clientX: 120,
+      clientY: 180,
+    });
+    expect(useCanvasStore.getState().selectedNodeIds).toEqual(["text-1"]);
   });
 
-  it("文字已在最上層時，前移按鈕 disabled", () => {
-    useCanvasStore.setState({
-      selectedNodeIds: ["text-2"],
-    });
-    const node = useCanvasStore.getState().nodes["text-2"];
+  it("不再顯示卡片齒輪設定按鈕", () => {
+    const node = useCanvasStore.getState().nodes["text-1"];
     if (!node || node.type !== "text") {
       throw new Error("text node not found");
     }
 
-    render(<CardWidget node={node} zoom={1} layerIndex={2} />);
+    render(
+      <CardWidget
+        node={node}
+        zoom={1}
+        layerIndex={0}
+        onOpenContextMenu={vi.fn()}
+      />,
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Open card settings" }));
-
-    const bringToFrontButton = screen.getByRole("button", {
-      name: "Bring to Front",
-    }) as HTMLButtonElement;
-    const bringForwardButton = screen.getByRole("button", {
-      name: "Bring Forward",
-    }) as HTMLButtonElement;
-    expect(bringToFrontButton.disabled).toBe(true);
-    expect(bringForwardButton.disabled).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Open card settings" }),
+    ).toBeNull();
   });
 
   it("選取但非拖曳/縮放時，zIndex 直接使用 layerIndex", () => {
+    useCanvasStore.setState({ selectedNodeIds: ["text-1"] });
     const node = useCanvasStore.getState().nodes["text-1"];
     if (!node || node.type !== "text") {
       throw new Error("text node not found");
     }
 
-    render(<CardWidget node={node} zoom={1} layerIndex={0} />);
+    render(
+      <CardWidget
+        node={node}
+        zoom={1}
+        layerIndex={0}
+        onOpenContextMenu={vi.fn()}
+      />,
+    );
 
     const card = document.querySelector(
       '[data-card-node-id="text-1"]',

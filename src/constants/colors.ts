@@ -22,6 +22,8 @@ export const DEFAULT_NODE_COLOR: CanvasNodeColor = null;
 
 export const DEFAULT_CARD_BACKGROUND = "#FFFFFF";
 export const DEFAULT_CARD_BORDER = "#E5E3DF";
+export const DEFAULT_EDGE_STROKE = "#6B6B66";
+export const SELECTED_EDGE_STROKE = "#8B9D83";
 
 export const CANVAS_COLOR_PRESETS: readonly CanvasColorPreset[] = [
   {
@@ -117,6 +119,11 @@ export function getCardColorStyle(color: CanvasNodeColor): {
     background: preset.background,
     border: preset.border,
   };
+}
+
+export function getEdgeStrokeColor(color: CanvasNodeColor): string {
+  const preset = getCanvasColorPreset(color);
+  return preset ? preset.border : DEFAULT_EDGE_STROKE;
 }
 
 export function getColorPresetByObsidianValue(

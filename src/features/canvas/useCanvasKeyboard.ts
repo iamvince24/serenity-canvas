@@ -178,6 +178,12 @@ export function useCanvasKeyboard({
       }
 
       if (state.selectedNodeIds.length === 0) {
+        if (state.selectedEdgeIds.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        state.deleteSelectedEdges();
         return;
       }
 

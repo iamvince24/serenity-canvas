@@ -10,6 +10,8 @@ export type ViewportState = {
 
 export type NodeHeightMode = "auto" | "fixed";
 
+export type CanvasMode = "select" | "connect";
+
 // Shared fields for all node variants.
 export type BaseNode = {
   id: string;
@@ -45,6 +47,19 @@ export type FileRecord = {
 
 export type CanvasNode = TextNode | ImageNode;
 
+export type EdgeDirection = "none" | "forward" | "both";
+export type EdgeLineStyle = "solid" | "dashed" | "dotted";
+
+export type Edge = {
+  id: string;
+  fromNode: string;
+  toNode: string;
+  direction: EdgeDirection;
+  label: string;
+  lineStyle: EdgeLineStyle;
+  color: CanvasNodeColor;
+};
+
 export function isTextNode(node: CanvasNode): node is TextNode {
   return node.type === "text";
 }
@@ -59,5 +74,7 @@ export type CanvasState = {
   nodes: Record<string, CanvasNode>;
   nodeOrder: string[];
   files: Record<string, FileRecord>;
+  edges: Record<string, Edge>;
   selectedNodeIds: string[];
+  selectedEdgeIds: string[];
 };
