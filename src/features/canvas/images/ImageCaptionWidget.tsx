@@ -80,7 +80,9 @@ export function ImageCaptionWidget({
     (event: ReactMouseEvent<HTMLTextAreaElement>) => {
       event.preventDefault();
       event.stopPropagation();
-      selectNode(node.id);
+      if (!selectedNodeIds.includes(node.id)) {
+        selectNode(node.id);
+      }
       onOpenContextMenu({
         nodeId: node.id,
         nodeType: "image",
@@ -88,7 +90,7 @@ export function ImageCaptionWidget({
         clientY: event.clientY,
       });
     },
-    [node.id, onOpenContextMenu, selectNode],
+    [node.id, onOpenContextMenu, selectNode, selectedNodeIds],
   );
 
   const handlePointerDown = useCallback(

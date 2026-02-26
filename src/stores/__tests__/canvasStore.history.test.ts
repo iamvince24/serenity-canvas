@@ -40,8 +40,10 @@ function resetStore() {
     nodeOrder: [],
     files: {},
     edges: {},
+    groups: {},
     selectedNodeIds: [],
     selectedEdgeIds: [],
+    selectedGroupIds: [],
     canvasMode: "select",
     interactionState: InteractionState.Idle,
     canUndo: false,
@@ -54,7 +56,9 @@ function seedNodes(nodes: CanvasNode[], nodeOrder: string[]) {
     nodes: Object.fromEntries(nodes.map((node) => [node.id, node])),
     nodeOrder,
     edges: {},
+    groups: {},
     selectedEdgeIds: [],
+    selectedGroupIds: [],
   });
 }
 
@@ -98,6 +102,38 @@ describe("canvasStore history", () => {
     const undoneNode = useCanvasStore.getState().nodes["text-1"];
     expect(undoneNode?.x).toBe(0);
     expect(undoneNode?.y).toBe(0);
+  });
+
+  it("批次移動使用單次 undo 還原所有節點", () => {
+    seedNodes(
+      [createTextNode("text-1"), createTextNode("text-2")],
+      ["text-1", "text-2"],
+    );
+
+    useCanvasStore.getState().commitBatchNodeMove([
+      {
+        id: "text-1",
+        from: { x: 0, y: 0 },
+        to: { x: 120, y: 80 },
+      },
+      {
+        id: "text-2",
+        from: { x: 0, y: 0 },
+        to: { x: 260, y: 120 },
+      },
+    ]);
+
+    expect(useCanvasStore.getState().nodes["text-1"]?.x).toBe(120);
+    expect(useCanvasStore.getState().nodes["text-1"]?.y).toBe(80);
+    expect(useCanvasStore.getState().nodes["text-2"]?.x).toBe(260);
+    expect(useCanvasStore.getState().nodes["text-2"]?.y).toBe(120);
+
+    useCanvasStore.getState().undo();
+
+    expect(useCanvasStore.getState().nodes["text-1"]?.x).toBe(0);
+    expect(useCanvasStore.getState().nodes["text-1"]?.y).toBe(0);
+    expect(useCanvasStore.getState().nodes["text-2"]?.x).toBe(0);
+    expect(useCanvasStore.getState().nodes["text-2"]?.y).toBe(0);
   });
 
   it("刪除節點後可 undo 還原 node 與 nodeOrder", () => {

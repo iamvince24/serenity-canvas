@@ -15,6 +15,7 @@ import {
 import { acquireImage, releaseImage } from "./imageUrlCache";
 import { InteractionEvent } from "../core/stateMachine";
 import type { ContextMenuNodeType } from "../nodes/NodeContextMenu";
+import { useBatchDrag } from "../hooks/useBatchDrag";
 
 type ImageCanvasNodeProps = {
   node: ImageNode;
@@ -320,15 +321,16 @@ export function ImageCanvasNode({
   const toggleNodeSelection = useCanvasStore(
     (state) => state.toggleNodeSelection,
   );
-  const previewNodePosition = useCanvasStore(
-    (state) => state.previewNodePosition,
-  );
   const previewNodeGeometry = useCanvasStore(
     (state) => state.previewNodeGeometry,
   );
-  const commitNodeMove = useCanvasStore((state) => state.commitNodeMove);
   const commitNodeResize = useCanvasStore((state) => state.commitNodeResize);
   const dispatch = useCanvasStore((state) => state.dispatch);
+  const { startBatchDrag, previewBatchDragFromNodePosition, finishBatchDrag } =
+    useBatchDrag({
+      nodeId: node.id,
+      zoom,
+    });
 
   const [cacheEntry, setCacheEntry] = useState<{
     objectUrl: string;
@@ -339,7 +341,6 @@ export function ImageCanvasNode({
   const resizeStartGeometryRef = useRef<ReturnType<
     typeof toNodeGeometrySnapshot
   > | null>(null);
-  const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const isResizingRef = useRef(false);
   const stopResizeRef = useRef<(() => void) | null>(null);
 
@@ -422,7 +423,9 @@ export function ImageCanvasNode({
     (event: KonvaEventObject<PointerEvent>) => {
       event.cancelBubble = true;
       event.evt.preventDefault();
-      selectNode(node.id);
+      if (!isSelected) {
+        selectNode(node.id);
+      }
       onOpenContextMenu({
         nodeId: node.id,
         nodeType: "image",
@@ -430,7 +433,7 @@ export function ImageCanvasNode({
         clientY: event.evt.clientY,
       });
     },
-    [node.id, onOpenContextMenu, selectNode],
+    [isSelected, node.id, onOpenContextMenu, selectNode],
   );
 
   const handleDragStart = useCallback(
@@ -442,44 +445,28 @@ export function ImageCanvasNode({
       }
 
       event.cancelBubble = true;
-      selectNode(node.id);
-      dispatch(InteractionEvent.NODE_DRAG_START);
-      const currentNode = useCanvasStore.getState().nodes[node.id];
-      dragStartPositionRef.current = {
-        x: currentNode?.x ?? node.x,
-        y: currentNode?.y ?? node.y,
-      };
+      startBatchDrag();
     },
-    [dispatch, node.id, node.x, node.y, selectNode],
+    [startBatchDrag],
   );
 
   const handleDragMove = useCallback(
     (event: KonvaEventObject<DragEvent>) => {
       const target = event.target;
-      previewNodePosition(node.id, target.x(), target.y());
+      previewBatchDragFromNodePosition(target.x(), target.y());
       event.cancelBubble = true;
     },
-    [node.id, previewNodePosition],
+    [previewBatchDragFromNodePosition],
   );
 
   const handleDragEnd = useCallback(
     (event: KonvaEventObject<DragEvent>) => {
       const target = event.target;
-      const finalPosition = {
-        x: target.x(),
-        y: target.y(),
-      };
-      previewNodePosition(node.id, finalPosition.x, finalPosition.y);
-      const startPosition = dragStartPositionRef.current ?? {
-        x: node.x,
-        y: node.y,
-      };
-      dragStartPositionRef.current = null;
-      commitNodeMove(node.id, startPosition, finalPosition);
-      dispatch(InteractionEvent.NODE_DRAG_END);
+      previewBatchDragFromNodePosition(target.x(), target.y());
+      finishBatchDrag();
       event.cancelBubble = true;
     },
-    [commitNodeMove, dispatch, node.id, node.x, node.y, previewNodePosition],
+    [finishBatchDrag, previewBatchDragFromNodePosition],
   );
 
   const handleResizePointerDown = useCallback(

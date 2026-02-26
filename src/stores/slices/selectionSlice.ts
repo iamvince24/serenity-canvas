@@ -26,6 +26,25 @@ function sanitizeNodeSelection(
   return validNodeIds;
 }
 
+function sanitizeGroupSelection(
+  state: CanvasStore,
+  groupIds: string[],
+): string[] {
+  const seen = new Set<string>();
+  const validGroupIds: string[] = [];
+
+  for (const groupId of groupIds) {
+    if (!state.groups[groupId] || seen.has(groupId)) {
+      continue;
+    }
+
+    seen.add(groupId);
+    validGroupIds.push(groupId);
+  }
+
+  return validGroupIds;
+}
+
 function isSameSelection(a: string[], b: string[]): boolean {
   if (a.length !== b.length) {
     return false;
@@ -37,8 +56,10 @@ function isSameSelection(a: string[], b: string[]): boolean {
 export type SelectionSlice = {
   selectedNodeIds: string[];
   selectedEdgeIds: string[];
+  selectedGroupIds: string[];
   selectNode: (nodeId: string | null) => void;
   selectEdge: (edgeId: string | null) => void;
+  selectGroup: (groupId: string | null) => void;
   setSelectedNodes: (nodeIds: string[]) => void;
   mergeSelectedNodes: (nodeIds: string[]) => void;
   toggleNodeSelection: (nodeId: string) => void;
@@ -49,12 +70,14 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
   return {
     selectedNodeIds: [],
     selectedEdgeIds: [],
+    selectedGroupIds: [],
     selectNode: (nodeId) => {
       set((state) => {
         if (!nodeId || !state.nodes[nodeId]) {
           return {
             selectedNodeIds: [],
             selectedEdgeIds: [],
+            selectedGroupIds: [],
           };
         }
 
@@ -83,6 +106,33 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
         return {
           selectedNodeIds: [],
           selectedEdgeIds: [edgeId],
+          selectedGroupIds: [],
+        };
+      });
+    },
+    selectGroup: (groupId) => {
+      set((state) => {
+        if (!groupId || !state.groups[groupId]) {
+          if (state.selectedGroupIds.length === 0) {
+            return state;
+          }
+
+          return {
+            selectedGroupIds: [],
+          };
+        }
+
+        const nextSelectedGroupIds = sanitizeGroupSelection(state, [groupId]);
+        if (
+          isSameSelection(state.selectedGroupIds, nextSelectedGroupIds) &&
+          state.selectedEdgeIds.length === 0
+        ) {
+          return state;
+        }
+
+        return {
+          selectedGroupIds: nextSelectedGroupIds,
+          selectedEdgeIds: [],
         };
       });
     },
@@ -179,6 +229,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
       set({
         selectedNodeIds: [],
         selectedEdgeIds: [],
+        selectedGroupIds: [],
       });
     },
   };

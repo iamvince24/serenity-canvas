@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { FolderPlus, PenLine, Trash2, Ungroup } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -6,16 +6,23 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  CANVAS_COLOR_PRESETS,
+  type CanvasNodeColor,
+} from "../../../constants/colors";
+import { cn } from "../../../lib/utils";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { ColorPicker } from "../card/ColorPicker";
 
 export type ContextMenuNodeType = "text" | "image";
 
 type NodeContextMenuProps = {
-  nodeId: string;
-  nodeType: ContextMenuNodeType;
+  nodeId?: string;
+  nodeType?: ContextMenuNodeType;
+  groupId?: string;
   clientX: number;
   clientY: number;
   onClose: () => void;
@@ -36,18 +43,60 @@ function clamp(value: number, min: number, max: number): number {
 export function NodeContextMenu({
   nodeId,
   nodeType,
+  groupId,
   clientX,
   clientY,
   onClose,
 }: NodeContextMenuProps) {
-  const node = useCanvasStore((state) => state.nodes[nodeId]);
+  const node = useCanvasStore((state) => (nodeId ? state.nodes[nodeId] : null));
+  const nodes = useCanvasStore((state) => state.nodes);
+  const groups = useCanvasStore((state) => state.groups);
+  const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
+  const selectedGroupIds = useCanvasStore((state) => state.selectedGroupIds);
   const setNodeHeightMode = useCanvasStore((state) => state.setNodeHeightMode);
+  const createGroup = useCanvasStore((state) => state.createGroup);
+  const deleteGroup = useCanvasStore((state) => state.deleteGroup);
+  const updateGroup = useCanvasStore((state) => state.updateGroup);
   const deleteNode = useCanvasStore((state) => state.deleteNode);
+  const deleteSelected = useCanvasStore((state) => state.deleteSelected);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuPosition, setMenuPosition] = useState<MenuPosition>({
     left: clientX,
     top: clientY,
   });
+
+  const activeSelectedNodeIds = useMemo(
+    () =>
+      selectedNodeIds.filter((selectedNodeId) =>
+        Boolean(nodes[selectedNodeId]),
+      ),
+    [nodes, selectedNodeIds],
+  );
+
+  const activeSelectedGroupIds = useMemo(() => {
+    const sanitized = selectedGroupIds.filter((selectedGroupId) =>
+      Boolean(groups[selectedGroupId]),
+    );
+    if (sanitized.length > 0) {
+      return sanitized;
+    }
+
+    if (groupId && groups[groupId]) {
+      return [groupId];
+    }
+
+    return [];
+  }, [groupId, groups, selectedGroupIds]);
+
+  const primaryGroup =
+    activeSelectedGroupIds.length > 0
+      ? (groups[activeSelectedGroupIds[0]] ?? null)
+      : null;
+
+  const hasGroupSelection = activeSelectedGroupIds.length > 0;
+  const canCreateGroup = activeSelectedNodeIds.length > 1;
+  const showSingleNodeActions =
+    !hasGroupSelection && activeSelectedNodeIds.length <= 1 && Boolean(node);
 
   const updateMenuPosition = useCallback(() => {
     const menuElement = menuRef.current;
@@ -72,17 +121,50 @@ export function NodeContextMenu({
     });
   }, [clientX, clientY]);
 
-  useEffect(() => {
-    if (node) {
+  const focusRelativeMenuItem = useCallback((delta: number) => {
+    const menuElement = menuRef.current;
+    if (!menuElement) {
       return;
     }
 
-    onClose();
-  }, [node, onClose]);
+    const menuItems = Array.from(
+      menuElement.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
+    );
+    if (menuItems.length === 0) {
+      return;
+    }
+
+    const activeElement =
+      document.activeElement instanceof HTMLButtonElement
+        ? document.activeElement
+        : null;
+    const activeIndex = activeElement ? menuItems.indexOf(activeElement) : -1;
+    const nextIndex =
+      activeIndex < 0
+        ? delta >= 0
+          ? 0
+          : menuItems.length - 1
+        : (activeIndex + delta + menuItems.length) % menuItems.length;
+
+    menuItems[nextIndex]?.focus();
+  }, []);
 
   useEffect(() => {
-    let frameId: number | null =
-      window.requestAnimationFrame(updateMenuPosition);
+    if (nodeId && !node) {
+      onClose();
+      return;
+    }
+
+    if (groupId && !groups[groupId]) {
+      onClose();
+    }
+  }, [groupId, groups, node, nodeId, onClose]);
+
+  useEffect(() => {
+    let frameId: number | null = window.requestAnimationFrame(() => {
+      updateMenuPosition();
+      focusRelativeMenuItem(1);
+    });
     const handleWindowResize = () => {
       updateMenuPosition();
     };
@@ -98,7 +180,7 @@ export function NodeContextMenu({
       window.removeEventListener("resize", handleWindowResize);
       window.removeEventListener("scroll", handleWindowResize, true);
     };
-  }, [updateMenuPosition]);
+  }, [focusRelativeMenuItem, updateMenuPosition]);
 
   useEffect(() => {
     const handleWindowPointerDown = (event: PointerEvent) => {
@@ -142,7 +224,7 @@ export function NodeContextMenu({
   }, [onClose]);
 
   const handleFitContent = useCallback(() => {
-    if (nodeType !== "text") {
+    if (!nodeId || nodeType !== "text") {
       return;
     }
 
@@ -156,13 +238,87 @@ export function NodeContextMenu({
   }, [nodeId, nodeType, onClose, setNodeHeightMode]);
 
   const handleDeleteImageNode = useCallback(() => {
-    if (nodeType !== "image") {
+    if (!nodeId || nodeType !== "image") {
       return;
     }
 
     deleteNode(nodeId);
     onClose();
   }, [deleteNode, nodeId, nodeType, onClose]);
+
+  const handleCreateGroup = useCallback(() => {
+    if (activeSelectedNodeIds.length < 2) {
+      return;
+    }
+
+    createGroup(activeSelectedNodeIds);
+    onClose();
+  }, [activeSelectedNodeIds, createGroup, onClose]);
+
+  const handleDeleteSelected = useCallback(() => {
+    deleteSelected();
+    onClose();
+  }, [deleteSelected, onClose]);
+
+  const handleUngroup = useCallback(() => {
+    if (activeSelectedGroupIds.length === 0) {
+      return;
+    }
+
+    for (const selectedGroupId of activeSelectedGroupIds) {
+      deleteGroup(selectedGroupId);
+    }
+    onClose();
+  }, [activeSelectedGroupIds, deleteGroup, onClose]);
+
+  const handleRenameGroup = useCallback(() => {
+    if (!primaryGroup) {
+      return;
+    }
+
+    const nextLabel = window.prompt("Group name", primaryGroup.label);
+    if (nextLabel === null) {
+      return;
+    }
+
+    const trimmedLabel = nextLabel.trim();
+    if (trimmedLabel.length === 0) {
+      return;
+    }
+
+    updateGroup(primaryGroup.id, { label: trimmedLabel });
+    onClose();
+  }, [onClose, primaryGroup, updateGroup]);
+
+  const handleSelectGroupColor = useCallback(
+    (color: CanvasNodeColor) => {
+      if (!primaryGroup) {
+        return;
+      }
+
+      updateGroup(primaryGroup.id, { color });
+      onClose();
+    },
+    [onClose, primaryGroup, updateGroup],
+  );
+
+  const handleMenuKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        event.stopPropagation();
+        focusRelativeMenuItem(1);
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        focusRelativeMenuItem(-1);
+      }
+    },
+    [focusRelativeMenuItem],
+  );
 
   const menuStyle = useMemo<CSSProperties>(
     () => ({
@@ -176,12 +332,17 @@ export function NodeContextMenu({
     [menuPosition.left, menuPosition.top],
   );
 
-  if (!node || typeof document === "undefined") {
+  if (
+    typeof document === "undefined" ||
+    (!showSingleNodeActions && !canCreateGroup && !hasGroupSelection)
+  ) {
     return null;
   }
 
-  const showFitContent = nodeType === "text" && node.type === "text";
-  const showDelete = nodeType === "image" && node.type === "image";
+  const showFitContent =
+    showSingleNodeActions && nodeType === "text" && node?.type === "text";
+  const showDeleteImageNode =
+    showSingleNodeActions && nodeType === "image" && node?.type === "image";
 
   return createPortal(
     <div
@@ -190,39 +351,137 @@ export function NodeContextMenu({
       style={menuStyle}
       data-node-context-menu="true"
       onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={handleMenuKeyDown}
     >
-      {showFitContent ? (
+      {canCreateGroup ? (
         <>
           <button
             type="button"
             className="card-widget__settings-item"
-            onClick={handleFitContent}
+            onClick={handleCreateGroup}
           >
-            Fit Content
+            <FolderPlus size={14} />
+            Create Group
           </button>
-          <div className="card-widget__settings-divider" />
+          <button
+            type="button"
+            className="card-widget__settings-item"
+            onClick={handleDeleteSelected}
+          >
+            <Trash2 size={14} />
+            Delete Selected
+          </button>
         </>
       ) : null}
 
-      <ColorPicker
-        nodeId={node.id}
-        color={node.color}
-        onSelectColor={() => onClose()}
-      />
-
-      {/* Temporarily disabled layer-order actions:
-          Bring to Front / Bring Forward / Send Backward / Send to Back. */}
-      {showDelete ? (
+      {hasGroupSelection ? (
         <>
-          <div className="card-widget__settings-divider" />
+          {canCreateGroup ? (
+            <div className="card-widget__settings-divider" />
+          ) : null}
           <button
             type="button"
             className="card-widget__settings-item"
-            onClick={handleDeleteImageNode}
+            onClick={handleRenameGroup}
           >
-            <Trash2 size={14} />
-            Delete
+            <PenLine size={14} />
+            Rename Group
           </button>
+          <button
+            type="button"
+            className="card-widget__settings-item"
+            onClick={handleUngroup}
+          >
+            <Ungroup size={14} />
+            Ungroup
+          </button>
+          <div className="card-widget__settings-divider" />
+          <div
+            className="card-color-picker px-1 pb-1 pt-0"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <div className="card-color-picker__title">Group Color</div>
+            <div className="card-color-picker__grid">
+              <button
+                type="button"
+                className={cn("card-color-picker__option", {
+                  "card-color-picker__option--active":
+                    primaryGroup?.color === null,
+                })}
+                aria-label="Set group color to none"
+                title="None"
+                onClick={() => handleSelectGroupColor(null)}
+              >
+                <span className="card-color-picker__swatch card-color-picker__swatch--none" />
+              </button>
+              {CANVAS_COLOR_PRESETS.map((preset) => {
+                const isActive = primaryGroup?.color === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={cn("card-color-picker__option", {
+                      "card-color-picker__option--active": isActive,
+                    })}
+                    aria-label={`Set group color to ${preset.label}`}
+                    title={preset.label}
+                    onClick={() => handleSelectGroupColor(preset.id)}
+                  >
+                    <span
+                      className="card-color-picker__swatch"
+                      style={{
+                        backgroundColor: preset.background,
+                        borderColor: preset.border,
+                      }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {showSingleNodeActions ? (
+        <>
+          {canCreateGroup || hasGroupSelection ? (
+            <div className="card-widget__settings-divider" />
+          ) : null}
+
+          {showFitContent ? (
+            <>
+              <button
+                type="button"
+                className="card-widget__settings-item"
+                onClick={handleFitContent}
+              >
+                Fit Content
+              </button>
+              <div className="card-widget__settings-divider" />
+            </>
+          ) : null}
+
+          {node ? (
+            <ColorPicker
+              nodeId={node.id}
+              color={node.color}
+              onSelectColor={() => onClose()}
+            />
+          ) : null}
+
+          {showDeleteImageNode ? (
+            <>
+              <div className="card-widget__settings-divider" />
+              <button
+                type="button"
+                className="card-widget__settings-item"
+                onClick={handleDeleteImageNode}
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            </>
+          ) : null}
         </>
       ) : null}
     </div>,

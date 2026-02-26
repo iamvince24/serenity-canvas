@@ -128,7 +128,9 @@ export function CardWidget({
     (event: ReactMouseEvent<HTMLDivElement>) => {
       event.preventDefault();
       event.stopPropagation();
-      selectNode(node.id);
+      if (!selectedNodeIds.includes(node.id)) {
+        selectNode(node.id);
+      }
       onOpenContextMenu({
         nodeId: node.id,
         nodeType: "text",
@@ -136,7 +138,7 @@ export function CardWidget({
         clientY: event.clientY,
       });
     },
-    [node.id, onOpenContextMenu, selectNode],
+    [node.id, onOpenContextMenu, selectNode, selectedNodeIds],
   );
 
   const handleCardDragOverCapture = useCallback(

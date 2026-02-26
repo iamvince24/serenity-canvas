@@ -13,9 +13,16 @@ import type {
   CanvasState,
   Edge,
   FileRecord,
+  Group,
   NodeHeightMode,
   ViewportState,
 } from "../types/canvas";
+
+export type BatchNodeMove = {
+  id: string;
+  from: NodePositionSnapshot;
+  to: NodePositionSnapshot;
+};
 
 export type CanvasActions = {
   setViewport: (viewport: ViewportState) => void;
@@ -29,6 +36,7 @@ export type CanvasActions = {
     from: NodePositionSnapshot,
     to: NodePositionSnapshot,
   ) => void;
+  commitBatchNodeMove: (moves: BatchNodeMove[]) => void;
   updateNodeSize: (id: string, width: number, height: number) => void;
   previewNodeSize: (id: string, width: number, height: number) => void;
   previewNodeGeometry: (id: string, geometry: NodeGeometrySnapshot) => void;
@@ -44,12 +52,17 @@ export type CanvasActions = {
   updateEdge: (id: string, patch: Partial<Omit<Edge, "id">>) => void;
   deleteEdge: (id: string) => void;
   deleteSelectedEdges: () => void;
+  createGroup: (nodeIds: string[]) => void;
+  deleteGroup: (id: string) => void;
+  updateGroup: (id: string, updates: Partial<Omit<Group, "id">>) => void;
   setCanvasMode: (mode: CanvasMode) => void;
   dispatch: (event: InteractionEvent) => void;
   deleteNode: (id: string) => void;
   deleteSelectedNodes: () => void;
+  deleteSelected: () => void;
   selectNode: (nodeId: string | null) => void;
   selectEdge: (edgeId: string | null) => void;
+  selectGroup: (groupId: string | null) => void;
   setSelectedNodes: (nodeIds: string[]) => void;
   mergeSelectedNodes: (nodeIds: string[]) => void;
   toggleNodeSelection: (nodeId: string) => void;

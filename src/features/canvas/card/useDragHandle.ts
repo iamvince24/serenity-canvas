@@ -1,6 +1,6 @@
 import { useCallback, useRef, type PointerEventHandler } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import { InteractionEvent } from "../core/stateMachine";
+import { useBatchDrag } from "../hooks/useBatchDrag";
 
 type UseDragHandleOptions = {
   nodeId: string;
@@ -9,60 +9,34 @@ type UseDragHandleOptions = {
 
 type DragState = {
   pointerId: number | null;
-  startPointerX: number;
-  startPointerY: number;
-  startNodeX: number;
-  startNodeY: number;
-  zoom: number;
   isDragging: boolean;
 };
 
 const INITIAL_DRAG_STATE: DragState = {
   pointerId: null,
-  startPointerX: 0,
-  startPointerY: 0,
-  startNodeX: 0,
-  startNodeY: 0,
-  zoom: 1,
   isDragging: false,
 };
 
 export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
-  const selectNode = useCanvasStore((state) => state.selectNode);
   const toggleNodeSelection = useCanvasStore(
     (state) => state.toggleNodeSelection,
   );
-  const previewNodePosition = useCanvasStore(
-    (state) => state.previewNodePosition,
-  );
-  const commitNodeMove = useCanvasStore((state) => state.commitNodeMove);
-  const dispatch = useCanvasStore((state) => state.dispatch);
+  const {
+    startBatchDrag,
+    previewBatchDragFromPointer,
+    finishBatchDrag,
+    isBatchDragging,
+  } = useBatchDrag({ nodeId, zoom });
   const dragStateRef = useRef<DragState>(INITIAL_DRAG_STATE);
 
   const stopDragging = useCallback(() => {
-    const dragState = dragStateRef.current;
-    if (!dragState.isDragging) {
+    if (!dragStateRef.current.isDragging) {
       return;
     }
 
-    const node = useCanvasStore.getState().nodes[nodeId];
-    if (node) {
-      commitNodeMove(
-        nodeId,
-        {
-          x: dragState.startNodeX,
-          y: dragState.startNodeY,
-        },
-        {
-          x: node.x,
-          y: node.y,
-        },
-      );
-    }
-
+    finishBatchDrag();
     dragStateRef.current = INITIAL_DRAG_STATE;
-    dispatch(InteractionEvent.NODE_DRAG_END);
-  }, [commitNodeMove, dispatch, nodeId]);
+  }, [finishBatchDrag]);
 
   const onPointerDown = useCallback<PointerEventHandler<HTMLDivElement>>(
     (event) => {
@@ -77,22 +51,18 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
         return;
       }
 
-      const node = useCanvasStore.getState().nodes[nodeId];
-      if (!node) {
+      const target = event.currentTarget;
+      const didStart = startBatchDrag({
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+      if (!didStart) {
         return;
       }
 
-      const target = event.currentTarget;
-      selectNode(nodeId);
-      dispatch(InteractionEvent.NODE_DRAG_START);
-
       dragStateRef.current = {
         pointerId: event.pointerId,
-        startPointerX: event.clientX,
-        startPointerY: event.clientY,
-        startNodeX: node.x,
-        startNodeY: node.y,
-        zoom: zoom > 0 ? zoom : 1,
         isDragging: true,
       };
 
@@ -100,7 +70,7 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
       event.preventDefault();
       event.stopPropagation();
     },
-    [dispatch, nodeId, selectNode, toggleNodeSelection, zoom],
+    [startBatchDrag, nodeId, toggleNodeSelection],
   );
 
   const onPointerMove = useCallback<PointerEventHandler<HTMLDivElement>>(
@@ -110,26 +80,22 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
         return;
       }
 
-      const deltaX = (event.clientX - dragState.startPointerX) / dragState.zoom;
-      const deltaY = (event.clientY - dragState.startPointerY) / dragState.zoom;
-
-      previewNodePosition(
-        nodeId,
-        dragState.startNodeX + deltaX,
-        dragState.startNodeY + deltaY,
+      previewBatchDragFromPointer(
+        event.pointerId,
+        event.clientX,
+        event.clientY,
       );
 
       event.preventDefault();
       event.stopPropagation();
     },
-    [nodeId, previewNodePosition],
+    [previewBatchDragFromPointer],
   );
 
   const onPointerUp = useCallback<PointerEventHandler<HTMLDivElement>>(
     (event) => {
       if (
-        dragStateRef.current.isDragging &&
-        dragStateRef.current.pointerId === event.pointerId &&
+        isBatchDragging(event.pointerId) &&
         event.currentTarget.hasPointerCapture(event.pointerId)
       ) {
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -139,14 +105,13 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
       event.preventDefault();
       event.stopPropagation();
     },
-    [stopDragging],
+    [isBatchDragging, stopDragging],
   );
 
   const onPointerCancel = useCallback<PointerEventHandler<HTMLDivElement>>(
     (event) => {
       if (
-        dragStateRef.current.isDragging &&
-        dragStateRef.current.pointerId === event.pointerId &&
+        isBatchDragging(event.pointerId) &&
         event.currentTarget.hasPointerCapture(event.pointerId)
       ) {
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -156,18 +121,18 @@ export function useDragHandle({ nodeId, zoom }: UseDragHandleOptions) {
       event.preventDefault();
       event.stopPropagation();
     },
-    [stopDragging],
+    [isBatchDragging, stopDragging],
   );
 
   const onLostPointerCapture = useCallback<PointerEventHandler<HTMLDivElement>>(
     (event) => {
-      if (dragStateRef.current.pointerId !== event.pointerId) {
+      if (!isBatchDragging(event.pointerId)) {
         return;
       }
 
       stopDragging();
     },
-    [stopDragging],
+    [isBatchDragging, stopDragging],
   );
 
   return {

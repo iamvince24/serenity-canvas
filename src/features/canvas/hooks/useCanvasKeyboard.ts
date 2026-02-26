@@ -177,18 +177,16 @@ export function useCanvasKeyboard({
         return;
       }
 
-      if (state.selectedNodeIds.length === 0) {
-        if (state.selectedEdgeIds.length === 0) {
-          return;
-        }
-
-        event.preventDefault();
-        state.deleteSelectedEdges();
+      if (
+        state.selectedNodeIds.length === 0 &&
+        state.selectedEdgeIds.length === 0 &&
+        state.selectedGroupIds.length === 0
+      ) {
         return;
       }
 
       event.preventDefault();
-      state.deleteSelectedNodes();
+      state.deleteSelected();
     };
 
     window.addEventListener("keydown", handleKeyDown);

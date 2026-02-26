@@ -18,6 +18,12 @@ import {
   UpdateHeightModeCommand,
   type NodeCommandContext,
 } from "../commands/nodeCommands";
+import {
+  CreateGroupCommand,
+  DeleteGroupCommand,
+  UpdateGroupCommand,
+  type GroupCommandContext,
+} from "../commands/groupCommands";
 import { releaseImage } from "../features/canvas/images/imageUrlCache";
 import {
   appendNodeToOrder,
@@ -29,7 +35,7 @@ import {
 } from "../features/canvas/nodes/layerOrder";
 import { migrateLegacyNode } from "../features/canvas/nodes/nodePersistenceAdapter";
 import { InteractionState } from "../features/canvas/core/stateMachine";
-import { type Edge } from "../types/canvas";
+import { type CanvasNode, type Edge, type Group } from "../types/canvas";
 import {
   getConnectedEdgeIds,
   getNodeContent,
@@ -52,6 +58,116 @@ import { createInteractionSlice } from "./slices/interactionSlice";
 import { createSelectionSlice } from "./slices/selectionSlice";
 import { createHistorySlice } from "./slices/historySlice";
 
+const DEFAULT_GROUP_LABEL = "Untitled Group";
+const DEFAULT_GROUP_COLOR: Group["color"] = null;
+
+function createGroupId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sanitizeGroupNodeIds(
+  nodeIds: string[],
+  nodes: Record<string, CanvasNode>,
+): string[] {
+  const seen = new Set<string>();
+  const sanitized: string[] = [];
+
+  for (const nodeId of nodeIds) {
+    if (!nodes[nodeId] || seen.has(nodeId)) {
+      continue;
+    }
+
+    seen.add(nodeId);
+    sanitized.push(nodeId);
+  }
+
+  return sanitized;
+}
+
+function removeNodeFromGroups(
+  groups: Record<string, Group>,
+  nodeId: string,
+): {
+  groups: Record<string, Group>;
+  removedGroupIds: string[];
+} {
+  let hasChanged = false;
+  const nextGroups: Record<string, Group> = {};
+  const removedGroupIds: string[] = [];
+
+  for (const [groupId, group] of Object.entries(groups)) {
+    if (!group.nodeIds.includes(nodeId)) {
+      nextGroups[groupId] = group;
+      continue;
+    }
+
+    const nextNodeIds = group.nodeIds.filter(
+      (memberNodeId) => memberNodeId !== nodeId,
+    );
+    hasChanged = true;
+    if (nextNodeIds.length === 0) {
+      removedGroupIds.push(groupId);
+      continue;
+    }
+
+    nextGroups[groupId] = {
+      ...group,
+      nodeIds: nextNodeIds,
+    };
+  }
+
+  if (!hasChanged) {
+    return {
+      groups,
+      removedGroupIds,
+    };
+  }
+
+  return {
+    groups: nextGroups,
+    removedGroupIds,
+  };
+}
+
+function setGroupWithExclusivity(
+  groups: Record<string, Group>,
+  group: Group,
+): Record<string, Group> {
+  const incomingNodeIdSet = new Set(group.nodeIds);
+  const nextGroups: Record<string, Group> = {};
+
+  for (const [groupId, existingGroup] of Object.entries(groups)) {
+    if (groupId === group.id) {
+      continue;
+    }
+
+    const filteredNodeIds = existingGroup.nodeIds.filter(
+      (nodeId) => !incomingNodeIdSet.has(nodeId),
+    );
+    if (filteredNodeIds.length === 0) {
+      continue;
+    }
+
+    nextGroups[groupId] =
+      filteredNodeIds.length === existingGroup.nodeIds.length
+        ? existingGroup
+        : {
+            ...existingGroup,
+            nodeIds: filteredNodeIds,
+          };
+  }
+
+  nextGroups[group.id] = group;
+  return nextGroups;
+}
+
 export const useCanvasStore = create<CanvasStore>((set, get) => {
   const history = new HistoryManager(50);
 
@@ -68,7 +184,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     syncHistoryState();
   };
 
-  const commandContext: NodeCommandContext & EdgeCommandContext = {
+  const commandContext: NodeCommandContext &
+    EdgeCommandContext &
+    GroupCommandContext = {
     addNode: (node, file) => {
       set((state) => {
         const nextFiles = file
@@ -102,16 +220,24 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         const remainingNodes = { ...state.nodes };
         delete remainingNodes[id];
         const connectedEdgeIds = getConnectedEdgeIds(state.edges, id);
+        const { groups: nextGroups, removedGroupIds } = removeNodeFromGroups(
+          state.groups,
+          id,
+        );
 
         return {
           nodes: remainingNodes,
           nodeOrder: removeNodeFromOrder(state.nodeOrder, id),
           edges: removeEdgesByIds(state.edges, connectedEdgeIds),
+          groups: nextGroups,
           selectedNodeIds: state.selectedNodeIds.filter(
             (selectedNodeId) => selectedNodeId !== id,
           ),
           selectedEdgeIds: state.selectedEdgeIds.filter(
             (selectedEdgeId) => !connectedEdgeIds.includes(selectedEdgeId),
+          ),
+          selectedGroupIds: state.selectedGroupIds.filter(
+            (selectedGroupId) => !removedGroupIds.includes(selectedGroupId),
           ),
           interactionState: InteractionState.Idle,
         };
@@ -262,12 +388,68 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         };
       });
     },
+    setGroup: (group) => {
+      set((state) => {
+        const sanitizedNodeIds = sanitizeGroupNodeIds(
+          group.nodeIds,
+          state.nodes,
+        );
+        if (sanitizedNodeIds.length === 0) {
+          if (!state.groups[group.id]) {
+            return state;
+          }
+
+          const nextGroups = { ...state.groups };
+          delete nextGroups[group.id];
+          return {
+            groups: nextGroups,
+            selectedGroupIds: state.selectedGroupIds.filter(
+              (selectedGroupId) => selectedGroupId !== group.id,
+            ),
+          };
+        }
+
+        const nextGroup: Group = {
+          id: group.id,
+          label: group.label || DEFAULT_GROUP_LABEL,
+          color: group.color ?? DEFAULT_GROUP_COLOR,
+          nodeIds: sanitizedNodeIds,
+        };
+        const nextGroups = setGroupWithExclusivity(state.groups, nextGroup);
+        const nextSelectedGroupIds = state.selectedGroupIds.filter(
+          (selectedGroupId) => Boolean(nextGroups[selectedGroupId]),
+        );
+
+        return {
+          groups: nextGroups,
+          selectedGroupIds: nextSelectedGroupIds,
+        };
+      });
+    },
+    deleteGroup: (groupId) => {
+      set((state) => {
+        if (!state.groups[groupId]) {
+          return state;
+        }
+
+        const nextGroups = { ...state.groups };
+        delete nextGroups[groupId];
+
+        return {
+          groups: nextGroups,
+          selectedGroupIds: state.selectedGroupIds.filter(
+            (selectedGroupId) => selectedGroupId !== groupId,
+          ),
+        };
+      });
+    },
   };
 
   return {
     nodes: {},
     nodeOrder: [],
     edges: {},
+    groups: {},
     ...createViewportSlice(set),
     ...createFileSlice(set),
     ...createInteractionSlice(set),
@@ -309,6 +491,25 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       }
 
       executeCommand(new MoveNodeCommand(commandContext, id, from, to));
+    },
+    commitBatchNodeMove: (moves) => {
+      const normalizedMoves = moves.filter(
+        (move) => !isPositionEqual(move.from, move.to),
+      );
+      if (normalizedMoves.length === 0) {
+        return;
+      }
+
+      const commands = normalizedMoves.map(
+        (move) =>
+          new MoveNodeCommand(commandContext, move.id, move.from, move.to),
+      );
+      if (commands.length === 1) {
+        executeCommand(commands[0]);
+        return;
+      }
+
+      executeCommand(new CompositeCommand(commands, "node.move-selected"));
     },
     updateNodeSize: (id, width, height) => {
       const node = get().nodes[id];
@@ -446,6 +647,59 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
 
       executeCommand(new CompositeCommand(commands, "edge.delete-selected"));
     },
+    createGroup: (nodeIds) => {
+      const state = get();
+      const sanitizedNodeIds = sanitizeGroupNodeIds(nodeIds, state.nodes);
+      if (sanitizedNodeIds.length < 2) {
+        return;
+      }
+
+      const group: Group = {
+        id: createGroupId(),
+        label: DEFAULT_GROUP_LABEL,
+        color: DEFAULT_GROUP_COLOR,
+        nodeIds: sanitizedNodeIds,
+      };
+      executeCommand(new CreateGroupCommand(commandContext, group));
+      get().selectGroup(group.id);
+    },
+    deleteGroup: (id) => {
+      const group = get().groups[id];
+      if (!group) {
+        return;
+      }
+
+      executeCommand(new DeleteGroupCommand(commandContext, group));
+    },
+    updateGroup: (id, updates) => {
+      const currentGroup = get().groups[id];
+      if (!currentGroup) {
+        return;
+      }
+
+      const nextGroup: Group = {
+        ...currentGroup,
+        ...updates,
+        id: currentGroup.id,
+        nodeIds: updates.nodeIds
+          ? sanitizeGroupNodeIds(updates.nodeIds, get().nodes)
+          : currentGroup.nodeIds,
+      };
+      if (
+        currentGroup.label === nextGroup.label &&
+        currentGroup.color === nextGroup.color &&
+        currentGroup.nodeIds.length === nextGroup.nodeIds.length &&
+        currentGroup.nodeIds.every(
+          (nodeId, index) => nodeId === nextGroup.nodeIds[index],
+        )
+      ) {
+        return;
+      }
+
+      executeCommand(
+        new UpdateGroupCommand(commandContext, currentGroup, nextGroup),
+      );
+    },
     deleteNode: (id) => {
       const state = get();
       const node = state.nodes[id];
@@ -526,6 +780,37 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       }
 
       executeCommand(new CompositeCommand(commands, "node.delete-selected"));
+    },
+    deleteSelected: () => {
+      const state = get();
+      if (state.selectedNodeIds.length > 0) {
+        state.deleteSelectedNodes();
+        return;
+      }
+
+      if (state.selectedEdgeIds.length > 0) {
+        state.deleteSelectedEdges();
+        return;
+      }
+
+      if (state.selectedGroupIds.length === 0) {
+        return;
+      }
+
+      const commands = state.selectedGroupIds
+        .map((groupId) => state.groups[groupId])
+        .filter((group): group is Group => Boolean(group))
+        .map((group) => new DeleteGroupCommand(commandContext, group));
+      if (commands.length === 0) {
+        return;
+      }
+
+      if (commands.length === 1) {
+        executeCommand(commands[0]);
+        return;
+      }
+
+      executeCommand(new CompositeCommand(commands, "group.delete-selected"));
     },
     moveTextNodeUp: (id) => {
       const state = get();

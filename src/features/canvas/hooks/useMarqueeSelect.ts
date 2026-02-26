@@ -94,6 +94,7 @@ export function useMarqueeSelect({
 }: UseMarqueeSelectOptions): UseMarqueeSelectResult {
   const dispatch = useCanvasStore((state) => state.dispatch);
   const setSelectedNodes = useCanvasStore((state) => state.setSelectedNodes);
+  const deselectAll = useCanvasStore((state) => state.deselectAll);
   const mergeSelectedNodes = useCanvasStore(
     (state) => state.mergeSelectedNodes,
   );
@@ -173,7 +174,7 @@ export function useMarqueeSelect({
         !hasDraggedRef.current && !hasDraggedByPointerDelta;
 
       if (isClickWithoutDrag) {
-        setSelectedNodes([]);
+        deselectAll();
       } else {
         const marqueeBounds = getMarqueeBounds(activeMarquee.start, finalPoint);
         const hitNodeIds = Object.values(nodes)
@@ -196,7 +197,14 @@ export function useMarqueeSelect({
       hasDraggedRef.current = false;
       dispatch(InteractionEvent.BOX_SELECT_END);
     },
-    [dispatch, mergeSelectedNodes, nodes, resolveCanvasPoint, setSelectedNodes],
+    [
+      deselectAll,
+      dispatch,
+      mergeSelectedNodes,
+      nodes,
+      resolveCanvasPoint,
+      setSelectedNodes,
+    ],
   );
 
   const cancelMarquee = useCallback(() => {

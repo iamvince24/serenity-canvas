@@ -12,6 +12,12 @@ export type OverlaySlot =
       clientY: number;
     }
   | {
+      type: "groupContextMenu";
+      groupId: string;
+      clientX: number;
+      clientY: number;
+    }
+  | {
       type: "edgeContextMenu";
       edgeId: string;
       clientX: number;
@@ -33,7 +39,7 @@ export type OverlaySlot =
 
 export type NodeContextMenuSlot = Extract<
   OverlaySlot,
-  { type: "nodeContextMenu" }
+  { type: "nodeContextMenu" | "groupContextMenu" }
 >;
 
 export type EdgeContextMenuSlot = Extract<

@@ -14,6 +14,7 @@ import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import {
   isImageNode,
   type CanvasNode,
+  type Group as CanvasGroup,
   type ImageNode,
 } from "../../types/canvas";
 import { CardOverlay } from "./card/CardOverlay";
@@ -21,6 +22,7 @@ import { EdgeContextMenu } from "./edges/EdgeContextMenu";
 import { EdgeLabelEditor } from "./edges/EdgeLabelEditor";
 import { EdgeLine } from "./edges/EdgeLine";
 import { ImageCanvasNode } from "./images/ImageCanvasNode";
+import { GroupRect } from "./groups/GroupRect";
 import {
   createImageNodeCenteredAt,
   createTextNodeCenteredAt,
@@ -45,11 +47,17 @@ type StageSize = {
 };
 
 type ContextMenuPayload = {
-  nodeId: string;
-  nodeType: ContextMenuNodeType;
   clientX: number;
   clientY: number;
-};
+} & (
+  | {
+      nodeId: string;
+      nodeType: ContextMenuNodeType;
+    }
+  | {
+      groupId: string;
+    }
+);
 
 function getWindowSize(): StageSize {
   return {
@@ -80,12 +88,15 @@ export function Canvas() {
   const nodes = useCanvasStore((state) => state.nodes);
   const nodeOrder = useCanvasStore((state) => state.nodeOrder);
   const edges = useCanvasStore((state) => state.edges);
+  const groups = useCanvasStore((state) => state.groups);
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const selectedEdgeIds = useCanvasStore((state) => state.selectedEdgeIds);
+  const selectedGroupIds = useCanvasStore((state) => state.selectedGroupIds);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
   const setCanvasMode = useCanvasStore((state) => state.setCanvasMode);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const selectEdge = useCanvasStore((state) => state.selectEdge);
+  const selectGroup = useCanvasStore((state) => state.selectGroup);
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
   const undo = useCanvasStore((state) => state.undo);
@@ -151,6 +162,10 @@ export function Canvas() {
   }, [nodeOrder, nodes]);
 
   const orderedEdges = useMemo(() => Object.values(edges), [edges]);
+  const orderedGroups = useMemo<CanvasGroup[]>(
+    () => Object.values(groups),
+    [groups],
+  );
 
   const findTopNodeAtCanvasPoint = useCallback(
     (canvasX: number, canvasY: number): CanvasNode | null => {
@@ -239,18 +254,37 @@ export function Canvas() {
   const openNodeContextMenu = useCallback(
     (payload: ContextMenuPayload) => {
       clearAllEdgeOverlays();
-      selectNode(payload.nodeId);
+      if ("groupId" in payload) {
+        const state = useCanvasStore.getState();
+        if (!state.selectedGroupIds.includes(payload.groupId)) {
+          selectGroup(payload.groupId);
+        }
+        setOverlaySlot({
+          type: "groupContextMenu",
+          groupId: payload.groupId,
+          clientX: payload.clientX,
+          clientY: payload.clientY,
+        });
+        return;
+      }
+
+      const state = useCanvasStore.getState();
+      if (!state.selectedNodeIds.includes(payload.nodeId)) {
+        selectNode(payload.nodeId);
+      }
       setOverlaySlot({
         type: "nodeContextMenu",
         ...payload,
       });
     },
-    [clearAllEdgeOverlays, selectNode, setOverlaySlot],
+    [clearAllEdgeOverlays, selectGroup, selectNode, setOverlaySlot],
   );
 
   const closeNodeContextMenu = useCallback(() => {
     setOverlaySlot((current) =>
-      current.type === "nodeContextMenu" ? { type: "idle" } : current,
+      current.type === "nodeContextMenu" || current.type === "groupContextMenu"
+        ? { type: "idle" }
+        : current,
     );
   }, [setOverlaySlot]);
 
@@ -327,7 +361,9 @@ export function Canvas() {
       }
 
       setOverlaySlot((current) =>
-        current.type === "nodeContextMenu" || current.type === "edgeContextMenu"
+        current.type === "nodeContextMenu" ||
+        current.type === "groupContextMenu" ||
+        current.type === "edgeContextMenu"
           ? { type: "idle" }
           : current,
       );
@@ -684,9 +720,13 @@ export function Canvas() {
   };
 
   const visibleContextMenuState: NodeContextMenuSlot | null =
-    overlaySlot.type === "nodeContextMenu" && nodes[overlaySlot.nodeId]
-      ? overlaySlot
-      : null;
+    overlaySlot.type === "nodeContextMenu"
+      ? nodes[overlaySlot.nodeId]
+        ? overlaySlot
+        : null
+      : overlaySlot.type === "groupContextMenu" && groups[overlaySlot.groupId]
+        ? overlaySlot
+        : null;
   const visibleEdgeContextMenuState =
     edgeContextMenuState && edges[edgeContextMenuState.edgeId]
       ? edgeContextMenuState
@@ -777,6 +817,18 @@ export function Canvas() {
         </Layer>
 
         <Layer>
+          {orderedGroups.map((group) => (
+            <GroupRect
+              key={group.id}
+              group={group}
+              nodes={nodes}
+              isSelected={selectedGroupIds.includes(group.id)}
+              onOpenContextMenu={openNodeContextMenu}
+            />
+          ))}
+        </Layer>
+
+        <Layer>
           {imageNodes.map((node) => (
             <ImageCanvasNode
               key={node.id}
@@ -821,10 +873,23 @@ export function Canvas() {
 
       {visibleContextMenuState ? (
         <NodeContextMenu
-          nodeId={visibleContextMenuState.nodeId}
-          nodeType={visibleContextMenuState.nodeType}
           clientX={visibleContextMenuState.clientX}
           clientY={visibleContextMenuState.clientY}
+          nodeId={
+            visibleContextMenuState.type === "nodeContextMenu"
+              ? visibleContextMenuState.nodeId
+              : undefined
+          }
+          nodeType={
+            visibleContextMenuState.type === "nodeContextMenu"
+              ? visibleContextMenuState.nodeType
+              : undefined
+          }
+          groupId={
+            visibleContextMenuState.type === "groupContextMenu"
+              ? visibleContextMenuState.groupId
+              : undefined
+          }
           onClose={closeNodeContextMenu}
         />
       ) : null}

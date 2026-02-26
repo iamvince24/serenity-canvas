@@ -37,8 +37,10 @@ function resetStore() {
     nodeOrder: [],
     files: {},
     edges: {},
+    groups: {},
     selectedNodeIds: [],
     selectedEdgeIds: [],
+    selectedGroupIds: [],
     canvasMode: "select",
     interactionState: InteractionState.Idle,
     canUndo: false,
@@ -56,8 +58,10 @@ function seedNodes() {
     },
     nodeOrder: [nodeA.id, nodeB.id],
     edges: {},
+    groups: {},
     selectedNodeIds: [],
     selectedEdgeIds: [],
+    selectedGroupIds: [],
   });
 }
 

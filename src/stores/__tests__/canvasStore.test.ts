@@ -37,7 +37,9 @@ function seedNodes(nodes: CanvasNode[], nodeOrder: string[]) {
     nodes: Object.fromEntries(nodes.map((node) => [node.id, node])),
     nodeOrder,
     edges: {},
+    groups: {},
     selectedEdgeIds: [],
+    selectedGroupIds: [],
   });
 }
 
@@ -50,8 +52,10 @@ describe("canvasStore layer order", () => {
       nodeOrder: [],
       files: {},
       edges: {},
+      groups: {},
       selectedNodeIds: [],
       selectedEdgeIds: [],
+      selectedGroupIds: [],
       canvasMode: "select",
       interactionState: InteractionState.Idle,
       canUndo: false,
