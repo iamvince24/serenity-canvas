@@ -110,6 +110,36 @@ describe("GroupContextMenu", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("可用 ArrowUp / ArrowDown 在選單項目間移動焦點", () => {
+    render(
+      <GroupContextMenu
+        groupId="group-1"
+        clientX={140}
+        clientY={180}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const menu = document.querySelector(
+      "[data-node-context-menu='true']",
+    ) as HTMLDivElement | null;
+    if (!menu) {
+      throw new Error("group context menu element not found");
+    }
+
+    const renameButton = screen.getByRole("button", { name: "Rename Group" });
+    const ungroupButton = screen.getByRole("button", { name: "Ungroup" });
+
+    renameButton.focus();
+    expect(document.activeElement).toBe(renameButton);
+
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(ungroupButton);
+
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(renameButton);
+  });
+
   it("點擊 Ungroup 會刪除目前選取的群組", () => {
     const onClose = vi.fn();
     render(
