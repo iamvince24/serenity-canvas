@@ -27,7 +27,7 @@ import {
   createImageNodeCenteredAt,
   createTextNodeCenteredAt,
 } from "./nodes/nodeFactory";
-import { type NodeContextMenuSlot, type OverlaySlot } from "./core/overlaySlot";
+import { type OverlaySlot } from "./core/overlaySlot";
 import { InteractionState } from "./core/stateMachine";
 import { toCanvasPoint } from "./core/canvasCoordinates";
 import { useEdgeOverlay } from "./edges/useEdgeOverlay";
@@ -40,6 +40,7 @@ import {
   NodeContextMenu,
   type ContextMenuNodeType,
 } from "./nodes/NodeContextMenu";
+import { GroupContextMenu } from "./nodes/GroupContextMenu";
 
 type StageSize = {
   width: number;
@@ -719,14 +720,14 @@ export function Canvas() {
     setAutoFocusNodeId(node.id);
   };
 
-  const visibleContextMenuState: NodeContextMenuSlot | null =
-    overlaySlot.type === "nodeContextMenu"
-      ? nodes[overlaySlot.nodeId]
-        ? overlaySlot
-        : null
-      : overlaySlot.type === "groupContextMenu" && groups[overlaySlot.groupId]
-        ? overlaySlot
-        : null;
+  const visibleNodeContextMenuState =
+    overlaySlot.type === "nodeContextMenu" && nodes[overlaySlot.nodeId]
+      ? overlaySlot
+      : null;
+  const visibleGroupContextMenuState =
+    overlaySlot.type === "groupContextMenu" && groups[overlaySlot.groupId]
+      ? overlaySlot
+      : null;
   const visibleEdgeContextMenuState =
     edgeContextMenuState && edges[edgeContextMenuState.edgeId]
       ? edgeContextMenuState
@@ -871,25 +872,21 @@ export function Canvas() {
         />
       ) : null}
 
-      {visibleContextMenuState ? (
+      {visibleNodeContextMenuState ? (
         <NodeContextMenu
-          clientX={visibleContextMenuState.clientX}
-          clientY={visibleContextMenuState.clientY}
-          nodeId={
-            visibleContextMenuState.type === "nodeContextMenu"
-              ? visibleContextMenuState.nodeId
-              : undefined
-          }
-          nodeType={
-            visibleContextMenuState.type === "nodeContextMenu"
-              ? visibleContextMenuState.nodeType
-              : undefined
-          }
-          groupId={
-            visibleContextMenuState.type === "groupContextMenu"
-              ? visibleContextMenuState.groupId
-              : undefined
-          }
+          clientX={visibleNodeContextMenuState.clientX}
+          clientY={visibleNodeContextMenuState.clientY}
+          nodeId={visibleNodeContextMenuState.nodeId}
+          nodeType={visibleNodeContextMenuState.nodeType}
+          onClose={closeNodeContextMenu}
+        />
+      ) : null}
+
+      {visibleGroupContextMenuState ? (
+        <GroupContextMenu
+          groupId={visibleGroupContextMenuState.groupId}
+          clientX={visibleGroupContextMenuState.clientX}
+          clientY={visibleGroupContextMenuState.clientY}
           onClose={closeNodeContextMenu}
         />
       ) : null}
