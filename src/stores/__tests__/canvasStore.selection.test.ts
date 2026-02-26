@@ -79,9 +79,10 @@ describe("canvasStore selection actions", () => {
     seedNodes();
   });
 
-  it("setSelectedNodes 會過濾不存在 id、去重並清空 edge 選取", () => {
+  it("setSelectedNodes 會過濾不存在 id、去重並清空 edge/group 選取", () => {
     useCanvasStore.setState({
       selectedEdgeIds: ["edge-1"],
+      selectedGroupIds: ["group-1"],
     });
 
     useCanvasStore
@@ -93,12 +94,14 @@ describe("canvasStore selection actions", () => {
       "text-2",
     ]);
     expect(useCanvasStore.getState().selectedEdgeIds).toEqual([]);
+    expect(useCanvasStore.getState().selectedGroupIds).toEqual([]);
   });
 
-  it("mergeSelectedNodes 會 union 並清空 edge 選取", () => {
+  it("mergeSelectedNodes 會 union 並清空 edge/group 選取", () => {
     useCanvasStore.setState({
       selectedNodeIds: ["text-1"],
       selectedEdgeIds: ["edge-1"],
+      selectedGroupIds: ["group-1"],
     });
 
     useCanvasStore
@@ -111,17 +114,32 @@ describe("canvasStore selection actions", () => {
       "text-3",
     ]);
     expect(useCanvasStore.getState().selectedEdgeIds).toEqual([]);
+    expect(useCanvasStore.getState().selectedGroupIds).toEqual([]);
+  });
+
+  it("setSelectedNodes 在 node 選取不變時仍會清空 group 選取", () => {
+    useCanvasStore.setState({
+      selectedNodeIds: ["text-1"],
+      selectedGroupIds: ["group-1"],
+    });
+
+    useCanvasStore.getState().setSelectedNodes(["text-1"]);
+
+    expect(useCanvasStore.getState().selectedNodeIds).toEqual(["text-1"]);
+    expect(useCanvasStore.getState().selectedGroupIds).toEqual([]);
   });
 
   it("toggleNodeSelection 可追加與移除節點", () => {
     useCanvasStore.setState({
       selectedEdgeIds: ["edge-1"],
+      selectedGroupIds: ["group-1"],
     });
 
     const store = useCanvasStore.getState();
     store.toggleNodeSelection("text-1");
     expect(useCanvasStore.getState().selectedNodeIds).toEqual(["text-1"]);
     expect(useCanvasStore.getState().selectedEdgeIds).toEqual([]);
+    expect(useCanvasStore.getState().selectedGroupIds).toEqual([]);
 
     store.toggleNodeSelection("text-2");
     expect(useCanvasStore.getState().selectedNodeIds).toEqual([
@@ -133,7 +151,7 @@ describe("canvasStore selection actions", () => {
     expect(useCanvasStore.getState().selectedNodeIds).toEqual(["text-2"]);
   });
 
-  it("selectGroup 可與 node 並存，且清空 edge 選取", () => {
+  it("selectGroup 會清空 node 與 edge 選取", () => {
     useCanvasStore.setState({
       selectedNodeIds: ["text-1"],
       selectedEdgeIds: ["edge-1"],
@@ -141,8 +159,33 @@ describe("canvasStore selection actions", () => {
 
     useCanvasStore.getState().selectGroup("group-1");
 
-    expect(useCanvasStore.getState().selectedNodeIds).toEqual(["text-1"]);
+    expect(useCanvasStore.getState().selectedNodeIds).toEqual([]);
     expect(useCanvasStore.getState().selectedGroupIds).toEqual(["group-1"]);
+    expect(useCanvasStore.getState().selectedEdgeIds).toEqual([]);
+  });
+
+  it("selectGroup 在 group 選取不變時仍會清空 node 選取", () => {
+    useCanvasStore.setState({
+      selectedNodeIds: ["text-1"],
+      selectedGroupIds: ["group-1"],
+    });
+
+    useCanvasStore.getState().selectGroup("group-1");
+
+    expect(useCanvasStore.getState().selectedNodeIds).toEqual([]);
+    expect(useCanvasStore.getState().selectedGroupIds).toEqual(["group-1"]);
+  });
+
+  it("selectNode 會清空 group 與 edge 選取", () => {
+    useCanvasStore.setState({
+      selectedGroupIds: ["group-1"],
+      selectedEdgeIds: ["edge-1"],
+    });
+
+    useCanvasStore.getState().selectNode("text-1");
+
+    expect(useCanvasStore.getState().selectedNodeIds).toEqual(["text-1"]);
+    expect(useCanvasStore.getState().selectedGroupIds).toEqual([]);
     expect(useCanvasStore.getState().selectedEdgeIds).toEqual([]);
   });
 

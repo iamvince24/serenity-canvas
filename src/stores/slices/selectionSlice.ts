@@ -92,6 +92,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
           nodeOrder: nextNodeOrder,
           selectedNodeIds: [nodeId],
           selectedEdgeIds: [],
+          selectedGroupIds: [],
         };
       });
     },
@@ -125,12 +126,14 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
         const nextSelectedGroupIds = sanitizeGroupSelection(state, [groupId]);
         if (
           isSameSelection(state.selectedGroupIds, nextSelectedGroupIds) &&
-          state.selectedEdgeIds.length === 0
+          state.selectedEdgeIds.length === 0 &&
+          state.selectedNodeIds.length === 0
         ) {
           return state;
         }
 
         return {
+          selectedNodeIds: [],
           selectedGroupIds: nextSelectedGroupIds,
           selectedEdgeIds: [],
         };
@@ -141,7 +144,8 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
         const nextSelectedNodeIds = sanitizeNodeSelection(state, nodeIds);
         if (
           isSameSelection(state.selectedNodeIds, nextSelectedNodeIds) &&
-          state.selectedEdgeIds.length === 0
+          state.selectedEdgeIds.length === 0 &&
+          state.selectedGroupIds.length === 0
         ) {
           return state;
         }
@@ -149,6 +153,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
         return {
           selectedNodeIds: nextSelectedNodeIds,
           selectedEdgeIds: [],
+          selectedGroupIds: [],
         };
       });
     },
@@ -172,7 +177,8 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
 
         if (
           isSameSelection(state.selectedNodeIds, nextSelectedNodeIds) &&
-          state.selectedEdgeIds.length === 0
+          state.selectedEdgeIds.length === 0 &&
+          state.selectedGroupIds.length === 0
         ) {
           return state;
         }
@@ -180,6 +186,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
         return {
           selectedNodeIds: nextSelectedNodeIds,
           selectedEdgeIds: [],
+          selectedGroupIds: [],
         };
       });
     },
@@ -200,7 +207,8 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
           );
           if (
             isSameSelection(state.selectedNodeIds, nextSelectedNodeIds) &&
-            state.selectedEdgeIds.length === 0
+            state.selectedEdgeIds.length === 0 &&
+            state.selectedGroupIds.length === 0
           ) {
             return state;
           }
@@ -208,6 +216,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
           return {
             selectedNodeIds: nextSelectedNodeIds,
             selectedEdgeIds: [],
+            selectedGroupIds: [],
           };
         }
 
@@ -222,6 +231,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
           nodeOrder: nextNodeOrder,
           selectedNodeIds: nextSelectedNodeIds,
           selectedEdgeIds: [],
+          selectedGroupIds: [],
         };
       });
     },
