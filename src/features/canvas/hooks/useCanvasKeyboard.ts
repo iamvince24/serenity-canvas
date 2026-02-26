@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
+import { hasAnySelection } from "../../../stores/slices/selectionPolicy";
 import { InteractionEvent } from "../core/stateMachine";
 import {
   ensureNodeVisible,
@@ -177,11 +178,7 @@ export function useCanvasKeyboard({
         return;
       }
 
-      if (
-        state.selectedNodeIds.length === 0 &&
-        state.selectedEdgeIds.length === 0 &&
-        state.selectedGroupIds.length === 0
-      ) {
+      if (!hasAnySelection(state)) {
         return;
       }
 

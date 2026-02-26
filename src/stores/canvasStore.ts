@@ -55,6 +55,7 @@ import type { CanvasStore } from "./storeTypes";
 import { createViewportSlice } from "./slices/viewportSlice";
 import { createFileSlice } from "./slices/fileSlice";
 import { createInteractionSlice } from "./slices/interactionSlice";
+import { resolveDeleteTarget } from "./slices/selectionPolicy";
 import { createSelectionSlice } from "./slices/selectionSlice";
 import { createHistorySlice } from "./slices/historySlice";
 
@@ -783,17 +784,18 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     },
     deleteSelected: () => {
       const state = get();
-      if (state.selectedNodeIds.length > 0) {
+      const target = resolveDeleteTarget(state);
+      if (target === "nodes") {
         state.deleteSelectedNodes();
         return;
       }
 
-      if (state.selectedEdgeIds.length > 0) {
+      if (target === "edges") {
         state.deleteSelectedEdges();
         return;
       }
 
-      if (state.selectedGroupIds.length === 0) {
+      if (target === null) {
         return;
       }
 
