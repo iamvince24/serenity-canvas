@@ -169,6 +169,68 @@ function setGroupWithExclusivity(
   return nextGroups;
 }
 
+function cloneGroup(group: Group): Group {
+  return {
+    ...group,
+    nodeIds: [...group.nodeIds],
+  };
+}
+
+function getAffectedGroupSnapshots(
+  groups: Record<string, Group>,
+  incomingGroup: Group,
+): Group[] {
+  const incomingNodeIdSet = new Set(incomingGroup.nodeIds);
+  return Object.values(groups)
+    .filter(
+      (group) =>
+        group.id !== incomingGroup.id &&
+        group.nodeIds.some((nodeId) => incomingNodeIdSet.has(nodeId)),
+    )
+    .map((group) => cloneGroup(group));
+}
+
+function getNodeAffectedGroupSnapshots(
+  groups: Record<string, Group>,
+  nodeId: string,
+): Group[] {
+  return Object.values(groups)
+    .filter((group) => group.nodeIds.includes(nodeId))
+    .map((group) => cloneGroup(group));
+}
+
+function restoreGroupSnapshots(
+  groups: Record<string, Group>,
+  snapshots: Group[],
+  nodes: Record<string, CanvasNode>,
+): Record<string, Group> {
+  if (snapshots.length === 0) {
+    return groups;
+  }
+
+  let hasChanged = false;
+  const nextGroups = { ...groups };
+
+  for (const snapshot of snapshots) {
+    const validNodeIds = sanitizeGroupNodeIds(snapshot.nodeIds, nodes);
+    if (validNodeIds.length === 0) {
+      continue;
+    }
+
+    nextGroups[snapshot.id] = {
+      ...snapshot,
+      nodeIds: validNodeIds,
+    };
+    hasChanged = true;
+  }
+
+  if (!hasChanged) {
+    return groups;
+  }
+
+  return nextGroups;
+}
+
 export const useCanvasStore = create<CanvasStore>((set, get) => {
   const history = new HistoryManager(50);
 
@@ -444,6 +506,26 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         };
       });
     },
+    restoreGroups: (snapshots) => {
+      if (snapshots.length === 0) {
+        return;
+      }
+
+      set((state) => {
+        const nextGroups = restoreGroupSnapshots(
+          state.groups,
+          snapshots,
+          state.nodes,
+        );
+        if (nextGroups === state.groups) {
+          return state;
+        }
+
+        return {
+          groups: nextGroups,
+        };
+      });
+    },
   };
 
   return {
@@ -661,7 +743,13 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         color: DEFAULT_GROUP_COLOR,
         nodeIds: sanitizedNodeIds,
       };
-      executeCommand(new CreateGroupCommand(commandContext, group));
+      const affectedGroupSnapshots = getAffectedGroupSnapshots(
+        state.groups,
+        group,
+      );
+      executeCommand(
+        new CreateGroupCommand(commandContext, group, affectedGroupSnapshots),
+      );
       get().selectGroup(group.id);
     },
     deleteGroup: (id) => {
@@ -673,7 +761,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       executeCommand(new DeleteGroupCommand(commandContext, group));
     },
     updateGroup: (id, updates) => {
-      const currentGroup = get().groups[id];
+      const state = get();
+      const currentGroup = state.groups[id];
       if (!currentGroup) {
         return;
       }
@@ -683,7 +772,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         ...updates,
         id: currentGroup.id,
         nodeIds: updates.nodeIds
-          ? sanitizeGroupNodeIds(updates.nodeIds, get().nodes)
+          ? sanitizeGroupNodeIds(updates.nodeIds, state.nodes)
           : currentGroup.nodeIds,
       };
       if (
@@ -697,8 +786,17 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         return;
       }
 
+      const affectedGroupSnapshots = getAffectedGroupSnapshots(
+        state.groups,
+        nextGroup,
+      );
       executeCommand(
-        new UpdateGroupCommand(commandContext, currentGroup, nextGroup),
+        new UpdateGroupCommand(
+          commandContext,
+          currentGroup,
+          nextGroup,
+          affectedGroupSnapshots,
+        ),
       );
     },
     deleteNode: (id) => {
@@ -711,6 +809,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       const nextNodeOrder = removeNodeFromOrder(state.nodeOrder, id);
       const file =
         node.type === "image" ? state.files[node.asset_id] : undefined;
+      const affectedGroupSnapshots = getNodeAffectedGroupSnapshots(
+        state.groups,
+        node.id,
+      );
       const connectedEdgeCommands = getConnectedEdgeIds(state.edges, node.id)
         .map((edgeId) => state.edges[edgeId])
         .filter((edge): edge is Edge => Boolean(edge))
@@ -720,6 +822,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         file,
         previousNodeOrder: state.nodeOrder,
         nextNodeOrder,
+        affectedGroupSnapshots,
       });
 
       if (connectedEdgeCommands.length === 0) {
@@ -752,6 +855,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       }
 
       let simulatedOrder = [...state.nodeOrder];
+      let simulatedGroups = state.groups;
 
       for (const nodeId of state.selectedNodeIds) {
         const node = state.nodes[nodeId];
@@ -763,6 +867,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         const nextNodeOrder = removeNodeFromOrder(previousNodeOrder, nodeId);
         const file =
           node.type === "image" ? state.files[node.asset_id] : undefined;
+        const affectedGroupSnapshots = getNodeAffectedGroupSnapshots(
+          simulatedGroups,
+          nodeId,
+        );
 
         commands.push(
           new DeleteNodeCommand(commandContext, {
@@ -770,10 +878,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
             file,
             previousNodeOrder,
             nextNodeOrder,
+            affectedGroupSnapshots,
           }),
         );
 
         simulatedOrder = nextNodeOrder;
+        simulatedGroups = removeNodeFromGroups(simulatedGroups, nodeId).groups;
       }
 
       if (commands.length === 0) {

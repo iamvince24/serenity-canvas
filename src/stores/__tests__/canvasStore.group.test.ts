@@ -99,6 +99,97 @@ describe("canvasStore groups", () => {
     expect(secondGroup.nodeIds).toEqual(["text-2", "text-3"]);
   });
 
+  it("group overlap 後 undo 會完整還原先前群組成員", () => {
+    const store = useCanvasStore.getState();
+
+    store.createGroup(["text-1", "text-2"]);
+    const firstGroup = Object.values(useCanvasStore.getState().groups)[0];
+    if (!firstGroup) {
+      throw new Error("first group not created");
+    }
+
+    store.createGroup(["text-2", "text-3"]);
+    const stateAfterSecondCreate = useCanvasStore.getState();
+    const secondGroup = Object.values(stateAfterSecondCreate.groups).find(
+      (group) => group.id !== firstGroup.id,
+    );
+    if (!secondGroup) {
+      throw new Error("second group not created");
+    }
+
+    expect(stateAfterSecondCreate.groups[firstGroup.id]?.nodeIds).toEqual([
+      "text-1",
+    ]);
+
+    store.undo();
+    const stateAfterUndo = useCanvasStore.getState();
+    expect(stateAfterUndo.groups[secondGroup.id]).toBeUndefined();
+    expect(stateAfterUndo.groups[firstGroup.id]?.nodeIds).toEqual([
+      "text-1",
+      "text-2",
+    ]);
+  });
+
+  it("deleteNode 後 undo 會還原 node 的群組成員資格", () => {
+    const store = useCanvasStore.getState();
+
+    store.createGroup(["text-1", "text-2"]);
+    const group = Object.values(useCanvasStore.getState().groups)[0];
+    if (!group) {
+      throw new Error("group not created");
+    }
+
+    store.deleteNode("text-1");
+    const stateAfterDelete = useCanvasStore.getState();
+    expect(stateAfterDelete.nodes["text-1"]).toBeUndefined();
+    expect(stateAfterDelete.groups[group.id]?.nodeIds).toEqual(["text-2"]);
+
+    store.undo();
+    const stateAfterUndo = useCanvasStore.getState();
+    expect(stateAfterUndo.nodes["text-1"]).toBeDefined();
+    expect(stateAfterUndo.groups[group.id]?.nodeIds).toEqual([
+      "text-1",
+      "text-2",
+    ]);
+  });
+
+  it("group overlap 在 undo/redo/undo 後不應累積狀態漂移", () => {
+    const store = useCanvasStore.getState();
+
+    store.createGroup(["text-1", "text-2"]);
+    const firstGroup = Object.values(useCanvasStore.getState().groups)[0];
+    if (!firstGroup) {
+      throw new Error("first group not created");
+    }
+
+    store.createGroup(["text-2", "text-3"]);
+    const secondGroup = Object.values(useCanvasStore.getState().groups).find(
+      (group) => group.id !== firstGroup.id,
+    );
+    if (!secondGroup) {
+      throw new Error("second group not created");
+    }
+
+    store.undo();
+    const groupsAfterFirstUndo = useCanvasStore.getState().groups;
+    expect(groupsAfterFirstUndo[secondGroup.id]).toBeUndefined();
+    expect(groupsAfterFirstUndo[firstGroup.id]?.nodeIds).toEqual([
+      "text-1",
+      "text-2",
+    ]);
+
+    store.redo();
+    const groupsAfterRedo = useCanvasStore.getState().groups;
+    expect(groupsAfterRedo[firstGroup.id]?.nodeIds).toEqual(["text-1"]);
+    expect(groupsAfterRedo[secondGroup.id]?.nodeIds).toEqual([
+      "text-2",
+      "text-3",
+    ]);
+
+    store.undo();
+    expect(useCanvasStore.getState().groups).toEqual(groupsAfterFirstUndo);
+  });
+
   it("deleteSelected 依 Gate C 優先順序刪除", () => {
     useCanvasStore.setState({
       edges: {

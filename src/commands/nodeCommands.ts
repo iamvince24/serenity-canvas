@@ -1,4 +1,9 @@
-import type { CanvasNode, FileRecord, NodeHeightMode } from "../types/canvas";
+import type {
+  CanvasNode,
+  FileRecord,
+  Group,
+  NodeHeightMode,
+} from "../types/canvas";
 import type { Command, CommandJSON } from "./types";
 
 export type NodePositionSnapshot = {
@@ -15,6 +20,7 @@ export type NodeGeometrySnapshot = NodePositionSnapshot & {
 export type NodeCommandContext = {
   addNode: (node: CanvasNode, file?: FileRecord) => void;
   deleteNode: (id: string) => void;
+  restoreGroups: (snapshots: Group[]) => void;
   setNodePosition: (id: string, x: number, y: number) => void;
   setNodeGeometry: (id: string, geometry: NodeGeometrySnapshot) => void;
   setNodeContent: (id: string, content: string) => void;
@@ -33,6 +39,17 @@ function cloneFile(file: FileRecord | undefined): FileRecord | undefined {
   }
 
   return { ...file };
+}
+
+function cloneGroup(group: Group): Group {
+  return {
+    ...group,
+    nodeIds: [...group.nodeIds],
+  };
+}
+
+function cloneGroups(groups: Group[]): Group[] {
+  return groups.map((group) => cloneGroup(group));
 }
 
 function clonePosition(snapshot: NodePositionSnapshot): NodePositionSnapshot {
@@ -121,6 +138,7 @@ type DeleteNodeInverse = {
   node: CanvasNode;
   file?: FileRecord;
   previousNodeOrder: string[];
+  affectedGroupSnapshots: Group[];
 };
 
 type DeleteNodeCommandParams = {
@@ -128,6 +146,7 @@ type DeleteNodeCommandParams = {
   file?: FileRecord;
   previousNodeOrder: string[];
   nextNodeOrder: string[];
+  affectedGroupSnapshots: Group[];
 };
 
 export class DeleteNodeCommand implements Command {
@@ -147,6 +166,7 @@ export class DeleteNodeCommand implements Command {
       node: cloneNode(params.node),
       file: cloneFile(params.file),
       previousNodeOrder: cloneNodeOrder(params.previousNodeOrder),
+      affectedGroupSnapshots: cloneGroups(params.affectedGroupSnapshots),
     };
   }
 
@@ -159,6 +179,9 @@ export class DeleteNodeCommand implements Command {
     this.context.addNode(
       cloneNode(this.inverse.node),
       cloneFile(this.inverse.file),
+    );
+    this.context.restoreGroups(
+      cloneGroups(this.inverse.affectedGroupSnapshots),
     );
     this.context.setNodeOrder(cloneNodeOrder(this.inverse.previousNodeOrder));
   }
@@ -174,6 +197,9 @@ export class DeleteNodeCommand implements Command {
         node: cloneNode(this.inverse.node),
         file: cloneFile(this.inverse.file),
         previousNodeOrder: cloneNodeOrder(this.inverse.previousNodeOrder),
+        affectedGroupSnapshots: cloneGroups(
+          this.inverse.affectedGroupSnapshots,
+        ),
       },
     };
   }
