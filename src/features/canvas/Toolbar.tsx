@@ -1,11 +1,32 @@
-import { ImagePlus, MousePointer2, Redo2, Spline, Undo2 } from "lucide-react";
+import {
+  Gauge,
+  ImagePlus,
+  MousePointer2,
+  Redo2,
+  Spline,
+  TestTube2,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { useCallback, useRef, type ChangeEvent } from "react";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import { createImageNodeCenteredAt } from "./nodes/nodeFactory";
 import { useImageUpload } from "./images/useImageUpload";
+import { StressFixtureDialog } from "./StressFixtureDialog";
 
-export function Toolbar() {
+/** 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復。改為 true 即可顯示。 */
+const SHOW_IMAGE_UPLOAD_BUTTON = false;
+
+type ToolbarProps = {
+  showFpsOverlay?: boolean;
+  onFpsOverlayToggle?: () => void;
+};
+
+export function Toolbar({
+  showFpsOverlay = false,
+  onFpsOverlayToggle,
+}: ToolbarProps) {
   const viewport = useCanvasStore((state) => state.viewport);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
   const addNode = useCanvasStore((state) => state.addNode);
@@ -16,7 +37,9 @@ export function Toolbar() {
   const redo = useCanvasStore((state) => state.redo);
   const canUndo = useCanvasStore((state) => state.canUndo);
   const canRedo = useCanvasStore((state) => state.canRedo);
+  const clearCanvas = useCanvasStore((state) => state.clearCanvas);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isDev = import.meta.env.DEV;
   const { uploadImageFile } = useImageUpload();
 
   const handleOpenFileDialog = useCallback(() => {
@@ -65,6 +88,12 @@ export function Toolbar() {
       viewport.zoom,
     ],
   );
+
+  const handleClearCanvas = useCallback(() => {
+    if (window.confirm("確定要清除白板上所有資料嗎？此操作無法復原。")) {
+      clearCanvas();
+    }
+  }, [clearCanvas]);
 
   return (
     <div className="pointer-events-none fixed left-1/2 top-4 z-40 -translate-x-1/2 md:top-6">
@@ -120,23 +149,73 @@ export function Toolbar() {
         >
           <Redo2 size={16} />
         </button>
-        <button
-          type="button"
-          className="btn-secondary h-9 gap-2 px-3 text-sm"
-          onClick={handleOpenFileDialog}
-        >
-          <ImagePlus size={16} />
-          Upload Image
-        </button>
+        {/* 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復 */}
+        {SHOW_IMAGE_UPLOAD_BUTTON && (
+          <button
+            type="button"
+            className="btn-secondary h-9 gap-2 px-3 text-sm"
+            onClick={handleOpenFileDialog}
+          >
+            <ImagePlus size={16} />
+            Upload Image
+          </button>
+        )}
+        {isDev && (
+          <>
+            <div className="h-5 w-px bg-border" aria-hidden="true" />
+            <StressFixtureDialog
+              trigger={
+                <button
+                  type="button"
+                  className="btn-secondary h-9 gap-2 px-3 text-sm"
+                  aria-label="Insert stress test data"
+                  title="插入壓力測試資料"
+                >
+                  <TestTube2 size={16} />
+                  插入測試
+                </button>
+              }
+            />
+            {onFpsOverlayToggle ? (
+              <button
+                type="button"
+                className={`btn-secondary h-9 gap-2 px-3 text-sm ${
+                  showFpsOverlay
+                    ? "border-sage-light bg-sage/20 text-sage-dark hover:bg-sage/20"
+                    : ""
+                }`}
+                aria-label="Toggle FPS overlay"
+                aria-pressed={showFpsOverlay}
+                title="顯示 FPS"
+                onClick={onFpsOverlayToggle}
+              >
+                <Gauge size={16} />
+                FPS
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn-secondary h-9 gap-2 px-3 text-sm"
+              aria-label="Clear canvas"
+              title="清除白板"
+              onClick={handleClearCanvas}
+            >
+              <Trash2 size={16} />
+              清除白板
+            </button>
+          </>
+        )}
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      {SHOW_IMAGE_UPLOAD_BUTTON && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      )}
     </div>
   );
 }

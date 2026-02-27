@@ -24,6 +24,7 @@ import {
   UpdateGroupCommand,
   type GroupCommandContext,
 } from "../commands/groupCommands";
+import { createStressFixture } from "../features/canvas/core/stressFixture";
 import { releaseImage } from "../features/canvas/images/imageUrlCache";
 import {
   appendNodeToOrder,
@@ -1003,6 +1004,47 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       executeCommand(
         new ReorderNodeCommand(commandContext, state.nodeOrder, nextNodeOrder),
       );
+    },
+    insertStressFixture: (config) => {
+      const fixture = createStressFixture(config);
+      const commands: Command[] = [];
+
+      for (const node of Object.values(fixture.nodes)) {
+        commands.push(new AddNodeCommand(commandContext, node));
+      }
+      for (const edge of Object.values(fixture.edges)) {
+        commands.push(new AddEdgeCommand(commandContext, edge));
+      }
+      for (const group of Object.values(fixture.groups)) {
+        commands.push(new CreateGroupCommand(commandContext, group, []));
+      }
+
+      if (commands.length === 0) {
+        return;
+      }
+
+      executeCommand(new CompositeCommand(commands, "stress-fixture.insert"));
+    },
+    clearCanvas: () => {
+      const state = get();
+      for (const node of Object.values(state.nodes)) {
+        if (node.type === "image") {
+          releaseImage(node.asset_id);
+        }
+      }
+      history.clear();
+      syncHistoryState();
+      set({
+        nodes: {},
+        nodeOrder: [],
+        edges: {},
+        groups: {},
+        files: {},
+        selectedNodeIds: [],
+        selectedEdgeIds: [],
+        selectedGroupIds: [],
+        interactionState: InteractionState.Idle,
+      });
     },
   };
 });

@@ -2,6 +2,7 @@ import type {
   NodeGeometrySnapshot,
   NodePositionSnapshot,
 } from "../commands/nodeCommands";
+import type { StressFixtureConfig } from "../features/canvas/core/stressFixture";
 import {
   InteractionEvent,
   InteractionState,
@@ -74,6 +75,8 @@ export type CanvasActions = {
   undo: () => void;
   redo: () => void;
   clearHistory: () => void;
+  insertStressFixture: (config: StressFixtureConfig) => void;
+  clearCanvas: () => void;
 };
 
 export type CanvasStore = CanvasState & {

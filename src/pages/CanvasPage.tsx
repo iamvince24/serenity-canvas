@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { Canvas } from "../features/canvas/Canvas";
+import { FpsOverlay } from "../features/canvas/FpsOverlay";
 import { Toolbar } from "../features/canvas/Toolbar";
 import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
 
 export function CanvasPage() {
+  const [showFpsOverlay, setShowFpsOverlay] = useState(false);
   const imageUploadErrorMessage = useUploadNoticeStore(
     (state) => state.imageUploadErrorMessage,
   );
@@ -15,11 +18,18 @@ export function CanvasPage() {
     // Canvas fills full viewport; toolbar and back button float above it.
     <main className="relative min-h-screen w-full overflow-hidden bg-canvas">
       <Canvas />
-      <Toolbar />
+      <Toolbar
+        showFpsOverlay={showFpsOverlay}
+        onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
+      />
+
+      {import.meta.env.DEV && showFpsOverlay ? <FpsOverlay visible /> : null}
 
       <Link
         to="/"
-        className="btn-ghost fixed left-4 top-4 z-40 md:left-6 md:top-6"
+        className={`btn-ghost fixed left-4 z-40 md:left-6 ${
+          showFpsOverlay ? "top-12 md:top-14" : "top-4 md:top-6"
+        }`}
       >
         Back to Home
       </Link>

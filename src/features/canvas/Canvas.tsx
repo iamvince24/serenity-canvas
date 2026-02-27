@@ -34,6 +34,11 @@ import { useEdgeOverlay } from "./edges/useEdgeOverlay";
 import { useCanvasKeyboard } from "./hooks/useCanvasKeyboard";
 import { useCanvasWheel } from "./hooks/useCanvasWheel";
 import { useMarqueeSelect } from "./hooks/useMarqueeSelect";
+import {
+  useVisibleEdgeIds,
+  useVisibleGroupIds,
+  useVisibleNodeIds,
+} from "./hooks/useVisibleElements";
 import { useConnectionDrag } from "./edges/useConnectionDrag";
 import { useImageUpload } from "./images/useImageUpload";
 import {
@@ -103,6 +108,9 @@ export function Canvas() {
   const undo = useCanvasStore((state) => state.undo);
   const redo = useCanvasStore((state) => state.redo);
   const { uploadImageFile } = useImageUpload();
+  const visibleNodeIds = useVisibleNodeIds();
+  const visibleEdgeIds = useVisibleEdgeIds();
+  const visibleGroupIds = useVisibleGroupIds();
 
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
   const [overlayContainer, setOverlayContainer] =
@@ -139,20 +147,9 @@ export function Canvas() {
 
   const imageNodes = useMemo(() => {
     const orderedImageNodes: ImageNode[] = [];
-    const seen = new Set<string>();
-
-    for (const nodeId of nodeOrder) {
+    for (const nodeId of visibleNodeIds) {
       const node = nodes[nodeId];
       if (!node || !isImageNode(node)) {
-        continue;
-      }
-
-      orderedImageNodes.push(node);
-      seen.add(node.id);
-    }
-
-    for (const node of Object.values(nodes)) {
-      if (!isImageNode(node) || seen.has(node.id)) {
         continue;
       }
 
@@ -160,12 +157,21 @@ export function Canvas() {
     }
 
     return orderedImageNodes;
-  }, [nodeOrder, nodes]);
+  }, [nodes, visibleNodeIds]);
 
-  const orderedEdges = useMemo(() => Object.values(edges), [edges]);
+  const orderedEdges = useMemo(
+    () =>
+      visibleEdgeIds
+        .map((edgeId) => edges[edgeId])
+        .filter((edge): edge is NonNullable<typeof edge> => Boolean(edge)),
+    [edges, visibleEdgeIds],
+  );
   const orderedGroups = useMemo<CanvasGroup[]>(
-    () => Object.values(groups),
-    [groups],
+    () =>
+      visibleGroupIds
+        .map((groupId) => groups[groupId])
+        .filter((group): group is CanvasGroup => Boolean(group)),
+    [groups, visibleGroupIds],
   );
 
   const findTopNodeAtCanvasPoint = useCallback(
@@ -860,7 +866,8 @@ export function Canvas() {
         <CardOverlay
           container={overlayContainer}
           nodes={nodes}
-          nodeOrder={nodeOrder}
+          nodeOrder={visibleNodeIds}
+          fullNodeOrder={orderedNodeIds}
           viewport={viewport}
           selectedNodeIds={selectedNodeIds}
           hoveredNodeId={hoveredNodeId}

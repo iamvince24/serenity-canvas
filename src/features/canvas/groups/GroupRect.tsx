@@ -4,6 +4,7 @@ import { Rect, Text } from "react-konva";
 import { getCardColorStyle } from "../../../constants/colors";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { CanvasNode, Group as CanvasGroup } from "../../../types/canvas";
+import { GROUP_LABEL_HEIGHT, getGroupBounds } from "../core/culling";
 
 type GroupRectProps = {
   group: CanvasGroup;
@@ -15,16 +16,6 @@ type GroupRectProps = {
     clientY: number;
   }) => void;
 };
-
-type Bounds = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-const GROUP_PADDING = 24;
-const GROUP_LABEL_HEIGHT = 24;
 
 function toRgba(color: string, alpha: number): string {
   if (!color.startsWith("#")) {
@@ -57,35 +48,6 @@ function toRgba(color: string, alpha: number): string {
   }
 
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
-function getGroupBounds(
-  nodeIds: string[],
-  nodes: Record<string, CanvasNode>,
-): Bounds | null {
-  const members = nodeIds.map((nodeId) => nodes[nodeId]).filter(Boolean);
-  if (members.length === 0) {
-    return null;
-  }
-
-  let left = Number.POSITIVE_INFINITY;
-  let top = Number.POSITIVE_INFINITY;
-  let right = Number.NEGATIVE_INFINITY;
-  let bottom = Number.NEGATIVE_INFINITY;
-
-  for (const node of members) {
-    left = Math.min(left, node.x);
-    top = Math.min(top, node.y);
-    right = Math.max(right, node.x + node.width);
-    bottom = Math.max(bottom, node.y + node.height);
-  }
-
-  return {
-    x: left - GROUP_PADDING,
-    y: top - GROUP_PADDING - GROUP_LABEL_HEIGHT,
-    width: right - left + GROUP_PADDING * 2,
-    height: bottom - top + GROUP_PADDING * 2 + GROUP_LABEL_HEIGHT,
-  };
 }
 
 export function GroupRect({

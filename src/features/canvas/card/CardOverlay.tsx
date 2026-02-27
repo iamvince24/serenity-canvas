@@ -19,6 +19,7 @@ type CardOverlayProps = {
   container: HTMLElement;
   nodes: Record<string, CanvasNode>;
   nodeOrder: string[];
+  fullNodeOrder: string[];
   viewport: ViewportState;
   selectedNodeIds: string[];
   hoveredNodeId: string | null;
@@ -38,10 +39,50 @@ type CardOverlayProps = {
   autoFocusNodeId?: string | null;
 };
 
+function buildOrderedNodeEntries(
+  orderedIds: string[],
+  nodes: Record<string, CanvasNode>,
+  options?: {
+    includeFallbackNodes?: boolean;
+  },
+): Array<{ node: CanvasNode; layerIndex: number }> {
+  const includeFallbackNodes = options?.includeFallbackNodes ?? true;
+  const entries: Array<{ node: CanvasNode; layerIndex: number }> = [];
+  const seenNodeIds = new Set<string>();
+
+  for (const [layerIndex, nodeId] of orderedIds.entries()) {
+    const node = nodes[nodeId];
+    if (!node || seenNodeIds.has(nodeId)) {
+      continue;
+    }
+
+    entries.push({ node, layerIndex });
+    seenNodeIds.add(nodeId);
+  }
+
+  if (!includeFallbackNodes) {
+    return entries;
+  }
+
+  let fallbackLayerIndex = orderedIds.length;
+  for (const node of Object.values(nodes)) {
+    if (seenNodeIds.has(node.id)) {
+      continue;
+    }
+
+    entries.push({ node, layerIndex: fallbackLayerIndex });
+    seenNodeIds.add(node.id);
+    fallbackLayerIndex += 1;
+  }
+
+  return entries;
+}
+
 export function CardOverlay({
   container,
   nodes,
   nodeOrder,
+  fullNodeOrder,
   viewport,
   selectedNodeIds,
   hoveredNodeId,
@@ -63,32 +104,17 @@ export function CardOverlay({
     [viewport.x, viewport.y, viewport.zoom],
   );
 
-  const orderedNodeEntries = useMemo(() => {
-    const entries: Array<{ node: CanvasNode; layerIndex: number }> = [];
-    const seen = new Set<string>();
-
-    for (const [layerIndex, id] of nodeOrder.entries()) {
-      const node = nodes[id];
-      if (!node) {
-        continue;
-      }
-
-      entries.push({ node, layerIndex });
-      seen.add(node.id);
-    }
-
-    let fallbackLayerIndex = nodeOrder.length;
-    for (const node of Object.values(nodes)) {
-      if (seen.has(node.id)) {
-        continue;
-      }
-
-      entries.push({ node, layerIndex: fallbackLayerIndex });
-      fallbackLayerIndex += 1;
-    }
-
-    return entries;
-  }, [nodeOrder, nodes]);
+  const orderedNodeEntries = useMemo(
+    () =>
+      buildOrderedNodeEntries(nodeOrder, nodes, {
+        includeFallbackNodes: false,
+      }),
+    [nodeOrder, nodes],
+  );
+  const fullOrderedNodeEntries = useMemo(
+    () => buildOrderedNodeEntries(fullNodeOrder, nodes),
+    [fullNodeOrder, nodes],
+  );
 
   return createPortal(
     <div
@@ -134,7 +160,7 @@ export function CardOverlay({
             />
           ))}
 
-        {orderedNodeEntries.map(({ node }) => (
+        {fullOrderedNodeEntries.map(({ node }) => (
           <NodeAnchors
             key={`anchors-${node.id}`}
             node={node}
