@@ -1,4 +1,5 @@
 export { EdgeLine, type EdgeEndpoint } from "./EdgeLine";
+export { invalidateCanvasBackgroundCache } from "./canvasBackgroundCache";
 export { EdgeLabel } from "./EdgeLabel";
 export { EdgeContextMenu } from "./EdgeContextMenu";
 export { EdgeLabelEditor } from "./EdgeLabelEditor";

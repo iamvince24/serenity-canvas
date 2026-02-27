@@ -1,5 +1,5 @@
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toNodeGeometrySnapshot } from "../../../commands/nodeCommands";
 import { getCardColorStyle } from "../../../constants/colors";
@@ -310,7 +310,7 @@ function calculateNextResizeSnapshot(
   };
 }
 
-export function ImageCanvasNode({
+function ImageCanvasNodeComponent({
   node,
   isSelected,
   zoom,
@@ -779,3 +779,6 @@ export function ImageCanvasNode({
     </Group>
   );
 }
+
+export const ImageCanvasNode = memo(ImageCanvasNodeComponent);
+ImageCanvasNode.displayName = "ImageCanvasNode";

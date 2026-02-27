@@ -1,5 +1,5 @@
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Rect, Text } from "react-konva";
 import { getCardColorStyle } from "../../../constants/colors";
 import { useCanvasStore } from "../../../stores/canvasStore";
@@ -50,7 +50,7 @@ function toRgba(color: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-export function GroupRect({
+function GroupRectComponent({
   group,
   nodes,
   isSelected,
@@ -134,3 +134,55 @@ export function GroupRect({
     </>
   );
 }
+
+function areNodeIdListsEqual(
+  previousIds: string[],
+  nextIds: string[],
+): boolean {
+  if (previousIds.length !== nextIds.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previousIds.length; index += 1) {
+    if (previousIds[index] !== nextIds[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function areGroupRectPropsEqual(
+  previous: Readonly<GroupRectProps>,
+  next: Readonly<GroupRectProps>,
+): boolean {
+  if (previous.group.id !== next.group.id) {
+    return false;
+  }
+  if (previous.group.label !== next.group.label) {
+    return false;
+  }
+  if (previous.group.color !== next.group.color) {
+    return false;
+  }
+  if (!areNodeIdListsEqual(previous.group.nodeIds, next.group.nodeIds)) {
+    return false;
+  }
+  if (previous.isSelected !== next.isSelected) {
+    return false;
+  }
+  if (previous.onOpenContextMenu !== next.onOpenContextMenu) {
+    return false;
+  }
+
+  for (const nodeId of next.group.nodeIds) {
+    if (previous.nodes[nodeId] !== next.nodes[nodeId]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export const GroupRect = memo(GroupRectComponent, areGroupRectPropsEqual);
+GroupRect.displayName = "GroupRect";

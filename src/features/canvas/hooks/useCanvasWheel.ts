@@ -11,6 +11,16 @@ type UseCanvasWheelOptions = {
   overlayContainer: HTMLElement | null;
 };
 
+type PendingWheelState = {
+  panDeltaX: number;
+  panDeltaY: number;
+  pinchDeltaY: number;
+  pinchPointer: {
+    x: number;
+    y: number;
+  } | null;
+};
+
 function findCardScrollHost(
   target: EventTarget | null,
   boundary: HTMLElement,
@@ -53,6 +63,13 @@ export function useCanvasWheel({
   overlayContainer,
 }: UseCanvasWheelOptions): void {
   const setViewport = useCanvasStore((state) => state.setViewport);
+  const pendingRef = useRef<PendingWheelState>({
+    panDeltaX: 0,
+    panDeltaY: 0,
+    pinchDeltaY: 0,
+    pinchPointer: null,
+  });
+  const frameRef = useRef<number | null>(null);
   const wheelGestureRef = useRef<{
     mode: "pan" | "content" | null;
     lastTimestamp: number;
@@ -65,6 +82,74 @@ export function useCanvasWheel({
     if (!overlayContainer) {
       return;
     }
+
+    const flushPending = () => {
+      const pending = pendingRef.current;
+      const panDeltaX = pending.panDeltaX;
+      const panDeltaY = pending.panDeltaY;
+      const pinchDeltaY = pending.pinchDeltaY;
+      const pinchPointer = pending.pinchPointer;
+      if (panDeltaX === 0 && panDeltaY === 0 && pinchDeltaY === 0) {
+        return;
+      }
+
+      pending.panDeltaX = 0;
+      pending.panDeltaY = 0;
+      pending.pinchDeltaY = 0;
+      pending.pinchPointer = null;
+
+      const currentViewport = useCanvasStore.getState().viewport;
+      let nextViewport = currentViewport;
+
+      if (panDeltaX !== 0 || panDeltaY !== 0) {
+        nextViewport = {
+          ...nextViewport,
+          x: nextViewport.x - panDeltaX,
+          y: nextViewport.y - panDeltaY,
+        };
+      }
+
+      if (pinchPointer && pinchDeltaY !== 0) {
+        const oldZoom = nextViewport.zoom;
+        const direction = pinchDeltaY > 0 ? -1 : 1;
+        const nextZoomRaw =
+          direction > 0 ? oldZoom * ZOOM_STEP : oldZoom / ZOOM_STEP;
+        const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoomRaw));
+
+        if (nextZoom !== oldZoom) {
+          const canvasPoint = {
+            x: (pinchPointer.x - nextViewport.x) / oldZoom,
+            y: (pinchPointer.y - nextViewport.y) / oldZoom,
+          };
+          nextViewport = {
+            x: pinchPointer.x - canvasPoint.x * nextZoom,
+            y: pinchPointer.y - canvasPoint.y * nextZoom,
+            zoom: nextZoom,
+          };
+        }
+      }
+
+      if (
+        nextViewport.x === currentViewport.x &&
+        nextViewport.y === currentViewport.y &&
+        nextViewport.zoom === currentViewport.zoom
+      ) {
+        return;
+      }
+
+      setViewport(nextViewport);
+    };
+
+    const scheduleFlush = () => {
+      if (frameRef.current !== null) {
+        return;
+      }
+
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
+        flushPending();
+      });
+    };
 
     const handleWheel = (event: WheelEvent) => {
       const isPinchZoom = event.ctrlKey;
@@ -92,39 +177,22 @@ export function useCanvasWheel({
       wheelGesture.mode = "pan";
       event.preventDefault();
 
-      const storeState = useCanvasStore.getState();
-      const currentViewport = storeState.viewport;
-      const rect = overlayContainer.getBoundingClientRect();
-      const pointer = {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-      };
-
       if (!isPinchZoom) {
-        setViewport({
-          ...currentViewport,
-          x: currentViewport.x - event.deltaX,
-          y: currentViewport.y - event.deltaY,
-        });
+        const pending = pendingRef.current;
+        pending.panDeltaX += event.deltaX;
+        pending.panDeltaY += event.deltaY;
+        scheduleFlush();
         return;
       }
 
-      const oldZoom = currentViewport.zoom;
-      const canvasPoint = {
-        x: (pointer.x - currentViewport.x) / oldZoom,
-        y: (pointer.y - currentViewport.y) / oldZoom,
+      const rect = overlayContainer.getBoundingClientRect();
+      const pending = pendingRef.current;
+      pending.pinchDeltaY += event.deltaY;
+      pending.pinchPointer = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
       };
-
-      const direction = event.deltaY > 0 ? -1 : 1;
-      const nextZoomRaw =
-        direction > 0 ? oldZoom * ZOOM_STEP : oldZoom / ZOOM_STEP;
-      const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoomRaw));
-
-      setViewport({
-        x: pointer.x - canvasPoint.x * nextZoom,
-        y: pointer.y - canvasPoint.y * nextZoom,
-        zoom: nextZoom,
-      });
+      scheduleFlush();
     };
 
     overlayContainer.addEventListener("wheel", handleWheel, {
@@ -132,6 +200,14 @@ export function useCanvasWheel({
     });
 
     return () => {
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      pendingRef.current.panDeltaX = 0;
+      pendingRef.current.panDeltaY = 0;
+      pendingRef.current.pinchDeltaY = 0;
+      pendingRef.current.pinchPointer = null;
       overlayContainer.removeEventListener("wheel", handleWheel);
     };
   }, [overlayContainer, setViewport]);

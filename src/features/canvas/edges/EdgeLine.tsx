@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Arrow, Circle, Line } from "react-konva";
 import { getEdgeStrokeColor } from "../../../constants/colors";
 import type { CanvasNode, Edge, EdgeLineStyle } from "../../../types/canvas";
+import { getCanvasBackgroundColor } from "./canvasBackgroundCache";
 import { EdgeLabel } from "./EdgeLabel";
 import { getEdgeLabelLayout } from "./edgeLabelLayout";
 import { getEdgeRoute, type Point } from "./edgeUtils";
@@ -35,22 +36,8 @@ const EDGE_HANDLE_STROKE = "#1f77c8";
 const EDGE_HANDLE_RADIUS = 5;
 const EDGE_HANDLE_RADIUS_ACTIVE = 6.5;
 const EDGE_LABEL_GAP_PADDING = 6;
-const DEFAULT_CANVAS_BACKGROUND = "#FAFAF8";
 const EMPTY_LABEL_GAP_WIDTH = 80;
 const EMPTY_LABEL_GAP_HEIGHT = 20;
-
-function getCanvasBackgroundColor(): string {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return DEFAULT_CANVAS_BACKGROUND;
-  }
-
-  const resolved = window
-    .getComputedStyle(document.documentElement)
-    .getPropertyValue("--canvas")
-    .trim();
-
-  return resolved.length > 0 ? resolved : DEFAULT_CANVAS_BACKGROUND;
-}
 
 function getLineDash(lineStyle: EdgeLineStyle): number[] | undefined {
   if (lineStyle === "dashed") {
@@ -64,7 +51,7 @@ function getLineDash(lineStyle: EdgeLineStyle): number[] | undefined {
   return undefined;
 }
 
-export function EdgeLine({
+function EdgeLineComponent({
   edge,
   nodes,
   isSelected,
@@ -301,3 +288,59 @@ export function EdgeLine({
     </>
   );
 }
+
+function areEdgeLinePropsEqual(
+  previous: Readonly<EdgeLineProps>,
+  next: Readonly<EdgeLineProps>,
+): boolean {
+  if (previous.edge !== next.edge) {
+    return false;
+  }
+  if (previous.isSelected !== next.isSelected) {
+    return false;
+  }
+  if (previous.onSelect !== next.onSelect) {
+    return false;
+  }
+  if (previous.onContextMenu !== next.onContextMenu) {
+    return false;
+  }
+  if (previous.onDblClick !== next.onDblClick) {
+    return false;
+  }
+  if (previous.labelOverride !== next.labelOverride) {
+    return false;
+  }
+  if (previous.hideLabel !== next.hideLabel) {
+    return false;
+  }
+  if (previous.forceLabelGap !== next.forceLabelGap) {
+    return false;
+  }
+  if (previous.showEndpointHandles !== next.showEndpointHandles) {
+    return false;
+  }
+  if (previous.endpointPreview !== next.endpointPreview) {
+    return false;
+  }
+  if (previous.onEndpointDragStart !== next.onEndpointDragStart) {
+    return false;
+  }
+
+  const previousFromNode = previous.nodes[previous.edge.fromNode];
+  const nextFromNode = next.nodes[next.edge.fromNode];
+  if (previousFromNode !== nextFromNode) {
+    return false;
+  }
+
+  const previousToNode = previous.nodes[previous.edge.toNode];
+  const nextToNode = next.nodes[next.edge.toNode];
+  if (previousToNode !== nextToNode) {
+    return false;
+  }
+
+  return true;
+}
+
+export const EdgeLine = memo(EdgeLineComponent, areEdgeLinePropsEqual);
+EdgeLine.displayName = "EdgeLine";

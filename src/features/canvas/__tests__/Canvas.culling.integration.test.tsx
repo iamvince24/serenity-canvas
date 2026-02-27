@@ -1,5 +1,5 @@
 import { forwardRef, type ReactNode, type Ref } from "react";
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { TextNode } from "../../../types/canvas";
@@ -160,6 +160,14 @@ function installPointerCaptureMocks(): void {
   });
 }
 
+async function flushAnimationFrame(): Promise<void> {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
 describe("Canvas culling integration", () => {
   beforeEach(() => {
     installPointerCaptureMocks();
@@ -211,7 +219,7 @@ describe("Canvas culling integration", () => {
     expect(movedNode?.y).toBe(150);
   });
 
-  it("啟用 culling 後仍可用 wheel 平移畫布", () => {
+  it("啟用 culling 後仍可用 wheel 平移畫布", async () => {
     const view = render(<Canvas />);
     const root = getCanvasRoot(view.container);
 
@@ -222,13 +230,15 @@ describe("Canvas culling integration", () => {
       clientY: 160,
     });
 
+    await flushAnimationFrame();
+
     const viewport = useCanvasStore.getState().viewport;
     expect(viewport.x).toBe(-24);
     expect(viewport.y).toBe(40);
     expect(viewport.zoom).toBe(1);
   });
 
-  it("啟用 culling 後 Ctrl+Wheel 仍以滑鼠位置為中心縮放", () => {
+  it("啟用 culling 後 Ctrl+Wheel 仍以滑鼠位置為中心縮放", async () => {
     seedCanvasState({ x: 100, y: 80, zoom: 1 });
     const view = render(<Canvas />);
     const root = getCanvasRoot(view.container);
@@ -239,6 +249,8 @@ describe("Canvas culling integration", () => {
       clientX: 300,
       clientY: 200,
     });
+
+    await flushAnimationFrame();
 
     const viewport = useCanvasStore.getState().viewport;
     const expectedZoom = 1 * ZOOM_STEP;

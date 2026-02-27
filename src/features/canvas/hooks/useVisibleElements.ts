@@ -2,11 +2,9 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import {
-  ENTER_PADDING,
-  LEAVE_PADDING,
-  getVisibleEdgeIds,
-  getVisibleGroupIds,
-  getVisibleNodeIds,
+  getVisibleEdgeIdsDual,
+  getVisibleGroupIdsDual,
+  getVisibleNodeIdsDual,
 } from "../core/culling";
 
 type HysteresisResult = {
@@ -119,12 +117,8 @@ export function useVisibleNodeIds(): string[] {
     () => buildOrderedNodeIds(nodeOrder, Object.keys(nodes)),
     [nodeOrder, nodes],
   );
-  const enterVisibleIds = useMemo(
-    () => getVisibleNodeIds(nodes, viewport, ENTER_PADDING),
-    [nodes, viewport],
-  );
-  const leaveVisibleIds = useMemo(
-    () => getVisibleNodeIds(nodes, viewport, LEAVE_PADDING),
+  const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
+    () => getVisibleNodeIdsDual(nodes, viewport),
     [nodes, viewport],
   );
 
@@ -140,12 +134,8 @@ export function useVisibleEdgeIds(): string[] {
     useShallow((state) => [state.edges, state.nodes, state.viewport]),
   );
   const orderedEdgeIds = useMemo(() => Object.keys(edges), [edges]);
-  const enterVisibleIds = useMemo(
-    () => getVisibleEdgeIds(edges, nodes, viewport, ENTER_PADDING),
-    [edges, nodes, viewport],
-  );
-  const leaveVisibleIds = useMemo(
-    () => getVisibleEdgeIds(edges, nodes, viewport, LEAVE_PADDING),
+  const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
+    () => getVisibleEdgeIdsDual(edges, nodes, viewport),
     [edges, nodes, viewport],
   );
 
@@ -161,12 +151,8 @@ export function useVisibleGroupIds(): string[] {
     useShallow((state) => [state.groups, state.nodes, state.viewport]),
   );
   const orderedGroupIds = useMemo(() => Object.keys(groups), [groups]);
-  const enterVisibleIds = useMemo(
-    () => getVisibleGroupIds(groups, nodes, viewport, ENTER_PADDING),
-    [groups, nodes, viewport],
-  );
-  const leaveVisibleIds = useMemo(
-    () => getVisibleGroupIds(groups, nodes, viewport, LEAVE_PADDING),
+  const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
+    () => getVisibleGroupIdsDual(groups, nodes, viewport),
     [groups, nodes, viewport],
   );
 

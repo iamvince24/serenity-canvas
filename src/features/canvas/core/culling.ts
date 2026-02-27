@@ -12,6 +12,11 @@ export type Bounds = {
   height: number;
 };
 
+export type DualVisibilityResult = {
+  enterIds: string[];
+  leaveIds: string[];
+};
+
 export const ENTER_PADDING = 100;
 export const LEAVE_PADDING = 150;
 export const GROUP_PADDING = 24;
@@ -102,6 +107,33 @@ export function getVisibleNodeIds(
   return visibleNodeIds;
 }
 
+export function getVisibleNodeIdsDual(
+  nodes: Record<string, CanvasNode>,
+  viewport: ViewportState,
+): DualVisibilityResult {
+  const enterBounds = getViewportBounds(viewport, ENTER_PADDING);
+  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING);
+  const enterIds: string[] = [];
+  const leaveIds: string[] = [];
+
+  for (const node of Object.values(nodes)) {
+    const nodeBounds = {
+      x: node.x,
+      y: node.y,
+      width: node.width,
+      height: node.height,
+    };
+    if (intersects(nodeBounds, enterBounds)) {
+      enterIds.push(node.id);
+    }
+    if (intersects(nodeBounds, leaveBounds)) {
+      leaveIds.push(node.id);
+    }
+  }
+
+  return { enterIds, leaveIds };
+}
+
 export function getEdgeCullingBounds(
   edge: Edge,
   nodes: Record<string, CanvasNode>,
@@ -148,6 +180,33 @@ export function getVisibleEdgeIds(
   }
 
   return visibleEdgeIds;
+}
+
+export function getVisibleEdgeIdsDual(
+  edges: Record<string, Edge>,
+  nodes: Record<string, CanvasNode>,
+  viewport: ViewportState,
+): DualVisibilityResult {
+  const enterBounds = getViewportBounds(viewport, ENTER_PADDING);
+  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING);
+  const enterIds: string[] = [];
+  const leaveIds: string[] = [];
+
+  for (const edge of Object.values(edges)) {
+    const edgeBounds = getEdgeCullingBounds(edge, nodes);
+    if (!edgeBounds) {
+      continue;
+    }
+
+    if (intersects(edgeBounds, enterBounds)) {
+      enterIds.push(edge.id);
+    }
+    if (intersects(edgeBounds, leaveBounds)) {
+      leaveIds.push(edge.id);
+    }
+  }
+
+  return { enterIds, leaveIds };
 }
 
 export function getGroupBounds(
@@ -202,4 +261,31 @@ export function getVisibleGroupIds(
   }
 
   return visibleGroupIds;
+}
+
+export function getVisibleGroupIdsDual(
+  groups: Record<string, Group>,
+  nodes: Record<string, CanvasNode>,
+  viewport: ViewportState,
+): DualVisibilityResult {
+  const enterBounds = getViewportBounds(viewport, ENTER_PADDING);
+  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING);
+  const enterIds: string[] = [];
+  const leaveIds: string[] = [];
+
+  for (const group of Object.values(groups)) {
+    const groupBounds = getGroupBounds(group.nodeIds, nodes);
+    if (!groupBounds) {
+      continue;
+    }
+
+    if (intersects(groupBounds, enterBounds)) {
+      enterIds.push(group.id);
+    }
+    if (intersects(groupBounds, leaveBounds)) {
+      leaveIds.push(group.id);
+    }
+  }
+
+  return { enterIds, leaveIds };
 }

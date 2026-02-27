@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -45,7 +46,7 @@ function toUploadErrorMessage(error: unknown): string {
     : "Image upload failed. Please try again.";
 }
 
-export function CardWidget({
+function CardWidgetComponent({
   node,
   zoom,
   layerIndex,
@@ -354,3 +355,6 @@ export function CardWidget({
     </div>
   );
 }
+
+export const CardWidget = memo(CardWidgetComponent);
+CardWidget.displayName = "CardWidget";
