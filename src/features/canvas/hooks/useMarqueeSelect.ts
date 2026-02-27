@@ -20,6 +20,7 @@ import {
   type Point,
 } from "../core/marqueeUtils";
 import { InteractionEvent } from "../core/stateMachine";
+import { usePointerCapture } from "./usePointerCapture";
 
 const MARQUEE_DRAG_THRESHOLD = 3;
 
@@ -307,98 +308,58 @@ export function useMarqueeSelect({
     [completeMarquee],
   );
 
-  useEffect(() => {
-    if (!marqueeState) {
-      return;
-    }
-
-    const handlePointerMove = (event: PointerEvent) => {
-      updateMarqueePointer(event.clientX, event.clientY, event.shiftKey);
-    };
-
-    const handlePointerUp = (event: PointerEvent) => {
-      completeMarquee({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        isShiftHeld: event.shiftKey,
-      });
-    };
-
-    const handlePointerCancel = () => {
-      cancelMarquee();
-    };
-
-    const handleMouseMove = (event: MouseEvent) => {
-      updateMarqueePointer(event.clientX, event.clientY, event.shiftKey);
-    };
-
-    const handleMouseUp = (event: MouseEvent) => {
-      completeMarquee({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        isShiftHeld: event.shiftKey,
-      });
-    };
-
-    const handleTouchMove = (event: TouchEvent) => {
-      const touch = event.touches[0];
-      if (!touch) {
+  const handleCapturedPointerMove = useCallback(
+    (clientX: number, clientY: number) => {
+      const activeMarquee = marqueeStateRef.current;
+      if (!activeMarquee) {
         return;
       }
 
-      updateMarqueePointer(touch.clientX, touch.clientY, false);
-    };
+      updateMarqueePointer(clientX, clientY, activeMarquee.isShiftHeld);
+    },
+    [updateMarqueePointer],
+  );
 
-    const handleTouchEnd = (event: TouchEvent) => {
-      const touch = event.changedTouches[0];
-      if (!touch) {
+  const handleCapturedPointerUp = useCallback(
+    (clientX?: number, clientY?: number) => {
+      if (
+        typeof clientX !== "number" ||
+        typeof clientY !== "number" ||
+        !Number.isFinite(clientX) ||
+        !Number.isFinite(clientY)
+      ) {
         completeMarquee();
         return;
       }
 
       completeMarquee({
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-        isShiftHeld: false,
+        clientX,
+        clientY,
+        isShiftHeld: marqueeStateRef.current?.isShiftHeld ?? false,
       });
-    };
+    },
+    [completeMarquee],
+  );
 
-    const handleTouchCancel = () => {
-      cancelMarquee();
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-
+  const handleCapturedEscape = useCallback(
+    (event: KeyboardEvent) => {
       event.preventDefault();
       event.stopPropagation();
       cancelMarquee();
-    };
+    },
+    [cancelMarquee],
+  );
 
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerCancel);
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("touchmove", handleTouchMove);
-    window.addEventListener("touchend", handleTouchEnd);
-    window.addEventListener("touchcancel", handleTouchCancel);
-    window.addEventListener("keydown", handleEscape, true);
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerCancel);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleTouchEnd);
-      window.removeEventListener("touchcancel", handleTouchCancel);
-      window.removeEventListener("keydown", handleEscape, true);
-    };
-  }, [cancelMarquee, completeMarquee, marqueeState, updateMarqueePointer]);
+  usePointerCapture(
+    Boolean(marqueeState),
+    {
+      onPointerMove: handleCapturedPointerMove,
+      onPointerUp: handleCapturedPointerUp,
+      onPointerCancel: cancelMarquee,
+      onKeyDown: handleCapturedEscape,
+    },
+    { captureKey: "Escape" },
+  );
 
   let marqueeRect: MarqueeRect | null = null;
   if (marqueeState) {

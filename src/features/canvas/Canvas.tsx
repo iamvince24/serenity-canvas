@@ -23,12 +23,12 @@ import { EdgeLabelEditor } from "./edges/EdgeLabelEditor";
 import { EdgeLine } from "./edges/EdgeLine";
 import { ImageCanvasNode } from "./images/ImageCanvasNode";
 import { GroupRect } from "./groups/GroupRect";
+import { ShapeErrorBoundary } from "./ShapeErrorBoundary";
 import {
   createImageNodeCenteredAt,
   createTextNodeCenteredAt,
 } from "./nodes/nodeFactory";
 import { type OverlaySlot } from "./core/overlaySlot";
-import { InteractionState } from "./core/stateMachine";
 import { toCanvasPoint } from "./core/canvasCoordinates";
 import { useEdgeOverlay } from "./edges/useEdgeOverlay";
 import { useCanvasKeyboard } from "./hooks/useCanvasKeyboard";
@@ -46,6 +46,7 @@ import {
   type ContextMenuNodeType,
 } from "./nodes/NodeContextMenu";
 import { GroupContextMenu } from "./nodes/GroupContextMenu";
+import { resolveOrderedNodeIds } from "./nodes/orderUtils";
 
 type StageSize = {
   width: number;
@@ -72,23 +73,6 @@ function getWindowSize(): StageSize {
   };
 }
 
-function isEditableElement(element: HTMLElement | null): boolean {
-  if (!element) {
-    return false;
-  }
-
-  if (
-    element.isContentEditable ||
-    element.tagName === "INPUT" ||
-    element.tagName === "TEXTAREA" ||
-    element.tagName === "SELECT"
-  ) {
-    return true;
-  }
-
-  return Boolean(element.closest(".ProseMirror"));
-}
-
 export function Canvas() {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
@@ -99,14 +83,11 @@ export function Canvas() {
   const selectedEdgeIds = useCanvasStore((state) => state.selectedEdgeIds);
   const selectedGroupIds = useCanvasStore((state) => state.selectedGroupIds);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
-  const setCanvasMode = useCanvasStore((state) => state.setCanvasMode);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const selectEdge = useCanvasStore((state) => state.selectEdge);
   const selectGroup = useCanvasStore((state) => state.selectGroup);
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
-  const undo = useCanvasStore((state) => state.undo);
-  const redo = useCanvasStore((state) => state.redo);
   const { uploadImageFile } = useImageUpload();
   const visibleNodeIds = useVisibleNodeIds();
   const visibleEdgeIds = useVisibleEdgeIds();
@@ -121,29 +102,23 @@ export function Canvas() {
     type: "idle",
   });
 
-  const orderedNodeIds = useMemo(() => {
-    const orderedIds: string[] = [];
-    const seen = new Set<string>();
-    for (const nodeId of nodeOrder) {
-      if (!nodes[nodeId] || seen.has(nodeId)) {
-        continue;
-      }
+  const orderedNodeIds = useMemo(
+    () => resolveOrderedNodeIds(nodeOrder, nodes),
+    [nodeOrder, nodes],
+  );
 
-      orderedIds.push(nodeId);
-      seen.add(nodeId);
-    }
-
-    for (const nodeId of Object.keys(nodes)) {
-      if (seen.has(nodeId)) {
-        continue;
-      }
-
-      orderedIds.push(nodeId);
-      seen.add(nodeId);
-    }
-
-    return orderedIds;
-  }, [nodeOrder, nodes]);
+  const selectedNodeIdSet = useMemo(
+    () => new Set(selectedNodeIds),
+    [selectedNodeIds],
+  );
+  const selectedEdgeIdSet = useMemo(
+    () => new Set(selectedEdgeIds),
+    [selectedEdgeIds],
+  );
+  const selectedGroupIdSet = useMemo(
+    () => new Set(selectedGroupIds),
+    [selectedGroupIds],
+  );
 
   const imageNodes = useMemo(() => {
     const orderedImageNodes: ImageNode[] = [];
@@ -497,6 +472,14 @@ export function Canvas() {
 
   useCanvasKeyboard({
     overlayContainer,
+    isMarqueeActive: marqueeState !== null,
+    isEdgeEndpointDragging: edgeEndpointDragState !== null,
+    hasEdgeContextMenu: edgeContextMenuState !== null,
+    hasEdgeLabelEditor: edgeLabelEditorState !== null,
+    cancelMarquee,
+    cancelEdgeEndpointDrag,
+    closeEdgeContextMenu,
+    closeEdgeLabelEditor,
     onFocusNode: setAutoFocusNodeId,
   });
 
@@ -519,158 +502,6 @@ export function Canvas() {
       window.cancelAnimationFrame(frameId);
     };
   }, [autoFocusNodeId]);
-
-  useEffect(() => {
-    const handleUndoRedoShortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) {
-        return;
-      }
-
-      const isModifierPressed = event.metaKey || event.ctrlKey;
-      if (!isModifierPressed || event.altKey) {
-        return;
-      }
-
-      if (event.key.toLowerCase() !== "z") {
-        return;
-      }
-
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      const activeElement =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-      if (isEditableElement(target) || isEditableElement(activeElement)) {
-        return;
-      }
-
-      event.preventDefault();
-      if (event.shiftKey) {
-        redo();
-        return;
-      }
-
-      undo();
-    };
-
-    window.addEventListener("keydown", handleUndoRedoShortcut);
-    return () => {
-      window.removeEventListener("keydown", handleUndoRedoShortcut);
-    };
-  }, [redo, undo]);
-
-  useEffect(() => {
-    const handleModeShortcut = (event: KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey
-      ) {
-        return;
-      }
-
-      const key = event.key.toLowerCase();
-      const nextMode = key === "v" ? "select" : key === "c" ? "connect" : null;
-      if (!nextMode) {
-        return;
-      }
-
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      const activeElement =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-      if (isEditableElement(target) || isEditableElement(activeElement)) {
-        return;
-      }
-
-      const currentState = useCanvasStore.getState().interactionState;
-      if (
-        currentState !== InteractionState.Idle &&
-        !(currentState === InteractionState.Connecting && nextMode === "select")
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      setCanvasMode(nextMode);
-    };
-
-    window.addEventListener("keydown", handleModeShortcut);
-    return () => {
-      window.removeEventListener("keydown", handleModeShortcut);
-    };
-  }, [setCanvasMode]);
-
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) {
-        return;
-      }
-
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      const activeElement =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-      if (
-        target?.closest("[data-edge-label-editor='true']") ||
-        activeElement?.closest("[data-edge-label-editor='true']")
-      ) {
-        return;
-      }
-
-      if (marqueeState) {
-        event.preventDefault();
-        event.stopPropagation();
-        cancelMarquee();
-        return;
-      }
-
-      if (edgeEndpointDragState) {
-        event.preventDefault();
-        event.stopPropagation();
-        cancelEdgeEndpointDrag();
-        return;
-      }
-
-      if (edgeContextMenuState) {
-        event.preventDefault();
-        event.stopPropagation();
-        closeEdgeContextMenu();
-        return;
-      }
-
-      if (edgeLabelEditorState) {
-        event.preventDefault();
-        event.stopPropagation();
-        closeEdgeLabelEditor();
-        return;
-      }
-
-      const state = useCanvasStore.getState();
-      if (state.selectedEdgeIds.length > 0) {
-        event.preventDefault();
-        event.stopPropagation();
-        state.deselectAll();
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape, true);
-    return () => {
-      window.removeEventListener("keydown", handleEscape, true);
-    };
-  }, [
-    cancelMarquee,
-    cancelEdgeEndpointDrag,
-    closeEdgeContextMenu,
-    closeEdgeLabelEditor,
-    edgeEndpointDragState,
-    edgeContextMenuState,
-    edgeLabelEditorState,
-    marqueeState,
-  ]);
 
   const handleStagePointerDown = (
     event: KonvaEventObject<MouseEvent | TouchEvent>,
@@ -779,31 +610,32 @@ export function Canvas() {
       >
         <Layer>
           {orderedEdges.map((edge) => (
-            <EdgeLine
-              key={edge.id}
-              edge={edge}
-              nodes={nodes}
-              isSelected={selectedEdgeIds.includes(edge.id)}
-              onSelect={selectEdge}
-              onContextMenu={openEdgeContextMenu}
-              onDblClick={openEdgeLabelEditor}
-              labelOverride={
-                visibleEdgeLabelDraftState?.edgeId === edge.id
-                  ? visibleEdgeLabelDraftState.label
-                  : null
-              }
-              hideLabel={visibleEdgeLabelEditorState?.edgeId === edge.id}
-              forceLabelGap={visibleEdgeLabelEditorState?.edgeId === edge.id}
-              showEndpointHandles={
-                canShowEdgeEndpointHandles && selectedEdgeIds.includes(edge.id)
-              }
-              endpointPreview={
-                edgeEndpointPreview?.edgeId === edge.id
-                  ? edgeEndpointPreview.preview
-                  : null
-              }
-              onEndpointDragStart={handleEdgeEndpointDragStart}
-            />
+            <ShapeErrorBoundary key={edge.id} shapeId={edge.id}>
+              <EdgeLine
+                edge={edge}
+                nodes={nodes}
+                isSelected={selectedEdgeIdSet.has(edge.id)}
+                onSelect={selectEdge}
+                onContextMenu={openEdgeContextMenu}
+                onDblClick={openEdgeLabelEditor}
+                labelOverride={
+                  visibleEdgeLabelDraftState?.edgeId === edge.id
+                    ? visibleEdgeLabelDraftState.label
+                    : null
+                }
+                hideLabel={visibleEdgeLabelEditorState?.edgeId === edge.id}
+                forceLabelGap={visibleEdgeLabelEditorState?.edgeId === edge.id}
+                showEndpointHandles={
+                  canShowEdgeEndpointHandles && selectedEdgeIdSet.has(edge.id)
+                }
+                endpointPreview={
+                  edgeEndpointPreview?.edgeId === edge.id
+                    ? edgeEndpointPreview.preview
+                    : null
+                }
+                onEndpointDragStart={handleEdgeEndpointDragStart}
+              />
+            </ShapeErrorBoundary>
           ))}
 
           {previewLine ? (
@@ -825,25 +657,27 @@ export function Canvas() {
 
         <Layer>
           {orderedGroups.map((group) => (
-            <GroupRect
-              key={group.id}
-              group={group}
-              nodes={nodes}
-              isSelected={selectedGroupIds.includes(group.id)}
-              onOpenContextMenu={openNodeContextMenu}
-            />
+            <ShapeErrorBoundary key={group.id} shapeId={group.id}>
+              <GroupRect
+                group={group}
+                nodes={nodes}
+                isSelected={selectedGroupIdSet.has(group.id)}
+                onOpenContextMenu={openNodeContextMenu}
+              />
+            </ShapeErrorBoundary>
           ))}
         </Layer>
 
         <Layer>
           {imageNodes.map((node) => (
-            <ImageCanvasNode
-              key={node.id}
-              node={node}
-              zoom={viewport.zoom}
-              isSelected={selectedNodeIds.includes(node.id)}
-              onOpenContextMenu={openNodeContextMenu}
-            />
+            <ShapeErrorBoundary key={node.id} shapeId={node.id}>
+              <ImageCanvasNode
+                node={node}
+                zoom={viewport.zoom}
+                isSelected={selectedNodeIdSet.has(node.id)}
+                onOpenContextMenu={openNodeContextMenu}
+              />
+            </ShapeErrorBoundary>
           ))}
         </Layer>
 
@@ -869,7 +703,7 @@ export function Canvas() {
           nodeOrder={visibleNodeIds}
           fullNodeOrder={orderedNodeIds}
           viewport={viewport}
-          selectedNodeIds={selectedNodeIds}
+          selectedNodeIdSet={selectedNodeIdSet}
           hoveredNodeId={hoveredNodeId}
           connectingSource={connectingSource}
           hoveredTarget={hoveredTarget}

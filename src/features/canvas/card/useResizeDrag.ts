@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useRef, type MouseEventHandler } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEventHandler,
+} from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { InteractionEvent } from "../core/stateMachine";
+import { usePointerCapture } from "../hooks/usePointerCapture";
 
 type ResizeCursor = "ew-resize" | "ns-resize" | "nwse-resize" | "nesw-resize";
 
@@ -18,6 +25,12 @@ type UseResizeDragResult = {
   onMouseLeave: () => void;
 };
 
+type DragState = {
+  startX: number;
+  startY: number;
+  capturedZoom: number;
+};
+
 export function useResizeDrag({
   nodeId,
   zoom,
@@ -27,7 +40,8 @@ export function useResizeDrag({
 }: UseResizeDragOptions): UseResizeDragResult {
   const selectNode = useCanvasStore((state) => state.selectNode);
   const dispatch = useCanvasStore((state) => state.dispatch);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
   const isDraggingRef = useRef(false);
 
   const setCursor = useCallback((nextCursor: string) => {
@@ -37,6 +51,19 @@ export function useResizeDrag({
   const clearCursor = useCallback(() => {
     document.body.style.cursor = "";
   }, []);
+
+  const finishDrag = useCallback(() => {
+    if (!dragStateRef.current) {
+      return;
+    }
+
+    dragStateRef.current = null;
+    setDragState(null);
+    isDraggingRef.current = false;
+    clearCursor();
+    dispatch(InteractionEvent.RESIZE_END);
+    onEnd?.();
+  }, [clearCursor, dispatch, onEnd]);
 
   const onMouseEnter = useCallback(() => {
     if (isDraggingRef.current) {
@@ -63,71 +90,74 @@ export function useResizeDrag({
       event.preventDefault();
       event.stopPropagation();
 
-      const startX = event.clientX;
-      const startY = event.clientY;
-      const capturedZoom = zoom > 0 ? zoom : 1;
-      let finished = false;
+      const nextDragState: DragState = {
+        startX: event.clientX,
+        startY: event.clientY,
+        capturedZoom: zoom > 0 ? zoom : 1,
+      };
 
       selectNode(nodeId);
+      dragStateRef.current = nextDragState;
+      setDragState(nextDragState);
       isDraggingRef.current = true;
       setCursor(cursor);
       dispatch(InteractionEvent.RESIZE_START);
-
-      const cleanup = () => {
-        if (finished) {
-          return;
-        }
-
-        finished = true;
-        cleanupRef.current = null;
-        isDraggingRef.current = false;
-        window.removeEventListener("mousemove", handleMove);
-        window.removeEventListener("mouseup", handleUp);
-        window.removeEventListener("blur", handleUp);
-        clearCursor();
-        dispatch(InteractionEvent.RESIZE_END);
-        onEnd?.();
-      };
-
-      const handleMove = (moveEvent: MouseEvent) => {
-        const delta = {
-          dx: (moveEvent.clientX - startX) / capturedZoom,
-          dy: (moveEvent.clientY - startY) / capturedZoom,
-        };
-        onMove(delta, capturedZoom);
-      };
-
-      const handleUp = () => {
-        cleanup();
-      };
-
-      cleanupRef.current = cleanup;
-      window.addEventListener("mousemove", handleMove);
-      window.addEventListener("mouseup", handleUp);
-      window.addEventListener("blur", handleUp);
     },
-    [
-      clearCursor,
-      cursor,
-      dispatch,
-      nodeId,
-      onEnd,
-      onMove,
-      selectNode,
-      setCursor,
-      zoom,
-    ],
+    [cursor, dispatch, nodeId, selectNode, setCursor, zoom],
   );
+
+  const handleCapturedPointerMove = useCallback(
+    (clientX: number, clientY: number) => {
+      const activeDrag = dragStateRef.current;
+      if (!activeDrag) {
+        return;
+      }
+
+      onMove(
+        {
+          dx: (clientX - activeDrag.startX) / activeDrag.capturedZoom,
+          dy: (clientY - activeDrag.startY) / activeDrag.capturedZoom,
+        },
+        activeDrag.capturedZoom,
+      );
+    },
+    [onMove],
+  );
+
+  usePointerCapture(Boolean(dragState), {
+    onPointerMove: handleCapturedPointerMove,
+    onPointerUp: finishDrag,
+    onPointerCancel: finishDrag,
+  });
+
+  useEffect(() => {
+    if (!dragState) {
+      return;
+    }
+
+    window.addEventListener("blur", finishDrag);
+    return () => {
+      window.removeEventListener("blur", finishDrag);
+    };
+  }, [dragState, finishDrag]);
 
   useEffect(() => {
     return () => {
-      cleanupRef.current?.();
-      if (isDraggingRef.current) {
-        isDraggingRef.current = false;
-        clearCursor();
+      if (!dragStateRef.current) {
+        if (isDraggingRef.current) {
+          isDraggingRef.current = false;
+          clearCursor();
+        }
+        return;
       }
+
+      dragStateRef.current = null;
+      isDraggingRef.current = false;
+      clearCursor();
+      dispatch(InteractionEvent.RESIZE_END);
+      onEnd?.();
     };
-  }, [clearCursor]);
+  }, [clearCursor, dispatch, onEnd]);
 
   return {
     onMouseDown,

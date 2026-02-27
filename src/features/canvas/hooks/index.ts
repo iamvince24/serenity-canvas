@@ -2,3 +2,4 @@ export { useCanvasKeyboard } from "./useCanvasKeyboard";
 export { useCanvasWheel } from "./useCanvasWheel";
 export { useMarqueeSelect } from "./useMarqueeSelect";
 export { useBatchDrag } from "./useBatchDrag";
+export { usePointerCapture } from "./usePointerCapture";

@@ -6,36 +6,27 @@ import {
   getVisibleGroupIdsDual,
   getVisibleNodeIdsDual,
 } from "../core/culling";
+import { resolveOrderedNodeIds } from "../nodes/orderUtils";
 
 type HysteresisResult = {
   nextVisibleIds: string[];
   nextVisibleSet: Set<string>;
 };
 
-function buildOrderedNodeIds(nodeOrder: string[], nodeIds: string[]): string[] {
-  const orderedNodeIds: string[] = [];
-  const nodeIdSet = new Set(nodeIds);
-  const seenNodeIds = new Set<string>();
+type ViewportSize = {
+  width: number;
+  height: number;
+};
 
-  for (const nodeId of nodeOrder) {
-    if (!nodeIdSet.has(nodeId) || seenNodeIds.has(nodeId)) {
-      continue;
-    }
-
-    orderedNodeIds.push(nodeId);
-    seenNodeIds.add(nodeId);
+function getWindowViewportSize(): ViewportSize {
+  if (typeof window === "undefined") {
+    return { width: 0, height: 0 };
   }
 
-  for (const nodeId of nodeIds) {
-    if (seenNodeIds.has(nodeId)) {
-      continue;
-    }
-
-    orderedNodeIds.push(nodeId);
-    seenNodeIds.add(nodeId);
-  }
-
-  return orderedNodeIds;
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
 }
 
 function applyHysteresis(
@@ -109,17 +100,47 @@ function useVisibleIdsWithHysteresis(
   return visibleIds;
 }
 
+function useWindowViewportSize(): ViewportSize {
+  const [viewportSize, setViewportSize] = useState<ViewportSize>(() =>
+    getWindowViewportSize(),
+  );
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleResize = () => {
+      const nextSize = getWindowViewportSize();
+      setViewportSize((currentSize) =>
+        currentSize.width === nextSize.width &&
+        currentSize.height === nextSize.height
+          ? currentSize
+          : nextSize,
+      );
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  return viewportSize;
+}
+
 export function useVisibleNodeIds(): string[] {
+  const viewportSize = useWindowViewportSize();
   const [nodes, nodeOrder, viewport] = useCanvasStore(
     useShallow((state) => [state.nodes, state.nodeOrder, state.viewport]),
   );
   const orderedNodeIds = useMemo(
-    () => buildOrderedNodeIds(nodeOrder, Object.keys(nodes)),
+    () => resolveOrderedNodeIds(nodeOrder, nodes),
     [nodeOrder, nodes],
   );
   const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
-    () => getVisibleNodeIdsDual(nodes, viewport),
-    [nodes, viewport],
+    () => getVisibleNodeIdsDual(nodes, viewport, viewportSize),
+    [nodes, viewport, viewportSize],
   );
 
   return useVisibleIdsWithHysteresis(
@@ -130,13 +151,14 @@ export function useVisibleNodeIds(): string[] {
 }
 
 export function useVisibleEdgeIds(): string[] {
+  const viewportSize = useWindowViewportSize();
   const [edges, nodes, viewport] = useCanvasStore(
     useShallow((state) => [state.edges, state.nodes, state.viewport]),
   );
   const orderedEdgeIds = useMemo(() => Object.keys(edges), [edges]);
   const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
-    () => getVisibleEdgeIdsDual(edges, nodes, viewport),
-    [edges, nodes, viewport],
+    () => getVisibleEdgeIdsDual(edges, nodes, viewport, viewportSize),
+    [edges, nodes, viewport, viewportSize],
   );
 
   return useVisibleIdsWithHysteresis(
@@ -147,13 +169,14 @@ export function useVisibleEdgeIds(): string[] {
 }
 
 export function useVisibleGroupIds(): string[] {
+  const viewportSize = useWindowViewportSize();
   const [groups, nodes, viewport] = useCanvasStore(
     useShallow((state) => [state.groups, state.nodes, state.viewport]),
   );
   const orderedGroupIds = useMemo(() => Object.keys(groups), [groups]);
   const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
-    () => getVisibleGroupIdsDual(groups, nodes, viewport),
-    [groups, nodes, viewport],
+    () => getVisibleGroupIdsDual(groups, nodes, viewport, viewportSize),
+    [groups, nodes, viewport, viewportSize],
   );
 
   return useVisibleIdsWithHysteresis(

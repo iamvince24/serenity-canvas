@@ -14,6 +14,8 @@ import { ImageCaptionWidget } from "../images/ImageCaptionWidget";
 import type { ContextMenuNodeType } from "../nodes/NodeContextMenu";
 import { NodeAnchors } from "../nodes/NodeAnchors";
 import type { NodeAnchor } from "../edges/edgeUtils";
+import { ShapeErrorBoundary } from "../ShapeErrorBoundary";
+import { buildOrderedNodeEntries } from "../nodes/orderUtils";
 
 type CardOverlayProps = {
   container: HTMLElement;
@@ -21,7 +23,7 @@ type CardOverlayProps = {
   nodeOrder: string[];
   fullNodeOrder: string[];
   viewport: ViewportState;
-  selectedNodeIds: string[];
+  selectedNodeIdSet: Set<string>;
   hoveredNodeId: string | null;
   connectingSource: { nodeId: string; anchor: NodeAnchor } | null;
   hoveredTarget: { nodeId: string; anchor: NodeAnchor } | null;
@@ -39,52 +41,13 @@ type CardOverlayProps = {
   autoFocusNodeId?: string | null;
 };
 
-function buildOrderedNodeEntries(
-  orderedIds: string[],
-  nodes: Record<string, CanvasNode>,
-  options?: {
-    includeFallbackNodes?: boolean;
-  },
-): Array<{ node: CanvasNode; layerIndex: number }> {
-  const includeFallbackNodes = options?.includeFallbackNodes ?? true;
-  const entries: Array<{ node: CanvasNode; layerIndex: number }> = [];
-  const seenNodeIds = new Set<string>();
-
-  for (const [layerIndex, nodeId] of orderedIds.entries()) {
-    const node = nodes[nodeId];
-    if (!node || seenNodeIds.has(nodeId)) {
-      continue;
-    }
-
-    entries.push({ node, layerIndex });
-    seenNodeIds.add(nodeId);
-  }
-
-  if (!includeFallbackNodes) {
-    return entries;
-  }
-
-  let fallbackLayerIndex = orderedIds.length;
-  for (const node of Object.values(nodes)) {
-    if (seenNodeIds.has(node.id)) {
-      continue;
-    }
-
-    entries.push({ node, layerIndex: fallbackLayerIndex });
-    seenNodeIds.add(node.id);
-    fallbackLayerIndex += 1;
-  }
-
-  return entries;
-}
-
 export function CardOverlay({
   container,
   nodes,
   nodeOrder,
   fullNodeOrder,
   viewport,
-  selectedNodeIds,
+  selectedNodeIdSet,
   hoveredNodeId,
   connectingSource,
   hoveredTarget,
@@ -107,7 +70,7 @@ export function CardOverlay({
   const orderedNodeEntries = useMemo(
     () =>
       buildOrderedNodeEntries(nodeOrder, nodes, {
-        includeFallbackNodes: false,
+        includeFallback: false,
       }),
     [nodeOrder, nodes],
   );
@@ -132,14 +95,16 @@ export function CardOverlay({
             } => isTextNode(entry.node),
           )
           .map(({ node, layerIndex }) => (
-            <CardWidget
-              key={node.id}
-              node={node}
-              zoom={viewport.zoom}
-              autoFocus={autoFocusNodeId === node.id}
-              layerIndex={layerIndex}
-              onOpenContextMenu={onOpenContextMenu}
-            />
+            <ShapeErrorBoundary key={node.id} shapeId={node.id}>
+              <CardWidget
+                node={node}
+                zoom={viewport.zoom}
+                autoFocus={autoFocusNodeId === node.id}
+                layerIndex={layerIndex}
+                isSelected={selectedNodeIdSet.has(node.id)}
+                onOpenContextMenu={onOpenContextMenu}
+              />
+            </ShapeErrorBoundary>
           ))}
 
         {orderedNodeEntries
@@ -152,12 +117,14 @@ export function CardOverlay({
             } => isImageNode(entry.node),
           )
           .map(({ node, layerIndex }) => (
-            <ImageCaptionWidget
-              key={node.id}
-              node={node}
-              layerIndex={layerIndex}
-              onOpenContextMenu={onOpenContextMenu}
-            />
+            <ShapeErrorBoundary key={node.id} shapeId={node.id}>
+              <ImageCaptionWidget
+                node={node}
+                layerIndex={layerIndex}
+                isSelected={selectedNodeIdSet.has(node.id)}
+                onOpenContextMenu={onOpenContextMenu}
+              />
+            </ShapeErrorBoundary>
           ))}
 
         {fullOrderedNodeEntries.map(({ node }) => (
@@ -166,7 +133,7 @@ export function CardOverlay({
             node={node}
             visible={
               canvasMode === "connect" &&
-              (selectedNodeIds.includes(node.id) ||
+              (selectedNodeIdSet.has(node.id) ||
                 hoveredNodeId === node.id ||
                 connectingSource?.nodeId === node.id ||
                 hoveredTarget?.nodeId === node.id)

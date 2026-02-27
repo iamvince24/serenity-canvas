@@ -83,8 +83,9 @@ export function useCanvasWheel({
       return;
     }
 
+    const pending = pendingRef.current;
+
     const flushPending = () => {
-      const pending = pendingRef.current;
       const panDeltaX = pending.panDeltaX;
       const panDeltaY = pending.panDeltaY;
       const pinchDeltaY = pending.pinchDeltaY;
@@ -178,7 +179,6 @@ export function useCanvasWheel({
       event.preventDefault();
 
       if (!isPinchZoom) {
-        const pending = pendingRef.current;
         pending.panDeltaX += event.deltaX;
         pending.panDeltaY += event.deltaY;
         scheduleFlush();
@@ -186,7 +186,6 @@ export function useCanvasWheel({
       }
 
       const rect = overlayContainer.getBoundingClientRect();
-      const pending = pendingRef.current;
       pending.pinchDeltaY += event.deltaY;
       pending.pinchPointer = {
         x: event.clientX - rect.left,
@@ -204,10 +203,10 @@ export function useCanvasWheel({
         window.cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
-      pendingRef.current.panDeltaX = 0;
-      pendingRef.current.panDeltaY = 0;
-      pendingRef.current.pinchDeltaY = 0;
-      pendingRef.current.pinchPointer = null;
+      pending.panDeltaX = 0;
+      pending.panDeltaY = 0;
+      pending.pinchDeltaY = 0;
+      pending.pinchPointer = null;
       overlayContainer.removeEventListener("wheel", handleWheel);
     };
   }, [overlayContainer, setViewport]);

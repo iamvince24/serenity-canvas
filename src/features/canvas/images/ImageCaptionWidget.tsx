@@ -19,6 +19,7 @@ import type { ContextMenuNodeType } from "../nodes/NodeContextMenu";
 type ImageCaptionWidgetProps = {
   node: ImageNode;
   layerIndex: number;
+  isSelected: boolean;
   onOpenContextMenu: (payload: {
     nodeId: string;
     nodeType: ContextMenuNodeType;
@@ -30,9 +31,9 @@ type ImageCaptionWidgetProps = {
 export function ImageCaptionWidget({
   node,
   layerIndex,
+  isSelected,
   onOpenContextMenu,
 }: ImageCaptionWidgetProps) {
-  const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const toggleNodeSelection = useCanvasStore(
     (state) => state.toggleNodeSelection,
@@ -41,7 +42,6 @@ export function ImageCaptionWidget({
   const [draftCaption, setDraftCaption] = useState(node.content);
   const [isEditing, setIsEditing] = useState(false);
 
-  const isSelected = selectedNodeIds.includes(node.id);
   const imageHeight = Math.max(1, node.height - IMAGE_NODE_CAPTION_HEIGHT);
 
   const widgetStyle = useMemo<CSSProperties>(
@@ -80,7 +80,7 @@ export function ImageCaptionWidget({
     (event: ReactMouseEvent<HTMLTextAreaElement>) => {
       event.preventDefault();
       event.stopPropagation();
-      if (!selectedNodeIds.includes(node.id)) {
+      if (!isSelected) {
         selectNode(node.id);
       }
       onOpenContextMenu({
@@ -90,7 +90,7 @@ export function ImageCaptionWidget({
         clientY: event.clientY,
       });
     },
-    [node.id, onOpenContextMenu, selectNode, selectedNodeIds],
+    [isSelected, node.id, onOpenContextMenu, selectNode],
   );
 
   const handlePointerDown = useCallback(

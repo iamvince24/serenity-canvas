@@ -17,6 +17,11 @@ export type DualVisibilityResult = {
   leaveIds: string[];
 };
 
+export type ViewportSize = {
+  width: number;
+  height: number;
+};
+
 export const ENTER_PADDING = 100;
 export const LEAVE_PADDING = 150;
 export const GROUP_PADDING = 24;
@@ -26,7 +31,7 @@ function getSafeZoom(zoom: number): number {
   return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
 }
 
-function getViewportSize(): { width: number; height: number } {
+function getViewportSize(): ViewportSize {
   if (typeof window === "undefined") {
     return { width: 0, height: 0 };
   }
@@ -40,13 +45,14 @@ function getViewportSize(): { width: number; height: number } {
 export function getViewportBounds(
   viewport: ViewportState,
   padding: number,
+  viewportSize?: ViewportSize,
 ): Bounds {
   const zoom = getSafeZoom(viewport.zoom);
-  const viewportSize = getViewportSize();
+  const size = viewportSize ?? getViewportSize();
   const left = (-viewport.x - padding) / zoom;
   const top = (-viewport.y - padding) / zoom;
-  const right = (viewportSize.width - viewport.x + padding) / zoom;
-  const bottom = (viewportSize.height - viewport.y + padding) / zoom;
+  const right = (size.width - viewport.x + padding) / zoom;
+  const bottom = (size.height - viewport.y + padding) / zoom;
 
   return {
     x: left,
@@ -82,8 +88,9 @@ export function getVisibleNodeIds(
   nodes: Record<string, CanvasNode>,
   viewport: ViewportState,
   padding: number,
+  viewportSize?: ViewportSize,
 ): string[] {
-  const viewportBounds = getViewportBounds(viewport, padding);
+  const viewportBounds = getViewportBounds(viewport, padding, viewportSize);
   const visibleNodeIds: string[] = [];
 
   for (const node of Object.values(nodes)) {
@@ -110,9 +117,10 @@ export function getVisibleNodeIds(
 export function getVisibleNodeIdsDual(
   nodes: Record<string, CanvasNode>,
   viewport: ViewportState,
+  viewportSize?: ViewportSize,
 ): DualVisibilityResult {
-  const enterBounds = getViewportBounds(viewport, ENTER_PADDING);
-  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING);
+  const enterBounds = getViewportBounds(viewport, ENTER_PADDING, viewportSize);
+  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING, viewportSize);
   const enterIds: string[] = [];
   const leaveIds: string[] = [];
 
@@ -162,8 +170,9 @@ export function getVisibleEdgeIds(
   nodes: Record<string, CanvasNode>,
   viewport: ViewportState,
   padding: number = ENTER_PADDING,
+  viewportSize?: ViewportSize,
 ): string[] {
-  const viewportBounds = getViewportBounds(viewport, padding);
+  const viewportBounds = getViewportBounds(viewport, padding, viewportSize);
   const visibleEdgeIds: string[] = [];
 
   for (const edge of Object.values(edges)) {
@@ -186,9 +195,10 @@ export function getVisibleEdgeIdsDual(
   edges: Record<string, Edge>,
   nodes: Record<string, CanvasNode>,
   viewport: ViewportState,
+  viewportSize?: ViewportSize,
 ): DualVisibilityResult {
-  const enterBounds = getViewportBounds(viewport, ENTER_PADDING);
-  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING);
+  const enterBounds = getViewportBounds(viewport, ENTER_PADDING, viewportSize);
+  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING, viewportSize);
   const enterIds: string[] = [];
   const leaveIds: string[] = [];
 
@@ -243,8 +253,9 @@ export function getVisibleGroupIds(
   nodes: Record<string, CanvasNode>,
   viewport: ViewportState,
   padding: number = ENTER_PADDING,
+  viewportSize?: ViewportSize,
 ): string[] {
-  const viewportBounds = getViewportBounds(viewport, padding);
+  const viewportBounds = getViewportBounds(viewport, padding, viewportSize);
   const visibleGroupIds: string[] = [];
 
   for (const group of Object.values(groups)) {
@@ -267,9 +278,10 @@ export function getVisibleGroupIdsDual(
   groups: Record<string, Group>,
   nodes: Record<string, CanvasNode>,
   viewport: ViewportState,
+  viewportSize?: ViewportSize,
 ): DualVisibilityResult {
-  const enterBounds = getViewportBounds(viewport, ENTER_PADDING);
-  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING);
+  const enterBounds = getViewportBounds(viewport, ENTER_PADDING, viewportSize);
+  const leaveBounds = getViewportBounds(viewport, LEAVE_PADDING, viewportSize);
   const enterIds: string[] = [];
   const leaveIds: string[] = [];
 

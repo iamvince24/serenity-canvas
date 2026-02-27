@@ -75,6 +75,7 @@ describe("CardWidget context menu behavior", () => {
         node={node}
         zoom={1}
         layerIndex={0}
+        isSelected={false}
         onOpenContextMenu={onOpenContextMenu}
       />,
     );
@@ -108,6 +109,7 @@ describe("CardWidget context menu behavior", () => {
         node={node}
         zoom={1}
         layerIndex={0}
+        isSelected={false}
         onOpenContextMenu={vi.fn()}
       />,
     );
@@ -129,6 +131,7 @@ describe("CardWidget context menu behavior", () => {
         node={node}
         zoom={1}
         layerIndex={0}
+        isSelected
         onOpenContextMenu={vi.fn()}
       />,
     );

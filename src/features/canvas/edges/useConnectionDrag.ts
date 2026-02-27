@@ -10,6 +10,7 @@ import { useCanvasStore } from "../../../stores/canvasStore";
 import type { CanvasNode, ViewportState } from "../../../types/canvas";
 import { InteractionEvent } from "../core/stateMachine";
 import { toCanvasPoint } from "../core/canvasCoordinates";
+import { usePointerCapture } from "../hooks/usePointerCapture";
 import {
   findClosestNodeAnchor,
   getNodeAnchorPoint,
@@ -176,18 +177,14 @@ export function useConnectionDrag({
     [addEdge, cancelConnection, getCanvasPointer, selectEdge],
   );
 
-  useEffect(() => {
-    if (!connection) {
-      return;
-    }
-
-    const handlePointerMove = (event: PointerEvent) => {
+  const handleCapturedPointerMove = useCallback(
+    (clientX: number, clientY: number) => {
       const current = connectionRef.current;
       if (!current) {
         return;
       }
 
-      const pointer = getCanvasPointer(event.clientX, event.clientY);
+      const pointer = getCanvasPointer(clientX, clientY);
       if (!pointer) {
         return;
       }
@@ -204,30 +201,35 @@ export function useConnectionDrag({
         pointer,
         hoveredTarget,
       });
-    };
+    },
+    [getCanvasPointer],
+  );
 
-    const handlePointerUp = (event: PointerEvent) => {
-      completeConnection(event.clientX, event.clientY);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        cancelConnection();
+  const handleCapturedPointerUp = useCallback(
+    (clientX?: number, clientY?: number) => {
+      const current = connectionRef.current;
+      if (!current) {
+        return;
       }
-    };
 
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", cancelConnection);
-    window.addEventListener("keydown", handleKeyDown);
+      completeConnection(
+        typeof clientX === "number" ? clientX : current.pointer.x,
+        typeof clientY === "number" ? clientY : current.pointer.y,
+      );
+    },
+    [completeConnection],
+  );
 
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", cancelConnection);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [cancelConnection, completeConnection, connection, getCanvasPointer]);
+  usePointerCapture(
+    Boolean(connection),
+    {
+      onPointerMove: handleCapturedPointerMove,
+      onPointerUp: handleCapturedPointerUp,
+      onPointerCancel: cancelConnection,
+      onKeyDown: cancelConnection,
+    },
+    { captureKey: "Escape" },
+  );
 
   const handleAnchorPointerDown = useCallback<
     UseConnectionDragResult["handleAnchorPointerDown"]

@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { hasAnySelection } from "../../../stores/slices/selectionPolicy";
-import { InteractionEvent } from "../core/stateMachine";
+import {
+  getEventTargetAsHTMLElement,
+  isEditableElement,
+  isTextInputElement,
+} from "../core/domUtils";
+import { InteractionEvent, InteractionState } from "../core/stateMachine";
 import {
   ensureNodeVisible,
   findDirectionalNeighbor,
@@ -10,26 +15,16 @@ import {
 
 type UseCanvasKeyboardOptions = {
   overlayContainer: HTMLElement | null;
+  isMarqueeActive: boolean;
+  isEdgeEndpointDragging: boolean;
+  hasEdgeContextMenu: boolean;
+  hasEdgeLabelEditor: boolean;
+  cancelMarquee: () => void;
+  cancelEdgeEndpointDrag: () => void;
+  closeEdgeContextMenu: () => void;
+  closeEdgeLabelEditor: () => void;
   onFocusNode: (nodeId: string) => void;
 };
-
-function isTextInputElement(target: HTMLElement | null): boolean {
-  if (!target) {
-    return false;
-  }
-
-  return (
-    target.tagName === "INPUT" ||
-    target.tagName === "TEXTAREA" ||
-    target.isContentEditable
-  );
-}
-
-function getEventTargetAsHTMLElement(
-  target: EventTarget | null,
-): HTMLElement | null {
-  return target instanceof HTMLElement ? target : null;
-}
 
 function isSlashEscapeHandled(event: KeyboardEvent): boolean {
   return (
@@ -40,10 +35,21 @@ function isSlashEscapeHandled(event: KeyboardEvent): boolean {
 
 export function useCanvasKeyboard({
   overlayContainer,
+  isMarqueeActive,
+  isEdgeEndpointDragging,
+  hasEdgeContextMenu,
+  hasEdgeLabelEditor,
+  cancelMarquee,
+  cancelEdgeEndpointDrag,
+  closeEdgeContextMenu,
+  closeEdgeLabelEditor,
   onFocusNode,
 }: UseCanvasKeyboardOptions): void {
   const setViewport = useCanvasStore((state) => state.setViewport);
   const dispatch = useCanvasStore((state) => state.dispatch);
+  const setCanvasMode = useCanvasStore((state) => state.setCanvasMode);
+  const undo = useCanvasStore((state) => state.undo);
+  const redo = useCanvasStore((state) => state.redo);
 
   useEffect(() => {
     const moveViewportToNodeIfNeeded = (nodeId: string) => {
@@ -97,36 +103,169 @@ export function useCanvasKeyboard({
       return true;
     };
 
+    const handleEscape = (
+      event: KeyboardEvent,
+      target: HTMLElement | null,
+      activeElement: HTMLElement | null,
+    ): boolean => {
+      if (event.key !== "Escape") {
+        return false;
+      }
+
+      if (isSlashEscapeHandled(event)) {
+        return true;
+      }
+
+      const isEditing = activeElement?.isContentEditable ?? false;
+      if (isEditing) {
+        const nodeContainer = activeElement?.closest<HTMLElement>(
+          "[data-card-node-id]",
+        );
+        const nodeId = nodeContainer?.dataset.cardNodeId;
+        if (nodeId) {
+          useCanvasStore.getState().selectNode(nodeId);
+        }
+
+        activeElement?.blur();
+        event.preventDefault();
+        event.stopPropagation();
+        return true;
+      }
+
+      if (
+        target?.closest("[data-edge-label-editor='true']") ||
+        activeElement?.closest("[data-edge-label-editor='true']")
+      ) {
+        return true;
+      }
+
+      if (isMarqueeActive) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelMarquee();
+        return true;
+      }
+
+      if (isEdgeEndpointDragging) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelEdgeEndpointDrag();
+        return true;
+      }
+
+      if (hasEdgeContextMenu) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeEdgeContextMenu();
+        return true;
+      }
+
+      if (hasEdgeLabelEditor) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeEdgeLabelEditor();
+        return true;
+      }
+
+      const state = useCanvasStore.getState();
+      if (state.selectedEdgeIds.length > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        state.deselectAll();
+        return true;
+      }
+
+      if (event.defaultPrevented) {
+        return true;
+      }
+
+      dispatch(InteractionEvent.ESCAPE);
+      return true;
+    };
+
+    const handleUndoRedo = (
+      event: KeyboardEvent,
+      target: HTMLElement | null,
+      activeElement: HTMLElement | null,
+    ): boolean => {
+      const isModifierPressed = event.metaKey || event.ctrlKey;
+      if (
+        event.defaultPrevented ||
+        !isModifierPressed ||
+        event.altKey ||
+        event.key.toLowerCase() !== "z"
+      ) {
+        return false;
+      }
+
+      if (isEditableElement(target) || isEditableElement(activeElement)) {
+        return false;
+      }
+
+      event.preventDefault();
+      if (event.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+
+      return true;
+    };
+
+    const handleModeShortcut = (
+      event: KeyboardEvent,
+      target: HTMLElement | null,
+      activeElement: HTMLElement | null,
+    ): boolean => {
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      ) {
+        return false;
+      }
+
+      const key = event.key.toLowerCase();
+      const nextMode = key === "v" ? "select" : key === "c" ? "connect" : null;
+      if (!nextMode) {
+        return false;
+      }
+
+      if (isEditableElement(target) || isEditableElement(activeElement)) {
+        return false;
+      }
+
+      const currentState = useCanvasStore.getState().interactionState;
+      if (
+        currentState !== InteractionState.Idle &&
+        !(currentState === InteractionState.Connecting && nextMode === "select")
+      ) {
+        return false;
+      }
+
+      event.preventDefault();
+      setCanvasMode(nextMode);
+      return true;
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      const activeElement = document.activeElement as HTMLElement | null;
+      const activeElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       const target = getEventTargetAsHTMLElement(event.target);
       const isEditing = activeElement?.isContentEditable ?? false;
 
-      if (event.key === "Escape") {
-        if (isSlashEscapeHandled(event)) {
-          return;
-        }
+      if (handleEscape(event, target, activeElement)) {
+        return;
+      }
 
-        if (isEditing) {
-          const nodeContainer = activeElement?.closest<HTMLElement>(
-            "[data-card-node-id]",
-          );
-          const nodeId = nodeContainer?.dataset.cardNodeId;
-          if (nodeId) {
-            useCanvasStore.getState().selectNode(nodeId);
-          }
+      if (handleUndoRedo(event, target, activeElement)) {
+        return;
+      }
 
-          activeElement?.blur();
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-
-        if (event.defaultPrevented) {
-          return;
-        }
-
-        dispatch(InteractionEvent.ESCAPE);
+      if (handleModeShortcut(event, target, activeElement)) {
         return;
       }
 
@@ -190,5 +329,21 @@ export function useCanvasKeyboard({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [dispatch, onFocusNode, overlayContainer, setViewport]);
+  }, [
+    cancelEdgeEndpointDrag,
+    cancelMarquee,
+    closeEdgeContextMenu,
+    closeEdgeLabelEditor,
+    dispatch,
+    hasEdgeContextMenu,
+    hasEdgeLabelEditor,
+    isEdgeEndpointDragging,
+    isMarqueeActive,
+    onFocusNode,
+    overlayContainer,
+    redo,
+    setCanvasMode,
+    setViewport,
+    undo,
+  ]);
 }

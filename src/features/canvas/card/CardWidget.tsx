@@ -31,6 +31,7 @@ type CardWidgetProps = {
   node: TextNode;
   zoom: number;
   layerIndex: number;
+  isSelected: boolean;
   autoFocus?: boolean;
   onOpenContextMenu: (payload: {
     nodeId: string;
@@ -50,10 +51,10 @@ function CardWidgetComponent({
   node,
   zoom,
   layerIndex,
+  isSelected,
   autoFocus = false,
   onOpenContextMenu,
 }: CardWidgetProps) {
-  const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const selectNode = useCanvasStore((state) => state.selectNode);
   const toggleNodeSelection = useCanvasStore(
@@ -67,7 +68,6 @@ function CardWidgetComponent({
   const [isEditing, setIsEditing] = useState(false);
   const [focusAtEndSignal, setFocusAtEndSignal] = useState(0);
 
-  const isSelected = selectedNodeIds.includes(node.id);
   const isDragging = interactionState === InteractionState.Dragging;
   const isResizing = interactionState === InteractionState.Resizing;
   const shouldShowResizeHandles = !isEditing;
@@ -129,7 +129,7 @@ function CardWidgetComponent({
     (event: ReactMouseEvent<HTMLDivElement>) => {
       event.preventDefault();
       event.stopPropagation();
-      if (!selectedNodeIds.includes(node.id)) {
+      if (!isSelected) {
         selectNode(node.id);
       }
       onOpenContextMenu({
@@ -139,7 +139,7 @@ function CardWidgetComponent({
         clientY: event.clientY,
       });
     },
-    [node.id, onOpenContextMenu, selectNode, selectedNodeIds],
+    [isSelected, node.id, onOpenContextMenu, selectNode],
   );
 
   const handleCardDragOverCapture = useCallback(

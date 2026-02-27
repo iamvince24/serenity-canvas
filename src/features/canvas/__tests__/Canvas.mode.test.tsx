@@ -44,10 +44,6 @@ vi.mock("../edges/useConnectionDrag", () => ({
   }),
 }));
 
-vi.mock("../hooks/useCanvasKeyboard", () => ({
-  useCanvasKeyboard: () => {},
-}));
-
 vi.mock("../hooks/useCanvasWheel", () => ({
   useCanvasWheel: () => {},
 }));
