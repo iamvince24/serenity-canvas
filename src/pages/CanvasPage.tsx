@@ -1,11 +1,20 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useRef, useState } from "react";
 import { Canvas } from "../features/canvas/Canvas";
 import { FpsOverlay } from "../features/canvas/FpsOverlay";
 import { Toolbar } from "../features/canvas/Toolbar";
+import {
+  loadBoardSnapshot,
+  saveBoardSnapshot,
+} from "../stores/boardSnapshotStorage";
+import { useCanvasStore } from "../stores/canvasStore";
 import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
 
-export function CanvasPage() {
+interface CanvasPageProps {
+  boardId: string;
+}
+
+export function CanvasPage({ boardId }: CanvasPageProps) {
+  const activeBoardIdRef = useRef<string | null>(null);
   const [showFpsOverlay, setShowFpsOverlay] = useState(false);
   const imageUploadErrorMessage = useUploadNoticeStore(
     (state) => state.imageUploadErrorMessage,
@@ -14,9 +23,41 @@ export function CanvasPage() {
     (state) => state.dismissImageUploadError,
   );
 
+  useEffect(() => {
+    const canvasStore = useCanvasStore.getState();
+    const previousBoardId = activeBoardIdRef.current;
+    if (previousBoardId && previousBoardId !== boardId) {
+      saveBoardSnapshot(previousBoardId, canvasStore.exportSnapshot());
+    }
+
+    const snapshot = loadBoardSnapshot(boardId);
+    if (snapshot) {
+      canvasStore.loadSnapshot(snapshot);
+    } else {
+      canvasStore.resetBoardState();
+    }
+
+    activeBoardIdRef.current = boardId;
+  }, [boardId]);
+
+  useEffect(() => {
+    return () => {
+      const currentBoardId = activeBoardIdRef.current;
+      if (!currentBoardId) {
+        return;
+      }
+
+      const snapshot = useCanvasStore.getState().exportSnapshot();
+      saveBoardSnapshot(currentBoardId, snapshot);
+    };
+  }, []);
+
   return (
-    // Canvas fills full viewport; toolbar and back button float above it.
-    <main className="relative min-h-screen w-full overflow-hidden bg-canvas">
+    // Canvas fills full viewport; toolbar floats above it.
+    <main
+      className="relative min-h-screen w-full overflow-hidden bg-canvas"
+      data-board-id={boardId}
+    >
       <Canvas />
       <Toolbar
         showFpsOverlay={showFpsOverlay}
@@ -24,15 +65,6 @@ export function CanvasPage() {
       />
 
       {import.meta.env.DEV && showFpsOverlay ? <FpsOverlay visible /> : null}
-
-      <Link
-        to="/"
-        className={`btn-ghost fixed left-4 z-40 md:left-6 ${
-          showFpsOverlay ? "top-12 md:top-14" : "top-4 md:top-6"
-        }`}
-      >
-        Back to Home
-      </Link>
 
       {imageUploadErrorMessage ? (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4 md:top-24">

@@ -25,6 +25,11 @@ export type BatchNodeMove = {
   to: NodePositionSnapshot;
 };
 
+export type BoardCanvasSnapshot = Pick<
+  CanvasState,
+  "nodes" | "nodeOrder" | "edges" | "groups" | "files"
+>;
+
 export type CanvasActions = {
   setViewport: (viewport: ViewportState) => void;
   addNode: (node: CanvasNode | PersistenceCanvasNode) => void;
@@ -72,6 +77,9 @@ export type CanvasActions = {
   moveTextNodeDown: (id: string) => void;
   moveTextNodeToFront: (id: string) => void;
   moveTextNodeToBack: (id: string) => void;
+  exportSnapshot: () => BoardCanvasSnapshot;
+  loadSnapshot: (snapshot: BoardCanvasSnapshot) => void;
+  resetBoardState: () => void;
   undo: () => void;
   redo: () => void;
   clearHistory: () => void;

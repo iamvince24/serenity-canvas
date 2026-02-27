@@ -2,6 +2,7 @@ export * from "./node";
 export * from "./edge";
 export * from "./viewport";
 export * from "./group";
+export type { Board } from "./board";
 
 export type CanvasMode = "select" | "connect";
 

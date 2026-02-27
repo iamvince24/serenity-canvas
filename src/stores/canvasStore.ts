@@ -36,7 +36,7 @@ import {
 } from "../features/canvas/nodes/layerOrder";
 import { migrateLegacyNode } from "../features/canvas/nodes/nodePersistenceAdapter";
 import { InteractionState } from "../features/canvas/core/stateMachine";
-import { type Edge, type Group } from "../types/canvas";
+import { type CanvasNode, type Edge, type Group } from "../types/canvas";
 import {
   getConnectedEdgeIds,
   getNodeContent,
@@ -60,7 +60,7 @@ import {
   sanitizeGroupNodeIds,
   setGroupWithExclusivity,
 } from "./groupHelpers";
-import type { CanvasStore } from "./storeTypes";
+import type { BoardCanvasSnapshot, CanvasStore } from "./storeTypes";
 import { createViewportSlice } from "./slices/viewportSlice";
 import { createFileSlice } from "./slices/fileSlice";
 import { createInteractionSlice } from "./slices/interactionSlice";
@@ -70,6 +70,13 @@ import { createHistorySlice } from "./slices/historySlice";
 
 const DEFAULT_GROUP_LABEL = "Untitled Group";
 const DEFAULT_GROUP_COLOR: Group["color"] = null;
+const EMPTY_BOARD_SNAPSHOT: BoardCanvasSnapshot = {
+  nodes: {},
+  nodeOrder: [],
+  edges: {},
+  groups: {},
+  files: {},
+};
 
 function createGroupId(): string {
   if (
@@ -80,6 +87,35 @@ function createGroupId(): string {
   }
 
   return `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function cloneBoardSnapshot(
+  snapshot: BoardCanvasSnapshot,
+): BoardCanvasSnapshot {
+  if (typeof structuredClone === "function") {
+    return structuredClone(snapshot);
+  }
+
+  return JSON.parse(JSON.stringify(snapshot)) as BoardCanvasSnapshot;
+}
+
+function releaseStaleImageEntries(
+  previousNodes: Record<string, CanvasNode>,
+  nextNodes: Record<string, CanvasNode>,
+): void {
+  const nextAssetIds = new Set(
+    Object.values(nextNodes)
+      .filter((node) => node.type === "image")
+      .map((node) => node.asset_id),
+  );
+
+  for (const node of Object.values(previousNodes)) {
+    if (node.type !== "image" || nextAssetIds.has(node.asset_id)) {
+      continue;
+    }
+
+    releaseImage(node.asset_id);
+  }
 }
 
 export const useCanvasStore = create<CanvasStore>((set, get) => {
@@ -854,6 +890,57 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       executeCommand(
         new ReorderNodeCommand(commandContext, state.nodeOrder, nextNodeOrder),
       );
+    },
+    exportSnapshot: () => {
+      const state = get();
+      return cloneBoardSnapshot({
+        nodes: state.nodes,
+        nodeOrder: state.nodeOrder,
+        edges: state.edges,
+        groups: state.groups,
+        files: state.files,
+      });
+    },
+    loadSnapshot: (snapshot) => {
+      const state = get();
+      const nextSnapshot = cloneBoardSnapshot(snapshot);
+      const nextNodeOrder = sanitizeNodeOrder(
+        nextSnapshot.nodeOrder,
+        nextSnapshot.nodes,
+      );
+      releaseStaleImageEntries(state.nodes, nextSnapshot.nodes);
+      history.clear();
+      syncHistoryState();
+      set({
+        nodes: nextSnapshot.nodes,
+        nodeOrder: nextNodeOrder,
+        edges: nextSnapshot.edges,
+        groups: nextSnapshot.groups,
+        files: nextSnapshot.files,
+        selectedNodeIds: [],
+        selectedEdgeIds: [],
+        selectedGroupIds: [],
+        interactionState: InteractionState.Idle,
+        canvasMode: "select",
+      });
+    },
+    resetBoardState: () => {
+      const state = get();
+      releaseStaleImageEntries(state.nodes, EMPTY_BOARD_SNAPSHOT.nodes);
+      history.clear();
+      syncHistoryState();
+      set({
+        nodes: {},
+        nodeOrder: [],
+        edges: {},
+        groups: {},
+        files: {},
+        selectedNodeIds: [],
+        selectedEdgeIds: [],
+        selectedGroupIds: [],
+        interactionState: InteractionState.Idle,
+        canvasMode: "select",
+      });
     },
     insertStressFixture: (config) => {
       const fixture = createStressFixture(config);

@@ -583,7 +583,7 @@ export function Canvas() {
   return (
     <div
       ref={handleContainerRef}
-      className={`relative h-screen w-screen overflow-hidden bg-canvas ${
+      className={`relative h-screen w-full overflow-hidden bg-canvas ${
         canvasMode === "connect" ? "cursor-crosshair" : ""
       }`}
       onPointerDownCapture={handleRootPointerDownCapture}
