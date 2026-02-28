@@ -2,6 +2,13 @@ import { create } from "zustand";
 import { CompositeCommand, type Command } from "../commands/types";
 import { HistoryManager } from "../commands/historyManager";
 import {
+  BoardRepository,
+  EdgeRepository,
+  FileRepository,
+  GroupRepository,
+  NodeRepository,
+} from "../db/repositories";
+import {
   AddEdgeCommand,
   DeleteEdgeCommand,
   UpdateEdgeCommand,
@@ -37,6 +44,9 @@ import {
 import { migrateLegacyNode } from "../features/canvas/nodes/nodePersistenceAdapter";
 import { InteractionState } from "../features/canvas/core/stateMachine";
 import { type CanvasNode, type Edge, type Group } from "../types/canvas";
+import { loadBoardSnapshot, removeBoardSnapshot } from "./boardSnapshotStorage";
+import { useDashboardStore } from "./dashboardStore";
+import { setupPersistMiddleware } from "./persistMiddleware";
 import {
   getConnectedEdgeIds,
   getNodeContent,
@@ -117,6 +127,11 @@ function releaseStaleImageEntries(
     releaseImage(node.asset_id);
   }
 }
+
+let persistController: {
+  cancel: () => void;
+  flush: () => Promise<void>;
+} | null = null;
 
 export const useCanvasStore = create<CanvasStore>((set, get) => {
   const history = new HistoryManager(50);
@@ -416,6 +431,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
   };
 
   return {
+    currentBoardId: null,
+    isLoading: true,
     nodes: {},
     nodeOrder: [],
     edges: {},
@@ -425,6 +442,120 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     ...createInteractionSlice(set),
     ...createSelectionSlice(set),
     ...createHistorySlice(history, syncHistoryState),
+    initFromDB: async (boardId) => {
+      // 先把前一個 board 的 pending debounce 寫完，再切換目標 board。
+      await persistController?.flush();
+      persistController?.cancel();
+      set({ isLoading: true });
+
+      try {
+        let board = await BoardRepository.getById(boardId);
+
+        if (!board) {
+          const legacySnapshot = loadBoardSnapshot(boardId);
+          if (legacySnapshot) {
+            // 一次性 migration：localStorage snapshot -> IndexedDB。
+            const migratedNodes: Record<string, CanvasNode> = {};
+            const migratedFiles = { ...legacySnapshot.files };
+            for (const node of Object.values(legacySnapshot.nodes)) {
+              const migratedNode = migrateLegacyNode(node);
+              migratedNodes[migratedNode.node.id] = migratedNode.node;
+
+              if (
+                migratedNode.extractedFile &&
+                !migratedFiles[migratedNode.extractedFile.id]
+              ) {
+                migratedFiles[migratedNode.extractedFile.id] =
+                  migratedNode.extractedFile;
+              }
+            }
+
+            const migratedNodeOrder = sanitizeNodeOrder(
+              legacySnapshot.nodeOrder,
+              migratedNodes,
+            );
+
+            await BoardRepository.put({
+              id: boardId,
+              nodeOrder: migratedNodeOrder,
+              nodeCount: Object.keys(migratedNodes).length,
+              updatedAt: Date.now(),
+            });
+            await NodeRepository.bulkPut(boardId, Object.values(migratedNodes));
+            await EdgeRepository.bulkPut(
+              boardId,
+              Object.values(legacySnapshot.edges),
+            );
+            await GroupRepository.bulkPut(
+              boardId,
+              Object.values(legacySnapshot.groups),
+            );
+            await FileRepository.bulkPut(boardId, Object.values(migratedFiles));
+            removeBoardSnapshot(boardId);
+          }
+        }
+
+        board = await BoardRepository.getById(boardId);
+        if (!board) {
+          board = await BoardRepository.createDefault(boardId);
+        }
+
+        const [loadedNodes, loadedEdges, loadedGroups, loadedFiles] =
+          await Promise.all([
+            NodeRepository.getByBoardId(boardId),
+            EdgeRepository.getByBoardId(boardId),
+            GroupRepository.getByBoardId(boardId),
+            FileRepository.getByBoardId(boardId),
+          ]);
+
+        const loadedNodeOrder = sanitizeNodeOrder(board.nodeOrder, loadedNodes);
+        const prevNodes = get().nodes;
+        releaseStaleImageEntries(prevNodes, loadedNodes);
+
+        set({
+          currentBoardId: boardId,
+          nodes: loadedNodes,
+          edges: loadedEdges,
+          groups: loadedGroups,
+          files: loadedFiles,
+          nodeOrder: loadedNodeOrder,
+          selectedNodeIds: [],
+          selectedEdgeIds: [],
+          selectedGroupIds: [],
+          interactionState: InteractionState.Idle,
+          canvasMode: "select",
+          isLoading: false,
+        });
+
+        history.clear();
+        syncHistoryState();
+        // Dashboard 上的 nodeCount 以當前載入結果回填。
+        useDashboardStore
+          .getState()
+          .setBoardNodeCount(boardId, Object.keys(loadedNodes).length);
+      } catch (error) {
+        console.error("Failed to initialize board from IndexedDB", error);
+        const prevNodes = get().nodes;
+        releaseStaleImageEntries(prevNodes, EMPTY_BOARD_SNAPSHOT.nodes);
+        history.clear();
+        syncHistoryState();
+        set({
+          currentBoardId: boardId,
+          nodes: {},
+          nodeOrder: [],
+          edges: {},
+          groups: {},
+          files: {},
+          selectedNodeIds: [],
+          selectedEdgeIds: [],
+          selectedGroupIds: [],
+          interactionState: InteractionState.Idle,
+          canvasMode: "select",
+          isLoading: false,
+        });
+        useDashboardStore.getState().setBoardNodeCount(boardId, 0);
+      }
+    },
     addNode: (node) => {
       const migrated = migrateLegacyNode(node);
       executeCommand(
@@ -922,6 +1053,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         selectedGroupIds: [],
         interactionState: InteractionState.Idle,
         canvasMode: "select",
+        isLoading: false,
       });
     },
     resetBoardState: () => {
@@ -940,6 +1072,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         selectedGroupIds: [],
         interactionState: InteractionState.Idle,
         canvasMode: "select",
+        isLoading: false,
       });
     },
     insertStressFixture: (config) => {
@@ -981,7 +1114,14 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         selectedEdgeIds: [],
         selectedGroupIds: [],
         interactionState: InteractionState.Idle,
+        isLoading: false,
       });
     },
   };
 });
+
+persistController = setupPersistMiddleware(useCanvasStore);
+
+export async function flushCanvasPersistence(): Promise<void> {
+  await persistController?.flush();
+}

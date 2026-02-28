@@ -3,4 +3,5 @@ export type Board = {
   title: string;
   createdAt: number;
   updatedAt: number;
+  nodeCount: number;
 };

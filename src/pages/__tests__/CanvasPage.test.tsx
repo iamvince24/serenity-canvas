@@ -1,32 +1,23 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CanvasPage } from "../CanvasPage";
 
-const {
-  saveBoardSnapshot,
-  loadBoardSnapshot,
-  exportSnapshot,
-  loadSnapshot,
-  resetBoardState,
-  mockStoreState,
-} = vi.hoisted(() => {
-  const exportSnapshotMock = vi.fn();
-  const loadSnapshotMock = vi.fn();
-  const resetBoardStateMock = vi.fn();
+const { initFromDB, flushCanvasPersistence, mockCanvasState } = vi.hoisted(
+  () => {
+    const initFromDBMock = vi.fn();
+    const flushCanvasPersistenceMock = vi.fn();
+    const canvasState = {
+      isLoading: false,
+      initFromDB: initFromDBMock,
+    };
 
-  return {
-    saveBoardSnapshot: vi.fn(),
-    loadBoardSnapshot: vi.fn(),
-    exportSnapshot: exportSnapshotMock,
-    loadSnapshot: loadSnapshotMock,
-    resetBoardState: resetBoardStateMock,
-    mockStoreState: {
-      exportSnapshot: exportSnapshotMock,
-      loadSnapshot: loadSnapshotMock,
-      resetBoardState: resetBoardStateMock,
-    },
-  };
-});
+    return {
+      initFromDB: initFromDBMock,
+      flushCanvasPersistence: flushCanvasPersistenceMock,
+      mockCanvasState: canvasState,
+    };
+  },
+);
 
 vi.mock("../../features/canvas/Canvas", () => ({
   Canvas: () => <div data-testid="canvas" />,
@@ -40,111 +31,62 @@ vi.mock("../../features/canvas/FpsOverlay", () => ({
   FpsOverlay: () => <div data-testid="fps-overlay" />,
 }));
 
-vi.mock("../../stores/boardSnapshotStorage", () => ({
-  saveBoardSnapshot,
-  loadBoardSnapshot,
-}));
-
 vi.mock("../../stores/canvasStore", () => ({
-  useCanvasStore: {
-    getState: () => mockStoreState,
-  },
+  flushCanvasPersistence,
+  useCanvasStore: Object.assign(
+    (selector: (state: typeof mockCanvasState) => unknown) =>
+      selector(mockCanvasState),
+    {
+      getState: () => mockCanvasState,
+    },
+  ),
 }));
 
-describe("CanvasPage board snapshot flow", () => {
+describe("CanvasPage IndexedDB init flow", () => {
   beforeEach(() => {
-    saveBoardSnapshot.mockReset();
-    loadBoardSnapshot.mockReset();
-    exportSnapshot.mockReset();
-    loadSnapshot.mockReset();
-    resetBoardState.mockReset();
-    exportSnapshot.mockReturnValue({
-      nodes: {},
-      nodeOrder: [],
-      edges: {},
-      groups: {},
-      files: {},
-    });
+    initFromDB.mockReset();
+    initFromDB.mockResolvedValue(undefined);
+    flushCanvasPersistence.mockReset();
+    flushCanvasPersistence.mockResolvedValue(undefined);
+    mockCanvasState.isLoading = false;
   });
 
-  it("loads board snapshot on mount when snapshot exists", () => {
-    const snapshot = {
-      nodes: {
-        "node-1": {
-          id: "node-1",
-          type: "text" as const,
-          x: 0,
-          y: 0,
-          width: 280,
-          height: 200,
-          heightMode: "auto" as const,
-          color: null,
-          contentMarkdown: "hello",
-        },
-      },
-      nodeOrder: ["node-1"],
-      edges: {},
-      groups: {},
-      files: {},
-    };
-    loadBoardSnapshot.mockReturnValue(snapshot);
-
+  it("mount 時會呼叫 initFromDB", () => {
     render(<CanvasPage boardId="board-1" />);
 
-    expect(loadBoardSnapshot).toHaveBeenCalledWith("board-1");
-    expect(loadSnapshot).toHaveBeenCalledWith(snapshot);
-    expect(resetBoardState).not.toHaveBeenCalled();
+    expect(initFromDB).toHaveBeenCalledWith("board-1");
   });
 
-  it("resets board state on mount when no snapshot exists", () => {
-    loadBoardSnapshot.mockReturnValue(null);
-
-    render(<CanvasPage boardId="board-1" />);
-
-    expect(loadBoardSnapshot).toHaveBeenCalledWith("board-1");
-    expect(resetBoardState).toHaveBeenCalledTimes(1);
-    expect(loadSnapshot).not.toHaveBeenCalled();
-  });
-
-  it("switching board saves previous snapshot then loads target board", () => {
-    loadBoardSnapshot.mockImplementation((boardId: string) =>
-      boardId === "board-1"
-        ? {
-            nodes: {},
-            nodeOrder: [],
-            edges: {},
-            groups: {},
-            files: {},
-          }
-        : null,
-    );
-
+  it("board 切換時會重新呼叫 initFromDB", () => {
     const { rerender } = render(<CanvasPage boardId="board-1" />);
     rerender(<CanvasPage boardId="board-2" />);
 
-    expect(saveBoardSnapshot).toHaveBeenCalledWith(
-      "board-1",
-      expect.objectContaining({
-        nodes: {},
-        nodeOrder: [],
-      }),
-    );
-    expect(loadBoardSnapshot).toHaveBeenCalledWith("board-2");
-    expect(resetBoardState).toHaveBeenCalledTimes(1);
+    expect(initFromDB).toHaveBeenNthCalledWith(1, "board-1");
+    expect(initFromDB).toHaveBeenNthCalledWith(2, "board-2");
   });
 
-  it("unmount saves current board snapshot", () => {
-    loadBoardSnapshot.mockReturnValue(null);
-    const view = render(<CanvasPage boardId="board-1" />);
+  it("loading 狀態顯示 spinner 並暫不渲染 Canvas", () => {
+    mockCanvasState.isLoading = true;
+    render(<CanvasPage boardId="board-1" />);
 
+    expect(screen.getByRole("status", { name: "Loading board" })).toBeTruthy();
+    expect(screen.queryByTestId("canvas")).toBeNull();
+    expect(screen.queryByTestId("toolbar")).toBeNull();
+  });
+
+  it("loading 結束後渲染 Canvas 與 Toolbar", () => {
+    mockCanvasState.isLoading = false;
+    render(<CanvasPage boardId="board-1" />);
+
+    expect(screen.queryByRole("status", { name: "Loading board" })).toBeNull();
+    expect(screen.getByTestId("canvas")).toBeTruthy();
+    expect(screen.getByTestId("toolbar")).toBeTruthy();
+  });
+
+  it("unmount 會觸發 flushCanvasPersistence", () => {
+    const view = render(<CanvasPage boardId="board-1" />);
     view.unmount();
 
-    expect(saveBoardSnapshot).toHaveBeenCalledWith(
-      "board-1",
-      expect.objectContaining({
-        nodes: {},
-        nodeOrder: [],
-      }),
-    );
+    expect(flushCanvasPersistence).toHaveBeenCalled();
   });
 });

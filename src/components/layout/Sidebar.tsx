@@ -177,7 +177,12 @@ function BoardRow({
             aria-label={`Rename ${board.title}`}
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate">{board.title}</span>
+          <>
+            <span className="min-w-0 flex-1 truncate">{board.title}</span>
+            <span className="shrink-0 text-[11px] tabular-nums text-[#A3A29D]">
+              {board.nodeCount}
+            </span>
+          </>
         )}
 
         <DropdownMenu

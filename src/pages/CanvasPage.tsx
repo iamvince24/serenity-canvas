@@ -1,12 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Canvas } from "../features/canvas/Canvas";
 import { FpsOverlay } from "../features/canvas/FpsOverlay";
 import { Toolbar } from "../features/canvas/Toolbar";
-import {
-  loadBoardSnapshot,
-  saveBoardSnapshot,
-} from "../stores/boardSnapshotStorage";
-import { useCanvasStore } from "../stores/canvasStore";
+import { flushCanvasPersistence, useCanvasStore } from "../stores/canvasStore";
 import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
 
 interface CanvasPageProps {
@@ -14,8 +10,8 @@ interface CanvasPageProps {
 }
 
 export function CanvasPage({ boardId }: CanvasPageProps) {
-  const activeBoardIdRef = useRef<string | null>(null);
   const [showFpsOverlay, setShowFpsOverlay] = useState(false);
+  const isLoading = useCanvasStore((state) => state.isLoading);
   const imageUploadErrorMessage = useUploadNoticeStore(
     (state) => state.imageUploadErrorMessage,
   );
@@ -24,31 +20,22 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
   );
 
   useEffect(() => {
-    const canvasStore = useCanvasStore.getState();
-    const previousBoardId = activeBoardIdRef.current;
-    if (previousBoardId && previousBoardId !== boardId) {
-      saveBoardSnapshot(previousBoardId, canvasStore.exportSnapshot());
-    }
-
-    const snapshot = loadBoardSnapshot(boardId);
-    if (snapshot) {
-      canvasStore.loadSnapshot(snapshot);
-    } else {
-      canvasStore.resetBoardState();
-    }
-
-    activeBoardIdRef.current = boardId;
+    void useCanvasStore.getState().initFromDB(boardId);
   }, [boardId]);
 
   useEffect(() => {
-    return () => {
-      const currentBoardId = activeBoardIdRef.current;
-      if (!currentBoardId) {
-        return;
-      }
+    const handleFlush = () => {
+      void flushCanvasPersistence();
+    };
 
-      const snapshot = useCanvasStore.getState().exportSnapshot();
-      saveBoardSnapshot(currentBoardId, snapshot);
+    // 避免使用者在 debounce 期間刷新/離頁造成資料遺失。
+    window.addEventListener("pagehide", handleFlush);
+    window.addEventListener("beforeunload", handleFlush);
+
+    return () => {
+      handleFlush();
+      window.removeEventListener("pagehide", handleFlush);
+      window.removeEventListener("beforeunload", handleFlush);
     };
   }, []);
 
@@ -58,13 +45,27 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
       className="relative min-h-screen w-full overflow-hidden bg-canvas"
       data-board-id={boardId}
     >
-      <Canvas />
-      <Toolbar
-        showFpsOverlay={showFpsOverlay}
-        onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
-      />
+      {isLoading ? (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center bg-canvas"
+          role="status"
+          aria-label="Loading board"
+        >
+          <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#C9D3C4] border-t-[#708067]" />
+        </div>
+      ) : (
+        <>
+          <Canvas />
+          <Toolbar
+            showFpsOverlay={showFpsOverlay}
+            onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
+          />
 
-      {import.meta.env.DEV && showFpsOverlay ? <FpsOverlay visible /> : null}
+          {import.meta.env.DEV && showFpsOverlay ? (
+            <FpsOverlay visible />
+          ) : null}
+        </>
+      )}
 
       {imageUploadErrorMessage ? (
         <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4 md:top-24">

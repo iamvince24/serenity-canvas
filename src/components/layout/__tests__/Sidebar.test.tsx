@@ -4,8 +4,8 @@ import type { Board } from "../../../types/board";
 import { Sidebar, type SidebarProps } from "../Sidebar";
 
 const boards: Board[] = [
-  { id: "board-1", title: "Board 1", createdAt: 1, updatedAt: 1 },
-  { id: "board-2", title: "Board 2", createdAt: 2, updatedAt: 2 },
+  { id: "board-1", title: "Board 1", createdAt: 1, updatedAt: 1, nodeCount: 0 },
+  { id: "board-2", title: "Board 2", createdAt: 2, updatedAt: 2, nodeCount: 0 },
 ];
 
 function renderSidebar(overrides: Partial<SidebarProps> = {}) {
@@ -89,6 +89,11 @@ describe("Sidebar", () => {
     renderSidebar();
     expect(screen.getByText("Board 1")).toBeTruthy();
     expect(screen.getByText("Board 2")).toBeTruthy();
+  });
+
+  it("會顯示每個 board 的 nodeCount", () => {
+    renderSidebar();
+    expect(screen.getAllByText("0")).toHaveLength(2);
   });
 
   it("active board 套用 active 樣式 class", () => {
@@ -175,7 +180,15 @@ describe("Sidebar", () => {
 
   it("僅剩一個 board 時 Delete item 為 disabled", () => {
     renderSidebar({
-      boards: [{ id: "board-1", title: "Only", createdAt: 1, updatedAt: 1 }],
+      boards: [
+        {
+          id: "board-1",
+          title: "Only",
+          createdAt: 1,
+          updatedAt: 1,
+          nodeCount: 0,
+        },
+      ],
       activeBoardId: "board-1",
     });
     const row = screen.getByText("Only").closest('[role="button"]');

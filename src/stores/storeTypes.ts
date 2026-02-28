@@ -31,6 +31,7 @@ export type BoardCanvasSnapshot = Pick<
 >;
 
 export type CanvasActions = {
+  initFromDB: (boardId: string) => Promise<void>;
   setViewport: (viewport: ViewportState) => void;
   addNode: (node: CanvasNode | PersistenceCanvasNode) => void;
   addFile: (record: FileRecord) => void;
@@ -88,6 +89,8 @@ export type CanvasActions = {
 };
 
 export type CanvasStore = CanvasState & {
+  currentBoardId: string | null;
+  isLoading: boolean;
   canvasMode: CanvasMode;
   interactionState: InteractionState;
   canUndo: boolean;

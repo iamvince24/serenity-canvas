@@ -64,8 +64,20 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     localStorage.clear();
     mockBoards = [
-      { id: "board-1", title: "Board 1", createdAt: 1, updatedAt: 1 },
-      { id: "board-2", title: "Board 2", createdAt: 2, updatedAt: 2 },
+      {
+        id: "board-1",
+        title: "Board 1",
+        createdAt: 1,
+        updatedAt: 1,
+        nodeCount: 0,
+      },
+      {
+        id: "board-2",
+        title: "Board 2",
+        createdAt: 2,
+        updatedAt: 2,
+        nodeCount: 0,
+      },
     ];
     mockActiveBoardId = "board-1";
     latestSidebarProps = null;

@@ -1,7 +1,16 @@
 import { create } from "zustand";
+import {
+  BoardRepository,
+  EdgeRepository,
+  FileRepository,
+  GroupRepository,
+  NodeRepository,
+} from "../db/repositories";
 import type { Board } from "../types/board";
 
 export const BOARDS_STORAGE_KEY = "serenity-canvas:boards";
+// 保存目前 focus 的白板，刷新後可回到同一個 board。
+export const ACTIVE_BOARD_STORAGE_KEY = "serenity-canvas:active-board-id";
 export const DEFAULT_BOARD_ID = "local-board";
 export const DEFAULT_BOARD_TITLE = "My First Board";
 
@@ -10,9 +19,18 @@ type DashboardStore = {
   activeBoardId: string | null;
   loadBoards: () => void;
   setActiveBoardId: (id: string) => void;
+  setBoardNodeCount: (id: string, nodeCount: number) => void;
   createBoard: (title: string) => string;
   renameBoard: (id: string, title: string) => void;
   deleteBoard: (id: string) => void;
+};
+
+type StoredBoard = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  nodeCount?: unknown;
 };
 
 function createBoardId(): string {
@@ -32,15 +50,16 @@ function createDefaultBoard(now: number): Board {
     title: DEFAULT_BOARD_TITLE,
     createdAt: now,
     updatedAt: now,
+    nodeCount: 0,
   };
 }
 
-function isBoard(value: unknown): value is Board {
+function isBoard(value: unknown): value is StoredBoard {
   if (typeof value !== "object" || value === null) {
     return false;
   }
 
-  const candidate = value as Partial<Board>;
+  const candidate = value as Partial<StoredBoard>;
   return (
     typeof candidate.id === "string" &&
     typeof candidate.title === "string" &&
@@ -49,12 +68,42 @@ function isBoard(value: unknown): value is Board {
   );
 }
 
+function normalizeBoard(board: StoredBoard): Board {
+  return {
+    id: board.id,
+    title: board.title,
+    createdAt: board.createdAt,
+    updatedAt: board.updatedAt,
+    // 舊資料可能沒有 nodeCount，這裡補 0 做向下相容。
+    nodeCount: typeof board.nodeCount === "number" ? board.nodeCount : 0,
+  };
+}
+
 function toFallbackBoards(now: number): Board[] {
   return [createDefaultBoard(now)];
 }
 
 function persistBoards(boards: Board[]): void {
   localStorage.setItem(BOARDS_STORAGE_KEY, JSON.stringify(boards));
+}
+
+function persistActiveBoardId(id: string | null): void {
+  if (!id) {
+    localStorage.removeItem(ACTIVE_BOARD_STORAGE_KEY);
+    return;
+  }
+
+  localStorage.setItem(ACTIVE_BOARD_STORAGE_KEY, id);
+}
+
+function loadPersistedActiveBoardId(): string | null {
+  const raw = localStorage.getItem(ACTIVE_BOARD_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function loadBoardsFromStorage(now: number): Board[] {
@@ -73,7 +122,7 @@ function loadBoardsFromStorage(now: number): Board[] {
       return fallbackBoards;
     }
 
-    const boards = parsed.filter(isBoard);
+    const boards = parsed.filter(isBoard).map(normalizeBoard);
     if (boards.length === 0) {
       const fallbackBoards = toFallbackBoards(now);
       persistBoards(fallbackBoards);
@@ -94,13 +143,52 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   loadBoards: () => {
     const now = Date.now();
     const boards = loadBoardsFromStorage(now);
+    const persistedActiveBoardId = loadPersistedActiveBoardId();
     set((state) => ({
+      // 優先順序：記憶體中既有選擇 > localStorage > 第一個 board。
       boards,
-      activeBoardId: state.activeBoardId ?? boards[0]?.id ?? null,
+      activeBoardId: (() => {
+        const preferredBoardId = state.activeBoardId ?? persistedActiveBoardId;
+        const nextActiveBoardId = boards.some(
+          (board) => board.id === preferredBoardId,
+        )
+          ? preferredBoardId
+          : (boards[0]?.id ?? null);
+        persistActiveBoardId(nextActiveBoardId);
+        return nextActiveBoardId;
+      })(),
     }));
   },
   setActiveBoardId: (id) => {
+    persistActiveBoardId(id);
     set({ activeBoardId: id });
+  },
+  setBoardNodeCount: (id, nodeCount) => {
+    const nextNodeCount = Math.max(0, Math.floor(nodeCount));
+    const now = Date.now();
+
+    set((state) => {
+      let hasChanges = false;
+      const boards = state.boards.map((board) => {
+        if (board.id !== id || board.nodeCount === nextNodeCount) {
+          return board;
+        }
+
+        hasChanges = true;
+        return {
+          ...board,
+          nodeCount: nextNodeCount,
+          updatedAt: now,
+        };
+      });
+
+      if (!hasChanges) {
+        return state;
+      }
+
+      persistBoards(boards);
+      return { boards };
+    });
   },
   createBoard: (title) => {
     const now = Date.now();
@@ -110,11 +198,13 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       title: nextTitle,
       createdAt: now,
       updatedAt: now,
+      nodeCount: 0,
     };
 
     set((state) => {
       const boards = [...state.boards, nextBoard];
       persistBoards(boards);
+      persistActiveBoardId(nextBoard.id);
       return { boards, activeBoardId: nextBoard.id };
     });
 
@@ -150,6 +240,8 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     });
   },
   deleteBoard: (id) => {
+    let shouldCleanupIdb = false;
+
     set((state) => {
       if (state.boards.length <= 1) {
         return state;
@@ -160,12 +252,29 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         return state;
       }
 
+      shouldCleanupIdb = true;
       persistBoards(boards);
       const activeBoardId =
         state.activeBoardId === id
           ? (boards[0]?.id ?? null)
           : state.activeBoardId;
+      persistActiveBoardId(activeBoardId);
       return { boards, activeBoardId };
     });
+
+    if (!shouldCleanupIdb) {
+      return;
+    }
+
+    // UI 先回應，IDB 清理由背景處理（失敗不阻斷操作）。
+    void Promise.all([
+      NodeRepository.deleteAllForBoard(id),
+      EdgeRepository.deleteAllForBoard(id),
+      GroupRepository.deleteAllForBoard(id),
+      FileRepository.deleteAllForBoard(id),
+      BoardRepository.delete(id),
+    ]).catch((error) =>
+      console.error("Failed to clean IDB for deleted board", error),
+    );
   },
 }));
