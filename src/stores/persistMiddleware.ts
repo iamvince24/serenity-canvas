@@ -73,6 +73,22 @@ function hasPersistedStateChanged(
   );
 }
 
+/**
+ * 同步防護旗標：為 true 時，persist subscriber 會直接跳過。
+ * 防止 `mergeToLocal` 更新 store 時產生幽靈 dirty flags
+ * （該資料已由同步層直接寫入 IDB，不需要 persistMiddleware 重複處理）。
+ *
+ * 因為 `setState` 會同步觸發 subscriber，呼叫方可以：
+ *   setSyncGuard(true);
+ *   useCanvasStore.setState({ ... });   // subscriber 觸發後立即 return
+ *   setSyncGuard(false);
+ */
+let _syncGuard = false;
+
+export function setSyncGuard(value: boolean): void {
+  _syncGuard = value;
+}
+
 export function setupPersistMiddleware(store: PersistMiddlewareStore): {
   cancel: () => void;
   flush: () => Promise<void>;
@@ -268,6 +284,10 @@ export function setupPersistMiddleware(store: PersistMiddlewareStore): {
   };
 
   store.subscribe((nextState, previousState) => {
+    if (_syncGuard) {
+      return;
+    }
+
     if (!nextState.currentBoardId) {
       return;
     }

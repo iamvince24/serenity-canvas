@@ -46,7 +46,7 @@ import { InteractionState } from "../features/canvas/core/stateMachine";
 import { type CanvasNode, type Edge, type Group } from "../types/canvas";
 import { loadBoardSnapshot, removeBoardSnapshot } from "./boardSnapshotStorage";
 import { useDashboardStore } from "./dashboardStore";
-import { setupPersistMiddleware } from "./persistMiddleware";
+import { setSyncGuard, setupPersistMiddleware } from "./persistMiddleware";
 import {
   getConnectedEdgeIds,
   getNodeContent,
@@ -1151,3 +1151,5 @@ persistController = setupPersistMiddleware(useCanvasStore);
 export async function flushCanvasPersistence(): Promise<void> {
   await persistController?.flush();
 }
+
+export { setSyncGuard };

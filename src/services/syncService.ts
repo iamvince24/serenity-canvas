@@ -2,7 +2,11 @@ import type { Board } from "@/types/board";
 import type { CanvasNode, Edge, FileRecord, Group } from "@/types/canvas";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
-import { useCanvasStore } from "@/stores/canvasStore";
+import {
+  flushCanvasPersistence,
+  setSyncGuard,
+  useCanvasStore,
+} from "@/stores/canvasStore";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import {
   EdgeRepository,
@@ -831,40 +835,48 @@ class SyncService {
       files: mergedFiles.length,
     });
 
-    const canvasState = useCanvasStore.getState();
-    if (canvasState.currentBoardId === boardId) {
-      useCanvasStore.setState((state) => ({
-        nodes: mapById(mergedNodes),
-        edges: mapById(mergedEdges),
-        files: mapById(mergedFiles),
-        groups: mapById(remote.groups),
-        nodeOrder: remote.boardMeta
-          ? remote.boardMeta.nodeOrder
-          : state.nodeOrder,
-        selectedNodeIds: state.selectedNodeIds.filter((id) =>
-          mergedNodes.some((node) => node.id === id),
-        ),
-        selectedEdgeIds: state.selectedEdgeIds.filter((id) =>
-          mergedEdges.some((edge) => edge.id === id),
-        ),
-        selectedGroupIds: state.selectedGroupIds.filter((id) =>
-          remote.groups.some((group) => group.id === id),
-        ),
-      }));
-    }
-
-    if (remote.boardMeta) {
-      const remoteBoardMeta = remote.boardMeta;
-      const hasPendingBoardChanges = pendingChanges.some(
-        (change) => change.entityType === "board",
-      );
-      if (!hasPendingBoardChanges) {
-        useCanvasStore.setState((state) =>
-          state.currentBoardId === boardId
-            ? { nodeOrder: remoteBoardMeta.nodeOrder }
-            : state,
-        );
+    // 啟用同步防護，讓 persistMiddleware 的 subscriber 跳過這些 setState。
+    // 上方的 IDB 寫入才是資料來源；若讓 persistMiddleware 重寫並標記 dirty，
+    // 會產生幽靈 push flags，導致覆蓋遠端的編輯。
+    setSyncGuard(true);
+    try {
+      const canvasState = useCanvasStore.getState();
+      if (canvasState.currentBoardId === boardId) {
+        useCanvasStore.setState((state) => ({
+          nodes: mapById(mergedNodes),
+          edges: mapById(mergedEdges),
+          files: mapById(mergedFiles),
+          groups: mapById(remote.groups),
+          nodeOrder: remote.boardMeta
+            ? remote.boardMeta.nodeOrder
+            : state.nodeOrder,
+          selectedNodeIds: state.selectedNodeIds.filter((id) =>
+            mergedNodes.some((node) => node.id === id),
+          ),
+          selectedEdgeIds: state.selectedEdgeIds.filter((id) =>
+            mergedEdges.some((edge) => edge.id === id),
+          ),
+          selectedGroupIds: state.selectedGroupIds.filter((id) =>
+            remote.groups.some((group) => group.id === id),
+          ),
+        }));
       }
+
+      if (remote.boardMeta) {
+        const remoteBoardMeta = remote.boardMeta;
+        const hasPendingBoardChanges = pendingChanges.some(
+          (change) => change.entityType === "board",
+        );
+        if (!hasPendingBoardChanges) {
+          useCanvasStore.setState((state) =>
+            state.currentBoardId === boardId
+              ? { nodeOrder: remoteBoardMeta.nodeOrder }
+              : state,
+          );
+        }
+      }
+    } finally {
+      setSyncGuard(false);
     }
   }
 
@@ -982,14 +994,140 @@ class SyncService {
     }
   }
 
+  /**
+   * 過濾掉過時的 upsert dirty flags。
+   * 只保留本地 updatedAt 嚴格大於遠端的變更；delete / board / group 一律保留。
+   */
+  private async discardStaleUpserts(
+    boardId: string,
+    changes: DirtyRecord[],
+    remote: RemoteBundle,
+  ): Promise<DirtyRecord[]> {
+    const remoteNodeTs = new Map(
+      remote.nodes.map((n) => [n.id, getUpdatedAt(n)]),
+    );
+    const remoteEdgeTs = new Map(
+      remote.edges.map((e) => [e.id, getUpdatedAt(e)]),
+    );
+    const remoteFileTs = new Map(
+      remote.files.map((f) => [f.id, getUpdatedAt(f)]),
+    );
+
+    const nodeUpsertIds = changes
+      .filter((c) => c.entityType === "node" && c.action === "upsert")
+      .map((c) => c.entityId);
+    const edgeUpsertIds = changes
+      .filter((c) => c.entityType === "edge" && c.action === "upsert")
+      .map((c) => c.entityId);
+    const fileUpsertIds = changes
+      .filter((c) => c.entityType === "file" && c.action === "upsert")
+      .map((c) => c.entityId);
+
+    const [localNodes, localEdges, localFiles] = await Promise.all([
+      nodeUpsertIds.length > 0
+        ? NodeRepository.getByIds(boardId, nodeUpsertIds)
+        : Promise.resolve([]),
+      edgeUpsertIds.length > 0
+        ? EdgeRepository.getByIds(boardId, edgeUpsertIds)
+        : Promise.resolve([]),
+      fileUpsertIds.length > 0
+        ? FileRepository.getByIds(boardId, fileUpsertIds)
+        : Promise.resolve([]),
+    ]);
+
+    const localNodeTs = new Map<string, number>();
+    localNodes.forEach((n, i) => {
+      if (n) localNodeTs.set(nodeUpsertIds[i], getUpdatedAt(n));
+    });
+    const localEdgeTs = new Map<string, number>();
+    localEdges.forEach((e, i) => {
+      if (e) localEdgeTs.set(edgeUpsertIds[i], getUpdatedAt(e));
+    });
+    const localFileTs = new Map<string, number>();
+    localFiles.forEach((f, i) => {
+      if (f) localFileTs.set(fileUpsertIds[i], getUpdatedAt(f));
+    });
+
+    const result: DirtyRecord[] = [];
+    let discardCount = 0;
+
+    for (const change of changes) {
+      if (
+        change.action === "delete" ||
+        change.entityType === "board" ||
+        change.entityType === "group"
+      ) {
+        result.push(change);
+        continue;
+      }
+
+      let remoteT: number | undefined;
+      let localT: number | undefined;
+
+      if (change.entityType === "node") {
+        remoteT = remoteNodeTs.get(change.entityId);
+        localT = localNodeTs.get(change.entityId);
+      } else if (change.entityType === "edge") {
+        remoteT = remoteEdgeTs.get(change.entityId);
+        localT = localEdgeTs.get(change.entityId);
+      } else if (change.entityType === "file") {
+        remoteT = remoteFileTs.get(change.entityId);
+        localT = localFileTs.get(change.entityId);
+      }
+
+      // 遠端沒有此實體 → 本地新建的，一定要推
+      if (remoteT === undefined) {
+        result.push(change);
+        continue;
+      }
+
+      // 本地找不到 → 可能已刪除，跳過
+      if (localT === undefined) {
+        discardCount++;
+        continue;
+      }
+
+      // 只在本地嚴格較新時才推送
+      if (localT > remoteT) {
+        result.push(change);
+      } else {
+        discardCount++;
+      }
+    }
+
+    if (discardCount > 0) {
+      console.info("[sync] discardStaleUpserts", {
+        boardId,
+        discarded: discardCount,
+        kept: result.length,
+      });
+    }
+
+    return result;
+  }
+
   async pullWithConflictDetection(boardId: string): Promise<void> {
+    // 先刷新 persistMiddleware 尚未落地的寫入，確保使用者的真實編輯
+    // 已寫入 IDB 並產生 dirty flags，才開始讀取 pending changes。
+    await flushCanvasPersistence();
+
+    // 先拉取遠端資料，再根據時間戳判斷哪些本地變更值得推送。
+    // 避免過時的 dirty flags 盲目覆蓋遠端較新的資料。
+    const remote = await this.pullFromRemote(boardId);
+
     if (await changeTracker.hasPendingChanges(boardId)) {
       const changes = await changeTracker.getPendingChanges(boardId);
-      await this.pushPendingChanges(boardId, changes);
+      const validChanges = await this.discardStaleUpserts(
+        boardId,
+        changes,
+        remote,
+      );
+      if (validChanges.length > 0) {
+        await this.pushPendingChanges(boardId, validChanges);
+      }
       await changeTracker.clearChanges(boardId);
     }
 
-    const remote = await this.pullFromRemote(boardId);
     const [localNodes, localEdges, localFiles] = await Promise.all([
       NodeRepository.getAllForBoard(boardId),
       EdgeRepository.getAllForBoard(boardId),

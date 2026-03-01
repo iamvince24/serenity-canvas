@@ -9,6 +9,7 @@ import type {
   ViewportState,
 } from "../../types/canvas";
 import {
+  setSyncGuard,
   setupPersistMiddleware,
   type PersistMiddlewareState,
 } from "../persistMiddleware";
@@ -182,6 +183,7 @@ async function flushDebounce() {
 describe("persistMiddleware", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    setSyncGuard(false);
 
     boardUpdate.mockReset().mockResolvedValue(undefined);
     nodeBulkPut.mockReset().mockResolvedValue(undefined);
@@ -418,6 +420,87 @@ describe("persistMiddleware", () => {
         nodeCount: 3,
       }),
     );
+  });
+
+  describe("syncGuard", () => {
+    it("setSyncGuard(true) 時 state 變更不觸發持久化", async () => {
+      const store = createPersistStore();
+      setupPersistMiddleware(store);
+
+      setSyncGuard(true);
+      store.setState({
+        nodes: {
+          "node-1": createTextNode("node-1", "updated-by-sync"),
+          "node-2": createTextNode("node-2"),
+          "node-3": createTextNode("node-3", "new-from-remote"),
+        },
+      });
+      setSyncGuard(false);
+
+      await flushDebounce();
+
+      expect(nodeBulkPut).not.toHaveBeenCalled();
+      expect(nodeBulkDelete).not.toHaveBeenCalled();
+      expect(markDirty).not.toHaveBeenCalled();
+      expect(schedulePush).not.toHaveBeenCalled();
+    });
+
+    it("setSyncGuard(false) 後恢復正常持久化行為", async () => {
+      const store = createPersistStore();
+      setupPersistMiddleware(store);
+
+      // guard on → 不觸發
+      setSyncGuard(true);
+      store.setState({
+        nodes: {
+          "node-1": createTextNode("node-1"),
+          "node-2": createTextNode("node-2"),
+          "node-3": createTextNode("node-3", "from-remote"),
+        },
+      });
+      setSyncGuard(false);
+
+      // guard off → 正常觸發
+      store.setState({
+        nodes: {
+          "node-1": createTextNode("node-1"),
+          "node-2": createTextNode("node-2"),
+          "node-3": createTextNode("node-3", "from-remote"),
+          "node-4": createTextNode("node-4", "local-edit"),
+        },
+      });
+
+      await flushDebounce();
+
+      expect(nodeBulkPut).toHaveBeenCalledWith(
+        "board-a",
+        expect.arrayContaining([expect.objectContaining({ id: "node-4" })]),
+      );
+    });
+
+    it("syncGuard 包裹多次 setState 全部跳過", async () => {
+      const store = createPersistStore();
+      setupPersistMiddleware(store);
+
+      setSyncGuard(true);
+      store.setState({
+        nodes: { "node-1": createTextNode("node-1", "sync-1") },
+      });
+      store.setState({
+        edges: { "edge-3": createEdge("edge-3", "node-1", "node-1") },
+      });
+      store.setState({
+        nodeOrder: ["node-1"],
+      });
+      setSyncGuard(false);
+
+      await flushDebounce();
+
+      expect(nodeBulkPut).not.toHaveBeenCalled();
+      expect(edgeBulkPut).not.toHaveBeenCalled();
+      expect(boardUpdate).not.toHaveBeenCalled();
+      expect(markDirty).not.toHaveBeenCalled();
+    });
   });
 
   it("board 切換後不會把舊 board 狀態當成新 board 的刪除差異", async () => {
