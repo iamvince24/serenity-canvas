@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { LOCAL_BOARD_ID } from "../features/canvas/core/constants";
 import { Header } from "../components/layout/Header";
 
 export function HomePage() {
@@ -24,7 +25,7 @@ export function HomePage() {
           </p>
 
           <Link
-            to="/canvas"
+            to={`/canvas/${LOCAL_BOARD_ID}`}
             className="btn-primary animate-serenity-in animation-delay-160 mt-10"
           >
             Get Started

@@ -1,5 +1,7 @@
 import { DEFAULT_NODE_COLOR } from "../../../constants/colors";
 
+export const LOCAL_BOARD_ID = "local-board";
+
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 3;
 export const ZOOM_STEP = 1.05;

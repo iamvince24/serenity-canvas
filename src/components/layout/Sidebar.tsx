@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type { Board } from "../../types/board";
 import { cn } from "../../lib/utils";
+import { useSignOut } from "../../hooks/useSignOut";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -279,6 +280,8 @@ export function Sidebar({
   onRenameBoard,
   onDeleteBoard,
 }: SidebarProps) {
+  const { isSigningOut, handleSignOut } = useSignOut();
+
   return (
     <aside
       className={cn(
@@ -348,13 +351,35 @@ export function Sidebar({
           </div>
 
           <footer className="border-t border-[#F0EEEA] p-2">
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-[6px] border border-transparent px-3 py-2 text-[14px] text-[#6B6B66] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
-            >
-              <Settings className="h-4 w-4" />
-              <span>Settings</span>
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Open settings menu"
+                  className="flex w-full items-center gap-2 rounded-[6px] border border-transparent px-3 py-2 text-[14px] text-[#6B6B66] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>Settings</span>
+                </button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                align="start"
+                side="top"
+                className="w-40 border-[#E5E3DF] bg-[#FFFFFF]"
+              >
+                <DropdownMenuItem
+                  disabled={isSigningOut}
+                  className="text-[#B8635A] focus:text-[#B8635A]"
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleSignOut();
+                  }}
+                >
+                  {isSigningOut ? "登出中..." : "登出"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </footer>
         </div>
       </div>

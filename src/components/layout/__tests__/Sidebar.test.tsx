@@ -1,7 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Board } from "../../../types/board";
 import { Sidebar, type SidebarProps } from "../Sidebar";
+
+const { signOut } = vi.hoisted(() => ({
+  signOut: vi.fn(),
+}));
+
+vi.mock("../../../stores/authStore", () => ({
+  useAuthStore: (selector: (state: { signOut: typeof signOut }) => unknown) =>
+    selector({ signOut }),
+}));
 
 const boards: Board[] = [
   { id: "board-1", title: "Board 1", createdAt: 1, updatedAt: 1, nodeCount: 0 },
@@ -39,6 +48,11 @@ function renderSidebar(overrides: Partial<SidebarProps> = {}) {
 }
 
 describe("Sidebar", () => {
+  beforeEach(() => {
+    signOut.mockReset();
+    signOut.mockResolvedValue(undefined);
+  });
+
   it("isOpen 會切換 aside 寬度 class", () => {
     const { rerender } = render(
       <Sidebar
@@ -254,5 +268,26 @@ describe("Sidebar", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
 
     expect(onDeleteBoard).toHaveBeenCalledWith("board-1");
+  });
+
+  it("點擊 Settings 會開啟 DropdownMenu 並顯示登出按鈕", () => {
+    renderSidebar();
+
+    const trigger = screen.getByRole("button", { name: "Open settings menu" });
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+
+    expect(screen.getByText("登出")).toBeTruthy();
+  });
+
+  it("點擊登出會呼叫 signOut", async () => {
+    renderSidebar();
+
+    const trigger = screen.getByRole("button", { name: "Open settings menu" });
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByText("登出"));
+
+    await waitFor(() => {
+      expect(signOut).toHaveBeenCalledTimes(1);
+    });
   });
 });
