@@ -45,6 +45,7 @@ export type Database = {
         Row: {
           board_id: string;
           created_at: string;
+          deleted_at: string | null;
           direction: string;
           id: string;
           label: string | null;
@@ -55,6 +56,7 @@ export type Database = {
         Insert: {
           board_id: string;
           created_at?: string;
+          deleted_at?: string | null;
           direction?: string;
           id?: string;
           label?: string | null;
@@ -65,6 +67,7 @@ export type Database = {
         Update: {
           board_id?: string;
           created_at?: string;
+          deleted_at?: string | null;
           direction?: string;
           id?: string;
           label?: string | null;
@@ -82,12 +85,137 @@ export type Database = {
           },
         ];
       };
+      files: {
+        Row: {
+          asset_id: string;
+          board_id: string;
+          created_at: string;
+          deleted_at: string | null;
+          file_name: string;
+          id: string;
+          image_path: string | null;
+          mime_type: string;
+          original_height: number | null;
+          original_width: number | null;
+          size_bytes: number;
+          updated_at: string;
+        };
+        Insert: {
+          asset_id: string;
+          board_id: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          file_name: string;
+          id?: string;
+          image_path?: string | null;
+          mime_type: string;
+          original_height?: number | null;
+          original_width?: number | null;
+          size_bytes?: number;
+          updated_at?: string;
+        };
+        Update: {
+          asset_id?: string;
+          board_id?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          file_name?: string;
+          id?: string;
+          image_path?: string | null;
+          mime_type?: string;
+          original_height?: number | null;
+          original_width?: number | null;
+          size_bytes?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "files_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      group_members: {
+        Row: {
+          group_id: string;
+          node_id: string;
+        };
+        Insert: {
+          group_id: string;
+          node_id: string;
+        };
+        Update: {
+          group_id?: string;
+          node_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey";
+            columns: ["group_id"];
+            isOneToOne: false;
+            referencedRelation: "groups";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "group_members_node_id_fkey";
+            columns: ["node_id"];
+            isOneToOne: false;
+            referencedRelation: "nodes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      groups: {
+        Row: {
+          board_id: string;
+          color: string | null;
+          created_at: string;
+          deleted_at: string | null;
+          id: string;
+          label: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          board_id: string;
+          color?: string | null;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          label?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          board_id?: string;
+          color?: string | null;
+          created_at?: string;
+          deleted_at?: string | null;
+          id?: string;
+          label?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "groups_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       nodes: {
         Row: {
           board_id: string;
           color: string | null;
           content: Json | null;
           created_at: string;
+          deleted_at: string | null;
           height: number;
           id: string;
           type: string;
@@ -101,6 +229,7 @@ export type Database = {
           color?: string | null;
           content?: Json | null;
           created_at?: string;
+          deleted_at?: string | null;
           height: number;
           id?: string;
           type: string;
@@ -114,6 +243,7 @@ export type Database = {
           color?: string | null;
           content?: Json | null;
           created_at?: string;
+          deleted_at?: string | null;
           height?: number;
           id?: string;
           type?: string;
@@ -137,7 +267,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      sync_group_members: {
+        Args: { p_group_ids: string[]; p_members: Json };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;

@@ -24,6 +24,8 @@ const {
   fileBulkPut,
   fileBulkDelete,
   setBoardNodeCount,
+  markDirty,
+  schedulePush,
 } = vi.hoisted(() => ({
   boardUpdate: vi.fn(),
   nodeBulkPut: vi.fn(),
@@ -35,6 +37,8 @@ const {
   fileBulkPut: vi.fn(),
   fileBulkDelete: vi.fn(),
   setBoardNodeCount: vi.fn(),
+  markDirty: vi.fn(),
+  schedulePush: vi.fn(),
 }));
 
 vi.mock("../../db/repositories", () => ({
@@ -64,6 +68,18 @@ vi.mock("../dashboardStore", () => ({
     getState: () => ({
       setBoardNodeCount,
     }),
+  },
+}));
+
+vi.mock("../../db/changeTracker", () => ({
+  changeTracker: {
+    markDirty,
+  },
+}));
+
+vi.mock("../../services/syncManager", () => ({
+  syncManager: {
+    schedulePush,
   },
 }));
 
@@ -177,6 +193,8 @@ describe("persistMiddleware", () => {
     fileBulkPut.mockReset().mockResolvedValue(undefined);
     fileBulkDelete.mockReset().mockResolvedValue(undefined);
     setBoardNodeCount.mockReset();
+    markDirty.mockReset().mockResolvedValue(undefined);
+    schedulePush.mockReset();
   });
 
   afterEach(async () => {

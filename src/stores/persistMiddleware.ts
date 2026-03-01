@@ -15,6 +15,8 @@ import {
   NodeRepository,
   type BoardRow,
 } from "../db/repositories";
+import { changeTracker } from "../db/changeTracker";
+import { syncManager } from "../services/syncManager";
 import { useDashboardStore } from "./dashboardStore";
 
 const PERSIST_DEBOUNCE_MS = 300;
@@ -108,6 +110,7 @@ export function setupPersistMiddleware(store: PersistMiddlewareStore): {
 
     const boardId = nextState.currentBoardId;
     const boardPatch: Partial<Omit<BoardRow, "id">> = {};
+    let hasDirtyChanges = false;
 
     if (previousState.nodes !== nextState.nodes) {
       const deletedNodeIds = getDeletedIds(
@@ -118,10 +121,22 @@ export function setupPersistMiddleware(store: PersistMiddlewareStore): {
 
       if (deletedNodeIds.length > 0) {
         await NodeRepository.bulkDelete(deletedNodeIds);
+        await Promise.all(
+          deletedNodeIds.map((id) =>
+            changeTracker.markDirty(boardId, "node", id, "delete"),
+          ),
+        );
+        hasDirtyChanges = true;
       }
 
       if (upsertedNodes.length > 0) {
         await NodeRepository.bulkPut(boardId, upsertedNodes);
+        await Promise.all(
+          upsertedNodes.map((node) =>
+            changeTracker.markDirty(boardId, "node", node.id, "upsert"),
+          ),
+        );
+        hasDirtyChanges = true;
       }
 
       const nodeCount = Object.keys(nextState.nodes).length;
@@ -139,10 +154,22 @@ export function setupPersistMiddleware(store: PersistMiddlewareStore): {
 
       if (deletedEdgeIds.length > 0) {
         await EdgeRepository.bulkDelete(deletedEdgeIds);
+        await Promise.all(
+          deletedEdgeIds.map((id) =>
+            changeTracker.markDirty(boardId, "edge", id, "delete"),
+          ),
+        );
+        hasDirtyChanges = true;
       }
 
       if (upsertedEdges.length > 0) {
         await EdgeRepository.bulkPut(boardId, upsertedEdges);
+        await Promise.all(
+          upsertedEdges.map((edge) =>
+            changeTracker.markDirty(boardId, "edge", edge.id, "upsert"),
+          ),
+        );
+        hasDirtyChanges = true;
       }
     }
 
@@ -158,10 +185,22 @@ export function setupPersistMiddleware(store: PersistMiddlewareStore): {
 
       if (deletedGroupIds.length > 0) {
         await GroupRepository.bulkDelete(deletedGroupIds);
+        await Promise.all(
+          deletedGroupIds.map((id) =>
+            changeTracker.markDirty(boardId, "group", id, "delete"),
+          ),
+        );
+        hasDirtyChanges = true;
       }
 
       if (upsertedGroups.length > 0) {
         await GroupRepository.bulkPut(boardId, upsertedGroups);
+        await Promise.all(
+          upsertedGroups.map((group) =>
+            changeTracker.markDirty(boardId, "group", group.id, "upsert"),
+          ),
+        );
+        hasDirtyChanges = true;
       }
     }
 
@@ -174,19 +213,37 @@ export function setupPersistMiddleware(store: PersistMiddlewareStore): {
 
       if (deletedFileIds.length > 0) {
         await FileRepository.bulkDelete(deletedFileIds);
+        await Promise.all(
+          deletedFileIds.map((id) =>
+            changeTracker.markDirty(boardId, "file", id, "delete"),
+          ),
+        );
+        hasDirtyChanges = true;
       }
 
       if (upsertedFiles.length > 0) {
         await FileRepository.bulkPut(boardId, upsertedFiles);
+        await Promise.all(
+          upsertedFiles.map((file) =>
+            changeTracker.markDirty(boardId, "file", file.id, "upsert"),
+          ),
+        );
+        hasDirtyChanges = true;
       }
     }
 
     if (previousState.nodeOrder !== nextState.nodeOrder) {
       boardPatch.nodeOrder = nextState.nodeOrder;
+      await changeTracker.markDirty(boardId, "board", boardId, "upsert");
+      hasDirtyChanges = true;
     }
 
     if (Object.keys(boardPatch).length > 0) {
       await BoardRepository.update(boardId, boardPatch);
+    }
+
+    if (hasDirtyChanges) {
+      syncManager.schedulePush(boardId);
     }
   };
 

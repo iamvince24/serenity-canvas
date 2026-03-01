@@ -109,6 +109,7 @@ describe("files serialization", () => {
         original_height: 1080,
         byte_size: 204800,
         created_at: 1700000000000,
+        updatedAt: 1700000000000,
       },
     };
 

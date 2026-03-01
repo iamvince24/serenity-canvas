@@ -31,6 +31,7 @@ export function createTextNodeCenteredAt(x: number, y: number): TextNode {
     heightMode: "auto",
     contentMarkdown: DEFAULT_NODE_CONTENT,
     color: DEFAULT_NODE_COLOR,
+    updatedAt: Date.now(),
   };
 }
 
@@ -89,5 +90,6 @@ export function createImageNodeCenteredAt(
     color: DEFAULT_NODE_COLOR,
     content: "Add a caption...",
     asset_id: payload.asset_id,
+    updatedAt: Date.now(),
   };
 }

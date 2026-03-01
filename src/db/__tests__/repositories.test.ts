@@ -27,6 +27,7 @@ function createTextNode(id: string, contentMarkdown = "hello"): CanvasNode {
     heightMode: "auto",
     color: null,
     contentMarkdown,
+    updatedAt: 1,
   };
 }
 
@@ -39,6 +40,7 @@ function createEdge(id: string, fromNode: string, toNode: string): Edge {
     label: "edge",
     lineStyle: "dashed",
     color: "green",
+    updatedAt: 1,
   };
 }
 
@@ -59,6 +61,7 @@ function createFile(id: string): FileRecord {
     original_height: 800,
     byte_size: 2048,
     created_at: 111,
+    updatedAt: 111,
   };
 }
 
@@ -85,6 +88,7 @@ describe("repositories", () => {
       label: "edge",
       line_style: "dashed",
       color: "green",
+      updatedAt: 1,
     });
 
     expect(
@@ -96,6 +100,7 @@ describe("repositories", () => {
         label: persisted.label,
         line_style: persisted.line_style,
         color: persisted.color,
+        updatedAt: persisted.updatedAt,
       }),
     ).toEqual(edge);
   });

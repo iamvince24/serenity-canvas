@@ -11,6 +11,8 @@ export type BaseNode = {
   height: number;
   heightMode: NodeHeightMode;
   color: CanvasNodeColor;
+  // Last-write-wins timestamp (unix ms).
+  updatedAt?: number;
 };
 
 // Text card model rendered in the DOM overlay.
@@ -33,6 +35,8 @@ export type FileRecord = {
   original_height: number;
   byte_size: number;
   created_at: number;
+  // Last-write-wins timestamp (unix ms).
+  updatedAt?: number;
 };
 
 export type CanvasNode = TextNode | ImageNode;

@@ -83,6 +83,7 @@ export async function uploadImageFile(
     original_height: compressedOutput.originalHeight,
     byte_size: compressedOutput.byteSize,
     created_at: createdAt,
+    updatedAt: createdAt,
   };
 
   await injectImage(assetId, compressedOutput.blob);

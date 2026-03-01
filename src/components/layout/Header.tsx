@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Link } from "react-router";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { SyncIndicator } from "@/components/layout/SyncIndicator";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/stores/authStore";
@@ -50,6 +51,7 @@ export function Header() {
 
         {user ? (
           <div className="flex items-center gap-2">
+            <SyncIndicator />
             <Link
               to="/dashboard"
               className="hidden text-sm text-foreground-muted transition-colors hover:text-sage-dark sm:inline"

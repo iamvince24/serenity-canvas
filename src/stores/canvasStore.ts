@@ -154,10 +154,14 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     GroupCommandContext = {
     addNode: (node, file) => {
       set((state) => {
+        const now = Date.now();
         const nextFiles = file
           ? {
               ...state.files,
-              [file.id]: file,
+              [file.id]: {
+                ...file,
+                updatedAt: now,
+              },
             }
           : state.files;
 
@@ -165,7 +169,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           files: nextFiles,
           nodes: {
             ...state.nodes,
-            [node.id]: node,
+            [node.id]: {
+              ...node,
+              updatedAt: now,
+            },
           },
           nodeOrder: appendNodeToOrder(state.nodeOrder, node.id),
         };
@@ -220,7 +227,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         }
 
         return {
-          nodes: patchNode(state.nodes, id, { x, y }),
+          nodes: patchNode(state.nodes, id, { x, y, updatedAt: Date.now() }),
         };
       });
     },
@@ -248,6 +255,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
             width: geometry.width,
             height: geometry.height,
             heightMode: geometry.heightMode,
+            updatedAt: Date.now(),
           }),
         };
       });
@@ -265,7 +273,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           }
 
           return {
-            nodes: patchNode(state.nodes, id, { contentMarkdown: content }),
+            nodes: patchNode(state.nodes, id, {
+              contentMarkdown: content,
+              updatedAt: Date.now(),
+            }),
           };
         }
 
@@ -274,7 +285,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         }
 
         return {
-          nodes: patchNode(state.nodes, id, { content }),
+          nodes: patchNode(state.nodes, id, {
+            content,
+            updatedAt: Date.now(),
+          }),
         };
       });
     },
@@ -286,7 +300,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         }
 
         return {
-          nodes: patchNode(state.nodes, id, { color }),
+          nodes: patchNode(state.nodes, id, {
+            color,
+            updatedAt: Date.now(),
+          }),
         };
       });
     },
@@ -298,7 +315,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         }
 
         return {
-          nodes: patchNode(state.nodes, id, { heightMode: mode }),
+          nodes: patchNode(state.nodes, id, {
+            heightMode: mode,
+            updatedAt: Date.now(),
+          }),
         };
       });
     },
@@ -323,7 +343,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         return {
           edges: {
             ...state.edges,
-            [edge.id]: edge,
+            [edge.id]: {
+              ...edge,
+              updatedAt: Date.now(),
+            },
           },
         };
       });
@@ -349,7 +372,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         }
 
         return {
-          edges: patchEdge(state.edges, edge.id, edge),
+          edges: patchEdge(state.edges, edge.id, {
+            ...edge,
+            updatedAt: Date.now(),
+          }),
         };
       });
     },

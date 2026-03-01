@@ -41,6 +41,7 @@ function createTextNode(id: string, x: number, y: number): TextNode {
     heightMode: "fixed",
     color: null,
     contentMarkdown: id,
+    updatedAt: Date.now(),
   };
 }
 
@@ -53,6 +54,7 @@ function createEdge(id: string, fromNode: string, toNode: string): Edge {
     label: "",
     lineStyle: "solid",
     color: null,
+    updatedAt: Date.now(),
   };
 }
 

@@ -168,6 +168,7 @@ export function useConnectionDrag({
           label: "",
           lineStyle: "solid",
           color: null,
+          updatedAt: Date.now(),
         });
         selectEdge(edgeId);
       }

@@ -41,12 +41,25 @@ export type FileRow = FileRecord & {
   boardId: string;
 };
 
+export type DirtyEntityType = "node" | "edge" | "group" | "file" | "board";
+export type DirtyAction = "upsert" | "delete";
+
+export type DirtyChangeRow = {
+  pk: string;
+  boardId: string;
+  entityType: DirtyEntityType;
+  entityId: string;
+  action: DirtyAction;
+  dirtyAt: number;
+};
+
 class SerenityDB extends Dexie {
   boards!: Table<BoardRow, string>;
   nodes!: Table<NodeRow, string>;
   edges!: Table<EdgeRow, string>;
   groups!: Table<GroupRow, string>;
   files!: Table<FileRow, string>;
+  dirtyChanges!: Table<DirtyChangeRow, string>;
 
   constructor() {
     super(SERENITY_DB_NAME);
@@ -58,6 +71,16 @@ class SerenityDB extends Dexie {
       edges: "id, boardId",
       groups: "id, boardId",
       files: "id, boardId",
+    });
+
+    // v2：加入同步 dirty flags。
+    this.version(2).stores({
+      boards: "id",
+      nodes: "id, boardId",
+      edges: "id, boardId",
+      groups: "id, boardId",
+      files: "id, boardId",
+      dirtyChanges: "pk, boardId",
     });
   }
 }

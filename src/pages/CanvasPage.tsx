@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Canvas } from "../features/canvas/Canvas";
 import { FpsOverlay } from "../features/canvas/FpsOverlay";
 import { Toolbar } from "../features/canvas/Toolbar";
+import { syncManager } from "../services/syncManager";
 import { flushCanvasPersistence, useCanvasStore } from "../stores/canvasStore";
+import { useAuthStore } from "../stores/authStore";
 import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
 
 interface CanvasPageProps {
@@ -12,6 +14,7 @@ interface CanvasPageProps {
 export function CanvasPage({ boardId }: CanvasPageProps) {
   const [showFpsOverlay, setShowFpsOverlay] = useState(false);
   const isLoading = useCanvasStore((state) => state.isLoading);
+  const user = useAuthStore((state) => state.user);
   const imageUploadErrorMessage = useUploadNoticeStore(
     (state) => state.imageUploadErrorMessage,
   );
@@ -20,8 +23,39 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
   );
 
   useEffect(() => {
-    void useCanvasStore.getState().initFromDB(boardId);
-  }, [boardId]);
+    let cancelled = false;
+    void (async () => {
+      await useCanvasStore.getState().initFromDB(boardId);
+      if (cancelled) {
+        return;
+      }
+      if (user) {
+        syncManager.start(boardId);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      syncManager.stop();
+    };
+  }, [boardId, user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncManager.schedulePull(boardId);
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [boardId, user]);
 
   useEffect(() => {
     const handleFlush = () => {

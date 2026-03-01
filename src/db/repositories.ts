@@ -30,6 +30,7 @@ export type PersistenceEdge = {
   label: string;
   line_style: EdgeLineStyle;
   color: Edge["color"];
+  updatedAt?: number;
 };
 
 function mapById<T extends { id: string }>(items: T[]): Record<string, T> {
@@ -46,6 +47,7 @@ export function toPersistedEdge(boardId: string, edge: Edge): PersistenceEdge {
     label: edge.label,
     line_style: edge.lineStyle,
     color: edge.color,
+    updatedAt: edge.updatedAt,
   };
 }
 
@@ -60,6 +62,7 @@ export function fromPersistedEdge(
     label: edge.label,
     lineStyle: edge.line_style,
     color: edge.color,
+    updatedAt: edge.updatedAt ?? Date.now(),
   };
 }
 
@@ -126,18 +129,48 @@ export const BoardRepository = {
 };
 
 export const NodeRepository = {
-  async getByBoardId(boardId: string): Promise<Record<string, CanvasNode>> {
+  async getAllForBoard(boardId: string): Promise<CanvasNode[]> {
     const rows = await serenityDB.nodes
       .where("boardId")
       .equals(boardId)
       .toArray();
-    const nodes = rows.map((row) => {
+
+    return rows.map((row) => {
       const { boardId: storedBoardId, ...persistedNode } = row;
       void storedBoardId;
       return fromPersistenceNode(persistedNode);
     });
+  },
 
-    return mapById(nodes);
+  async getByBoardId(boardId: string): Promise<Record<string, CanvasNode>> {
+    return mapById(await this.getAllForBoard(boardId));
+  },
+
+  async getByIds(
+    boardId: string,
+    ids: string[],
+  ): Promise<(CanvasNode | undefined)[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await serenityDB.nodes.bulkGet(ids);
+    return rows.map((row) => {
+      if (!row || row.boardId !== boardId) {
+        return undefined;
+      }
+      const { boardId: storedBoardId, ...persistedNode } = row;
+      void storedBoardId;
+      return fromPersistenceNode(persistedNode);
+    });
+  },
+
+  async updateTimestamp(id: string, updatedAt: number): Promise<void> {
+    try {
+      await serenityDB.nodes.update(id, { updatedAt });
+    } catch (error) {
+      console.error("Failed to update node timestamp in IndexedDB", error);
+    }
   },
 
   async bulkPut(boardId: string, nodes: CanvasNode[]): Promise<void> {
@@ -176,21 +209,63 @@ export const NodeRepository = {
       console.error("Failed to delete board nodes from IndexedDB", error);
     }
   },
+
+  async replaceAllForBoard(
+    boardId: string,
+    nodes: CanvasNode[],
+  ): Promise<void> {
+    try {
+      await serenityDB.transaction("rw", serenityDB.nodes, async () => {
+        await serenityDB.nodes.where("boardId").equals(boardId).delete();
+        if (nodes.length > 0) {
+          const rows: NodeRow[] = nodes.map((node) => ({
+            ...toPersistenceNode(node),
+            boardId,
+          }));
+          await serenityDB.nodes.bulkPut(rows);
+        }
+      });
+    } catch (error) {
+      console.error("Failed to replace board nodes in IndexedDB", error);
+    }
+  },
 };
 
 export const EdgeRepository = {
-  async getByBoardId(boardId: string): Promise<Record<string, Edge>> {
+  async getAllForBoard(boardId: string): Promise<Edge[]> {
     const rows = await serenityDB.edges
       .where("boardId")
       .equals(boardId)
       .toArray();
-    const edges = rows.map((row) => {
+
+    return rows.map((row) => {
       const { boardId: storedBoardId, ...persistedEdge } = row;
       void storedBoardId;
       return fromPersistedEdge(persistedEdge);
     });
+  },
 
-    return mapById(edges);
+  async getByBoardId(boardId: string): Promise<Record<string, Edge>> {
+    return mapById(await this.getAllForBoard(boardId));
+  },
+
+  async getByIds(
+    boardId: string,
+    ids: string[],
+  ): Promise<(Edge | undefined)[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await serenityDB.edges.bulkGet(ids);
+    return rows.map((row) => {
+      if (!row || row.boardId !== boardId) {
+        return undefined;
+      }
+      const { boardId: storedBoardId, ...persistedEdge } = row;
+      void storedBoardId;
+      return fromPersistedEdge(persistedEdge);
+    });
   },
 
   async bulkPut(boardId: string, edges: Edge[]): Promise<void> {
@@ -226,21 +301,58 @@ export const EdgeRepository = {
       console.error("Failed to delete board edges from IndexedDB", error);
     }
   },
+
+  async replaceAllForBoard(boardId: string, edges: Edge[]): Promise<void> {
+    try {
+      await serenityDB.transaction("rw", serenityDB.edges, async () => {
+        await serenityDB.edges.where("boardId").equals(boardId).delete();
+        if (edges.length > 0) {
+          const rows: EdgeRow[] = edges.map((edge) =>
+            toPersistedEdge(boardId, edge),
+          );
+          await serenityDB.edges.bulkPut(rows);
+        }
+      });
+    } catch (error) {
+      console.error("Failed to replace board edges in IndexedDB", error);
+    }
+  },
 };
 
 export const GroupRepository = {
-  async getByBoardId(boardId: string): Promise<Record<string, Group>> {
+  async getAllForBoard(boardId: string): Promise<Group[]> {
     const rows = await serenityDB.groups
       .where("boardId")
       .equals(boardId)
       .toArray();
-    const groups = rows.map((row) => {
+    return rows.map((row) => {
       const { boardId: storedBoardId, ...group } = row;
       void storedBoardId;
       return group;
     });
+  },
 
-    return mapById(groups);
+  async getByBoardId(boardId: string): Promise<Record<string, Group>> {
+    return mapById(await this.getAllForBoard(boardId));
+  },
+
+  async getByIds(
+    boardId: string,
+    ids: string[],
+  ): Promise<(Group | undefined)[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await serenityDB.groups.bulkGet(ids);
+    return rows.map((row) => {
+      if (!row || row.boardId !== boardId) {
+        return undefined;
+      }
+      const { boardId: storedBoardId, ...group } = row;
+      void storedBoardId;
+      return group;
+    });
   },
 
   async bulkPut(boardId: string, groups: Group[]): Promise<void> {
@@ -279,21 +391,59 @@ export const GroupRepository = {
       console.error("Failed to delete board groups from IndexedDB", error);
     }
   },
+
+  async replaceAllForBoard(boardId: string, groups: Group[]): Promise<void> {
+    try {
+      await serenityDB.transaction("rw", serenityDB.groups, async () => {
+        await serenityDB.groups.where("boardId").equals(boardId).delete();
+        if (groups.length > 0) {
+          const rows: GroupRow[] = groups.map((group) => ({
+            ...group,
+            boardId,
+          }));
+          await serenityDB.groups.bulkPut(rows);
+        }
+      });
+    } catch (error) {
+      console.error("Failed to replace board groups in IndexedDB", error);
+    }
+  },
 };
 
 export const FileRepository = {
-  async getByBoardId(boardId: string): Promise<Record<string, FileRecord>> {
+  async getAllForBoard(boardId: string): Promise<FileRecord[]> {
     const rows = await serenityDB.files
       .where("boardId")
       .equals(boardId)
       .toArray();
-    const files = rows.map((row) => {
+    return rows.map((row) => {
       const { boardId: storedBoardId, ...file } = row;
       void storedBoardId;
       return file;
     });
+  },
 
-    return mapById(files);
+  async getByBoardId(boardId: string): Promise<Record<string, FileRecord>> {
+    return mapById(await this.getAllForBoard(boardId));
+  },
+
+  async getByIds(
+    boardId: string,
+    ids: string[],
+  ): Promise<(FileRecord | undefined)[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await serenityDB.files.bulkGet(ids);
+    return rows.map((row) => {
+      if (!row || row.boardId !== boardId) {
+        return undefined;
+      }
+      const { boardId: storedBoardId, ...file } = row;
+      void storedBoardId;
+      return file;
+    });
   },
 
   async bulkPut(boardId: string, files: FileRecord[]): Promise<void> {
@@ -330,6 +480,26 @@ export const FileRepository = {
       await serenityDB.files.where("boardId").equals(boardId).delete();
     } catch (error) {
       console.error("Failed to delete board files from IndexedDB", error);
+    }
+  },
+
+  async replaceAllForBoard(
+    boardId: string,
+    files: FileRecord[],
+  ): Promise<void> {
+    try {
+      await serenityDB.transaction("rw", serenityDB.files, async () => {
+        await serenityDB.files.where("boardId").equals(boardId).delete();
+        if (files.length > 0) {
+          const rows: FileRow[] = files.map((file) => ({
+            ...file,
+            boardId,
+          }));
+          await serenityDB.files.bulkPut(rows);
+        }
+      });
+    } catch (error) {
+      console.error("Failed to replace board files in IndexedDB", error);
     }
   },
 };

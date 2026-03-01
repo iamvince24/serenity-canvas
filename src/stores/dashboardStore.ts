@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { syncService } from "@/services/syncService";
+import { useAuthStore } from "@/stores/authStore";
 import {
   BoardRepository,
   EdgeRepository,
@@ -17,6 +19,7 @@ export const DEFAULT_BOARD_TITLE = "My First Board";
 type DashboardStore = {
   boards: Board[];
   activeBoardId: string | null;
+  source: "local" | "remote";
   loadBoards: () => void;
   setActiveBoardId: (id: string) => void;
   setBoardNodeCount: (id: string, nodeCount: number) => void;
@@ -140,24 +143,102 @@ function loadBoardsFromStorage(now: number): Board[] {
 export const useDashboardStore = create<DashboardStore>((set) => ({
   boards: [],
   activeBoardId: null,
+  source: "local",
   loadBoards: () => {
-    const now = Date.now();
-    const boards = loadBoardsFromStorage(now);
+    const user = useAuthStore.getState().user;
     const persistedActiveBoardId = loadPersistedActiveBoardId();
-    set((state) => ({
-      // 優先順序：記憶體中既有選擇 > localStorage > 第一個 board。
-      boards,
-      activeBoardId: (() => {
-        const preferredBoardId = state.activeBoardId ?? persistedActiveBoardId;
-        const nextActiveBoardId = boards.some(
-          (board) => board.id === preferredBoardId,
-        )
-          ? preferredBoardId
-          : (boards[0]?.id ?? null);
-        persistActiveBoardId(nextActiveBoardId);
-        return nextActiveBoardId;
-      })(),
-    }));
+
+    if (!user) {
+      const now = Date.now();
+      const boards = loadBoardsFromStorage(now);
+      set((state) => ({
+        boards,
+        source: "local",
+        activeBoardId: (() => {
+          const preferredBoardId =
+            state.activeBoardId ?? persistedActiveBoardId;
+          const nextActiveBoardId = boards.some(
+            (board) => board.id === preferredBoardId,
+          )
+            ? preferredBoardId
+            : (boards[0]?.id ?? null);
+          persistActiveBoardId(nextActiveBoardId);
+          return nextActiveBoardId;
+        })(),
+      }));
+      return;
+    }
+
+    void (async () => {
+      try {
+        const boards = await syncService.pullBoardList();
+        const enriched = await Promise.all(
+          boards.map(async (board) => ({
+            ...board,
+            nodeCount: (await NodeRepository.getAllForBoard(board.id)).length,
+          })),
+        );
+        let nextActiveBoardId: string | null = null;
+        set((state) => {
+          const preferredBoardId =
+            state.activeBoardId ?? persistedActiveBoardId;
+          nextActiveBoardId = enriched.some(
+            (board) => board.id === preferredBoardId,
+          )
+            ? preferredBoardId
+            : (enriched[0]?.id ?? null);
+          persistActiveBoardId(nextActiveBoardId);
+          return {
+            boards: enriched,
+            source: "remote",
+            activeBoardId: nextActiveBoardId,
+          };
+        });
+
+        // 背景預載：把所有 board 的資料拉到本地 IDB，避免只載入當前白板。
+        void (async () => {
+          for (const board of enriched) {
+            if (board.id === nextActiveBoardId) {
+              continue;
+            }
+
+            try {
+              await syncService.pullWithConflictDetection(board.id);
+            } catch (error) {
+              console.error("Failed to prefetch remote board", {
+                boardId: board.id,
+                error,
+              });
+            }
+          }
+
+          const nodeCountByBoardId = new Map<string, number>();
+          for (const board of enriched) {
+            const nodes = await NodeRepository.getAllForBoard(board.id);
+            nodeCountByBoardId.set(board.id, nodes.length);
+          }
+
+          set((state) => {
+            if (state.source !== "remote") {
+              return state;
+            }
+            const updatedBoards = state.boards.map((board) => ({
+              ...board,
+              nodeCount: nodeCountByBoardId.get(board.id) ?? board.nodeCount,
+            }));
+            return { boards: updatedBoards };
+          });
+        })();
+      } catch (error) {
+        console.error("Failed to load remote boards, fallback to local", error);
+        const boards = loadBoardsFromStorage(Date.now());
+        set((state) => ({
+          boards,
+          source: "local",
+          activeBoardId: state.activeBoardId ?? boards[0]?.id ?? null,
+        }));
+      }
+    })();
   },
   setActiveBoardId: (id) => {
     persistActiveBoardId(id);
@@ -203,10 +284,19 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
 
     set((state) => {
       const boards = [...state.boards, nextBoard];
-      persistBoards(boards);
+      if (state.source === "local") {
+        persistBoards(boards);
+      }
       persistActiveBoardId(nextBoard.id);
       return { boards, activeBoardId: nextBoard.id };
     });
+
+    const user = useAuthStore.getState().user;
+    if (user) {
+      void syncService.pushBoard(nextBoard, []).catch((error) => {
+        console.error("Failed to create board on remote", error);
+      });
+    }
 
     return nextBoard.id;
   },
@@ -235,9 +325,18 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         return state;
       }
 
-      persistBoards(boards);
+      if (state.source === "local") {
+        persistBoards(boards);
+      }
       return { boards };
     });
+
+    const user = useAuthStore.getState().user;
+    if (user) {
+      void syncService.renameBoardRemote(id, title).catch((error) => {
+        console.error("Failed to rename board on remote", error);
+      });
+    }
   },
   deleteBoard: (id) => {
     let shouldCleanupIdb = false;
@@ -253,7 +352,9 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       }
 
       shouldCleanupIdb = true;
-      persistBoards(boards);
+      if (state.source === "local") {
+        persistBoards(boards);
+      }
       const activeBoardId =
         state.activeBoardId === id
           ? (boards[0]?.id ?? null)
@@ -264,6 +365,13 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
 
     if (!shouldCleanupIdb) {
       return;
+    }
+
+    const user = useAuthStore.getState().user;
+    if (user) {
+      void syncService.deleteBoard(id).catch((error) => {
+        console.error("Failed to delete board on remote", error);
+      });
     }
 
     // UI 先回應，IDB 清理由背景處理（失敗不阻斷操作）。

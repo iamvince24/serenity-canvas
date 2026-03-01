@@ -49,10 +49,16 @@ function isLegacyImageNode(
 }
 
 export function fromPersistenceNode(node: PersistenceCanvasNode): CanvasNode {
+  const fallbackUpdatedAt =
+    "updatedAt" in node && typeof node.updatedAt === "number"
+      ? node.updatedAt
+      : Date.now();
+
   if (node.type !== "text") {
     return {
       ...node,
       color: normalizeNodeColor(node.color),
+      updatedAt: fallbackUpdatedAt,
     };
   }
 
@@ -61,6 +67,7 @@ export function fromPersistenceNode(node: PersistenceCanvasNode): CanvasNode {
     ...rest,
     contentMarkdown: content_markdown,
     color: normalizeNodeColor(node.color),
+    updatedAt: fallbackUpdatedAt,
   };
 }
 
@@ -88,7 +95,14 @@ export function fromPersistenceFiles(
   files: Record<string, PersistenceFileRecord>,
 ): Record<string, FileRecord> {
   return Object.fromEntries(
-    Object.entries(files).map(([id, file]) => [id, { ...file }]),
+    Object.entries(files).map(([id, file]) => [
+      id,
+      {
+        ...file,
+        updatedAt:
+          typeof file.updatedAt === "number" ? file.updatedAt : file.created_at,
+      },
+    ]),
   );
 }
 
@@ -121,6 +135,8 @@ export function migrateLegacyNode(
         node: {
           ...rest,
           color: normalizeNodeColor(rest.color),
+          updatedAt:
+            typeof rest.updatedAt === "number" ? rest.updatedAt : Date.now(),
         },
         extractedFile: {
           id: rest.asset_id,
@@ -129,6 +145,7 @@ export function migrateLegacyNode(
           original_height,
           byte_size,
           created_at: Date.now(),
+          updatedAt: Date.now(),
         },
       };
     }
@@ -137,6 +154,8 @@ export function migrateLegacyNode(
       node: {
         ...node,
         color: normalizeNodeColor(node.color),
+        updatedAt:
+          typeof node.updatedAt === "number" ? node.updatedAt : Date.now(),
       },
     };
   }
@@ -146,6 +165,8 @@ export function migrateLegacyNode(
       node: {
         ...node,
         color: normalizeNodeColor(node.color),
+        updatedAt:
+          typeof node.updatedAt === "number" ? node.updatedAt : Date.now(),
       },
     };
   }

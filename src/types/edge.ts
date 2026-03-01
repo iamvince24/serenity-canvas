@@ -11,4 +11,6 @@ export type Edge = {
   label: string;
   lineStyle: EdgeLineStyle;
   color: CanvasNodeColor;
+  // Last-write-wins timestamp (unix ms).
+  updatedAt?: number;
 };

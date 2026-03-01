@@ -1,8 +1,24 @@
-import { Link } from "react-router";
+import { Link, Navigate } from "react-router";
 import { LOCAL_BOARD_ID } from "../features/canvas/core/constants";
 import { Header } from "../components/layout/Header";
+import { useAuthStore } from "../stores/authStore";
 
 export function HomePage() {
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#C9D3C4] border-t-[#708067]" />
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="layered-calm-bg relative min-h-screen overflow-hidden text-foreground">
       <Header />
