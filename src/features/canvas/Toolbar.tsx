@@ -1,6 +1,7 @@
 import {
   Gauge,
   ImagePlus,
+  LogIn,
   MousePointer2,
   Redo2,
   Spline,
@@ -8,7 +9,11 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { useCallback, useRef, type ChangeEvent } from "react";
+import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { Link } from "react-router";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { getAvatarUrl, getDisplayName } from "@/lib/userMetadata";
+import { useAuthStore } from "@/stores/authStore";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import { createImageNodeCenteredAt } from "./nodes/nodeFactory";
@@ -27,6 +32,9 @@ export function Toolbar({
   showFpsOverlay = false,
   onFpsOverlayToggle,
 }: ToolbarProps) {
+  const user = useAuthStore((state) => state.user);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const viewport = useCanvasStore((state) => state.viewport);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
   const addNode = useCanvasStore((state) => state.addNode);
@@ -205,7 +213,53 @@ export function Toolbar({
             </button>
           </>
         )}
+
+        <div className="ml-auto flex items-center gap-2">
+          <div className="h-5 w-px bg-border" aria-hidden="true" />
+          {user ? (
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-foreground-muted transition-colors hover:bg-surface hover:text-sage-dark"
+            >
+              {(() => {
+                const avatarUrl = getAvatarUrl(user);
+                const displayName = getDisplayName(user);
+                const initial = displayName[0]?.toUpperCase() ?? "S";
+                return (
+                  <>
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={`${displayName} avatar`}
+                        className="h-6 w-6 rounded-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light text-xs font-semibold text-sage-dark">
+                        {initial}
+                      </span>
+                    )}
+                    <span className="hidden max-w-20 truncate sm:inline">
+                      {displayName}
+                    </span>
+                  </>
+                );
+              })()}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="btn-secondary h-9 gap-2 px-3 text-sm"
+              onClick={() => setIsAuthModalOpen(true)}
+            >
+              <LogIn size={16} />
+              <span className="hidden sm:inline">登入</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      <AuthModal open={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />
 
       {SHOW_IMAGE_UPLOAD_BUTTON && (
         <input

@@ -21,11 +21,11 @@ export function useSignOut(): UseSignOutResult {
     setIsSigningOut(true);
     void signOut()
       .then(async () => {
-        // 登出後停止同步、重建預設的 local-board，並導回本地白板頁面。
+        // 登出後停止同步、重建預設的 local-board，並導回首頁。
         syncManager.stop();
         await BoardRepository.createDefault(LOCAL_BOARD_ID);
         loadBoards();
-        navigate(`/canvas/${LOCAL_BOARD_ID}`, { replace: true });
+        navigate("/", { replace: true });
       })
       .catch((error: unknown) => {
         console.error("Failed to sign out", error);

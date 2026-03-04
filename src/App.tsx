@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Navigate, Route, Routes, useNavigate } from "react-router";
+import { Navigate, Route, Routes } from "react-router";
 import { LocalDataMigrationDialog } from "./components/auth/LocalDataMigrationDialog";
 import { CanvasRouteGuard } from "./components/auth/CanvasRouteGuard";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -8,7 +8,6 @@ import { LOCAL_BOARD_ID } from "./features/canvas/core/constants";
 import { DashboardPage } from "./pages/DashboardPage";
 import { HomePage } from "./pages/HomePage";
 import {
-  deferLocalBoardMigration,
   discardLocalBoard,
   migrateLocalBoardToRemote,
   prepareMigrationOnLogin,
@@ -24,7 +23,6 @@ function toErrorMessage(error: unknown): string {
 }
 
 function App() {
-  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const loading = useAuthStore((state) => state.loading);
   const loadBoards = useDashboardStore((state) => state.loadBoards);
@@ -79,11 +77,8 @@ function App() {
         // auto_retry: resume a previously interrupted migration
         setIsMigrationSubmitting(true);
         setMigrationError(null);
-        const boardId = await migrateLocalBoardToRemote();
-        if (boardId) {
-          loadBoards();
-          navigate(`/canvas/${boardId}`, { replace: true });
-        }
+        await migrateLocalBoardToRemote();
+        loadBoards();
       } catch (error) {
         setMigrationError(toErrorMessage(error));
         setIsMigrationDialogOpen(true);
@@ -94,7 +89,7 @@ function App() {
       handledUserIdRef.current = user.id;
       checkingMigrationRef.current = false;
     });
-  }, [loadBoards, loading, navigate, user]);
+  }, [loadBoards, loading, user]);
 
   /** 共用的遷移操作執行器：管理 submitting 狀態、錯誤處理與對話框關閉。 */
   const runMigrationAction = useCallback(
@@ -119,13 +114,10 @@ function App() {
 
   const handleMergeLocalData = useCallback(() => {
     void runMigrationAction(async () => {
-      const boardId = await migrateLocalBoardToRemote();
-      if (boardId) {
-        loadBoards();
-        navigate(`/canvas/${boardId}`, { replace: true });
-      }
+      await migrateLocalBoardToRemote();
+      loadBoards();
     });
-  }, [loadBoards, navigate, runMigrationAction]);
+  }, [loadBoards, runMigrationAction]);
 
   const handleDiscardLocalData = useCallback(() => {
     void runMigrationAction(async () => {
@@ -133,15 +125,6 @@ function App() {
       loadBoards();
     });
   }, [loadBoards, runMigrationAction]);
-
-  const handleDeferMigration = useCallback(() => {
-    if (isMigrationSubmitting) {
-      return;
-    }
-    deferLocalBoardMigration();
-    setMigrationError(null);
-    setIsMigrationDialogOpen(false);
-  }, [isMigrationSubmitting]);
 
   return (
     <>
@@ -169,7 +152,6 @@ function App() {
         errorMessage={migrationError}
         onMerge={handleMergeLocalData}
         onDiscard={handleDiscardLocalData}
-        onDefer={handleDeferMigration}
       />
       <SyncNoticeToast />
     </>

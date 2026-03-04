@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { InteractionState } from "../core/stateMachine";
@@ -8,6 +9,15 @@ vi.mock("../images/useImageUpload", () => ({
   useImageUpload: () => ({
     uploadImageFile: vi.fn(),
   }),
+}));
+
+vi.mock("@/components/auth/AuthModal", () => ({
+  AuthModal: () => null,
+}));
+
+vi.mock("@/stores/authStore", () => ({
+  useAuthStore: (selector: (s: { user: null }) => unknown) =>
+    selector({ user: null }),
 }));
 
 function resetStore() {
@@ -35,7 +45,11 @@ describe("Toolbar canvas mode toggle", () => {
   });
 
   it("aria-pressed 會反映目前 active mode", () => {
-    render(<Toolbar />);
+    render(
+      <MemoryRouter>
+        <Toolbar />
+      </MemoryRouter>,
+    );
 
     const selectButton = screen.getByRole("button", { name: "Select mode" });
     const connectButton = screen.getByRole("button", { name: "Connect mode" });

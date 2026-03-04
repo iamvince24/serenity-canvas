@@ -1,9 +1,7 @@
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -12,7 +10,6 @@ import {
  * 登入後發現 local-board 有未同步的資料時，顯示此對話框讓使用者選擇：
  * - 合併：建立新的雲端白板並上傳本地內容
  * - 捨棄：清除 local-board 資料
- * - 稍後決定：暫時跳過，下次登入再提示
  */
 type LocalDataMigrationDialogProps = {
   open: boolean;
@@ -20,7 +17,6 @@ type LocalDataMigrationDialogProps = {
   errorMessage: string | null;
   onMerge: () => void;
   onDiscard: () => void;
-  onDefer: () => void;
 };
 
 export function LocalDataMigrationDialog({
@@ -29,22 +25,20 @@ export function LocalDataMigrationDialog({
   errorMessage,
   onMerge,
   onDiscard,
-  onDefer,
 }: LocalDataMigrationDialogProps) {
   return (
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
-        // 提交中禁止關閉；按 Esc 或點擊外部視為「稍後決定」
+        // 提交中或嘗試開啟時，禁止關閉。使用者必須選擇合併或捨棄。
         if (isSubmitting || nextOpen) {
           return;
         }
-        onDefer();
       }}
     >
       <DialogContent
         className="border-border bg-elevated sm:max-w-md"
-        showCloseButton={!isSubmitting}
+        showCloseButton={false}
       >
         <DialogHeader>
           <DialogTitle>發現本地白板資料</DialogTitle>
@@ -88,17 +82,6 @@ export function LocalDataMigrationDialog({
             {errorMessage}
           </p>
         ) : null}
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onDefer}
-            disabled={isSubmitting}
-          >
-            稍後決定
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

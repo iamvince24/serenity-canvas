@@ -1,30 +1,11 @@
 import { useState } from "react";
-import type { User } from "@supabase/supabase-js";
 import { Link } from "react-router";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { SyncIndicator } from "@/components/layout/SyncIndicator";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/hooks/useSignOut";
+import { getAvatarUrl, getDisplayName } from "@/lib/userMetadata";
 import { useAuthStore } from "@/stores/authStore";
-
-function readUserMetadata(user: User, key: string): string | null {
-  const value = user.user_metadata?.[key];
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmedValue = value.trim();
-  return trimmedValue.length > 0 ? trimmedValue : null;
-}
-
-function getDisplayName(user: User): string {
-  return (
-    readUserMetadata(user, "full_name") ??
-    readUserMetadata(user, "name") ??
-    user.email ??
-    "Serenity User"
-  );
-}
 
 export function Header() {
   const user = useAuthStore((state) => state.user);
@@ -32,10 +13,7 @@ export function Header() {
   const { isSigningOut, handleSignOut } = useSignOut();
 
   const displayName = user ? getDisplayName(user) : null;
-  const avatarUrl = user
-    ? (readUserMetadata(user, "avatar_url") ??
-      readUserMetadata(user, "picture"))
-    : null;
+  const avatarUrl = user ? getAvatarUrl(user) : null;
   const avatarInitial = displayName ? displayName[0]?.toUpperCase() : "S";
 
   return (

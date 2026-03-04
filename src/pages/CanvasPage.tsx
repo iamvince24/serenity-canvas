@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "react-router";
+import { LOCAL_BOARD_ID } from "../features/canvas/core/constants";
 import { Canvas } from "../features/canvas/Canvas";
 import { FpsOverlay } from "../features/canvas/FpsOverlay";
 import { Toolbar } from "../features/canvas/Toolbar";
@@ -90,6 +93,16 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
       ) : (
         <>
           <Canvas />
+          {boardId === LOCAL_BOARD_ID && (
+            <Link
+              to="/"
+              className="pointer-events-auto fixed left-4 top-4 z-40 flex h-9 items-center gap-1.5 rounded-lg border border-border bg-elevated/95 px-3 text-sm font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-surface hover:text-sage-dark md:top-6"
+              aria-label="返回首頁"
+            >
+              <ArrowLeft size={16} />
+              <span className="hidden sm:inline">首頁</span>
+            </Link>
+          )}
           <Toolbar
             showFpsOverlay={showFpsOverlay}
             onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
