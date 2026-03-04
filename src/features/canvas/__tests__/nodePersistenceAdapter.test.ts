@@ -104,6 +104,7 @@ describe("files serialization", () => {
     const files: Record<string, FileRecord> = {
       "asset-1": {
         id: "asset-1",
+        asset_id: "sha1-test-hash",
         mime_type: "image/webp",
         original_width: 1920,
         original_height: 1080,
@@ -194,12 +195,15 @@ describe("migrateLegacyNode", () => {
     expect("byte_size" in migrated.node).toBe(false);
 
     expect(migrated.extractedFile).toMatchObject({
-      id: "asset-legacy",
+      asset_id: "asset-legacy",
       mime_type: "image/png",
       original_width: 800,
       original_height: 600,
       byte_size: 1024,
     });
+    expect(migrated.extractedFile?.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
     expect(migrated.extractedFile?.created_at).toEqual(expect.any(Number));
   });
 

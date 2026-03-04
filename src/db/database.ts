@@ -82,6 +82,27 @@ class SerenityDB extends Dexie {
       files: "id, boardId",
       dirtyChanges: "pk, boardId",
     });
+
+    // v3：FileRecord.id 從 SHA-1 改為 UUID，新增 asset_id 索引。
+    this.version(3)
+      .stores({
+        boards: "id",
+        nodes: "id, boardId",
+        edges: "id, boardId",
+        groups: "id, boardId",
+        files: "id, boardId, asset_id",
+        dirtyChanges: "pk, boardId",
+      })
+      .upgrade(async (tx) => {
+        const files = tx.table<FileRow, string>("files");
+        await files.toCollection().modify((file) => {
+          // Existing records used SHA-1 as id; move it to asset_id and assign a new UUID.
+          if (!file.asset_id) {
+            file.asset_id = file.id;
+            file.id = crypto.randomUUID();
+          }
+        });
+      });
   }
 }
 

@@ -219,11 +219,14 @@ function toDbFile(boardId: string, file: FileRecord): Record<string, unknown> {
   return {
     id: file.id,
     board_id: boardId,
-    asset_id: file.id,
-    file_name: file.id,
+    asset_id: file.asset_id,
+    file_name: file.asset_id,
     mime_type: file.mime_type,
+    original_width: file.original_width,
+    original_height: file.original_height,
     size_bytes: file.byte_size,
-    image_path: null,
+    image_path: file.image_path ?? null, // Supabase Storage 路徑，由 imageSyncService 上傳後回寫
+    created_at: toIsoTimestamp(file.created_at ?? Date.now()),
     updated_at: toIsoTimestamp(file.updatedAt ?? Date.now()),
   };
 }
@@ -231,10 +234,12 @@ function toDbFile(boardId: string, file: FileRecord): Record<string, unknown> {
 function fromDbFile(row: Record<string, unknown>): FileRecord {
   return {
     id: String(row.id),
+    asset_id: String(row.asset_id ?? row.id),
     mime_type: String(row.mime_type ?? "application/octet-stream"),
     original_width: Number(row.original_width ?? 1),
     original_height: Number(row.original_height ?? 1),
     byte_size: Number(row.byte_size ?? row.size_bytes ?? 0),
+    image_path: typeof row.image_path === "string" ? row.image_path : null,
     created_at: normalizeTimestamp(row.created_at),
     updatedAt: normalizeTimestamp(row.updated_at ?? row.created_at),
   };

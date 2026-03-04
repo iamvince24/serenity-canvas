@@ -152,6 +152,7 @@ function makeEdge(id: string, updatedAt: number): Edge {
 function makeFile(id: string, updatedAt: number): FileRecord {
   return {
     id,
+    asset_id: "sha1-test-hash",
     mime_type: "image/png",
     original_width: 100,
     original_height: 100,

@@ -68,6 +68,7 @@ describe("createImageNodeCenteredAt", () => {
     overrides: Partial<FileRecord> = {},
   ): FileRecord => ({
     id: "test-asset-id",
+    asset_id: "sha1-test-hash",
     mime_type: "image/png",
     original_width: 800,
     original_height: 600,

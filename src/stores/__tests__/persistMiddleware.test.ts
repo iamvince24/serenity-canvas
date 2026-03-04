@@ -122,6 +122,7 @@ function createGroup(id: string, nodeIds: string[]): Group {
 function createFile(id: string): FileRecord {
   return {
     id,
+    asset_id: "sha1-test-hash",
     mime_type: "image/png",
     original_width: 100,
     original_height: 100,

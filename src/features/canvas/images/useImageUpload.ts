@@ -77,7 +77,8 @@ export async function uploadImageFile(
   const mimeType = compressedOutput.mimeType || sourceMimeType;
   const createdAt = Date.now();
   const fileRecord: FileRecord = {
-    id: assetId,
+    id: crypto.randomUUID(),
+    asset_id: assetId,
     mime_type: mimeType,
     original_width: compressedOutput.originalWidth,
     original_height: compressedOutput.originalHeight,

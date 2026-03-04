@@ -243,6 +243,7 @@ describe("canvasStore initFromDB", () => {
       files: {
         "file-legacy": {
           id: "file-legacy",
+          asset_id: "sha1-test-hash",
           mime_type: "image/png",
           original_width: 300,
           original_height: 200,

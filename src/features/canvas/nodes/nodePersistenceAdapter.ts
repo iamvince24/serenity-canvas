@@ -95,14 +95,18 @@ export function fromPersistenceFiles(
   files: Record<string, PersistenceFileRecord>,
 ): Record<string, FileRecord> {
   return Object.fromEntries(
-    Object.entries(files).map(([id, file]) => [
-      id,
-      {
+    Object.entries(files).map(([id, file]) => {
+      // Defensive: old persisted data may not have asset_id (id was SHA-1).
+      const hasAssetId =
+        typeof file.asset_id === "string" && file.asset_id.length > 0;
+      const record: FileRecord = {
         ...file,
+        asset_id: hasAssetId ? file.asset_id : file.id,
         updatedAt:
           typeof file.updatedAt === "number" ? file.updatedAt : file.created_at,
-      },
-    ]),
+      };
+      return [id, record];
+    }),
   );
 }
 
@@ -139,7 +143,8 @@ export function migrateLegacyNode(
             typeof rest.updatedAt === "number" ? rest.updatedAt : Date.now(),
         },
         extractedFile: {
-          id: rest.asset_id,
+          id: crypto.randomUUID(),
+          asset_id: rest.asset_id,
           mime_type,
           original_width,
           original_height,

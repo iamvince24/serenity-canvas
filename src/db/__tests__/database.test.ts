@@ -15,11 +15,11 @@ describe("database", () => {
     await resetDatabase();
   });
 
-  it("opens IndexedDB with version 2 schema", async () => {
+  it("opens IndexedDB with version 3 schema", async () => {
     await serenityDB.open();
 
     expect(serenityDB.isOpen()).toBe(true);
-    expect(serenityDB.verno).toBe(2);
+    expect(serenityDB.verno).toBe(3);
     expect(serenityDB.tables.map((table) => table.name).sort()).toEqual([
       "boards",
       "dirtyChanges",

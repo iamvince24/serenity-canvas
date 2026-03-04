@@ -1,6 +1,7 @@
 import {
   fromPersistenceNode,
   toPersistenceNode,
+  type PersistenceImageNode,
 } from "../features/canvas/nodes/nodePersistenceAdapter";
 import type {
   CanvasNode,
@@ -20,6 +21,12 @@ import {
 } from "./database";
 
 export type { BoardRow } from "./database";
+/** 圖片同步所需的精簡資訊：節點 ID、檔案 asset ID、以及 Storage 路徑。 */
+export type ImageNodeSyncRecord = {
+  nodeId: string;
+  assetId: string;
+  imagePath: string | null;
+};
 
 export type PersistenceEdge = {
   id: string;
@@ -129,6 +136,10 @@ export const BoardRepository = {
 };
 
 export const NodeRepository = {
+  async countForBoard(boardId: string): Promise<number> {
+    return serenityDB.nodes.where("boardId").equals(boardId).count();
+  },
+
   async getAllForBoard(boardId: string): Promise<CanvasNode[]> {
     const rows = await serenityDB.nodes
       .where("boardId")
@@ -140,6 +151,53 @@ export const NodeRepository = {
       void storedBoardId;
       return fromPersistenceNode(persistedNode);
     });
+  },
+
+  /**
+   * 取得指定白板中所有圖片節點的同步資訊。
+   * 先查出所有 image 類型的 node，再批次查詢對應的 file row 以取得 image_path。
+   */
+  async getImageNodesForBoard(boardId: string): Promise<ImageNodeSyncRecord[]> {
+    const rows = await serenityDB.nodes
+      .where("boardId")
+      .equals(boardId)
+      .toArray();
+    const imageRows = rows.filter(
+      (row): row is NodeRow & PersistenceImageNode => row.type === "image",
+    );
+
+    const assetIds = imageRows
+      .map((row) => String(row.asset_id ?? ""))
+      .filter((assetId) => assetId.length > 0);
+    // Query by asset_id index instead of primary key (id is now UUID).
+    const fileRows =
+      assetIds.length > 0
+        ? await serenityDB.files.where("asset_id").anyOf(assetIds).toArray()
+        : ([] as FileRow[]);
+    const imagePathByAssetId = new Map<string, string | null>();
+    for (const file of fileRows) {
+      const current = imagePathByAssetId.get(file.asset_id);
+      const next = file.image_path ?? null;
+      // 若同 asset_id 有多筆檔案紀錄，優先採用非空 image_path。
+      if (current === undefined || (current === null && next !== null)) {
+        imagePathByAssetId.set(file.asset_id, next);
+      }
+    }
+
+    return imageRows
+      .map((row) => {
+        const assetId = String(row.asset_id ?? "");
+        if (!assetId) {
+          return null;
+        }
+
+        return {
+          nodeId: row.id,
+          assetId,
+          imagePath: imagePathByAssetId.get(assetId) ?? null,
+        };
+      })
+      .filter((record): record is ImageNodeSyncRecord => Boolean(record));
   },
 
   async getByBoardId(boardId: string): Promise<Record<string, CanvasNode>> {
@@ -232,6 +290,10 @@ export const NodeRepository = {
 };
 
 export const EdgeRepository = {
+  async countForBoard(boardId: string): Promise<number> {
+    return serenityDB.edges.where("boardId").equals(boardId).count();
+  },
+
   async getAllForBoard(boardId: string): Promise<Edge[]> {
     const rows = await serenityDB.edges
       .where("boardId")
@@ -320,6 +382,10 @@ export const EdgeRepository = {
 };
 
 export const GroupRepository = {
+  async countForBoard(boardId: string): Promise<number> {
+    return serenityDB.groups.where("boardId").equals(boardId).count();
+  },
+
   async getAllForBoard(boardId: string): Promise<Group[]> {
     const rows = await serenityDB.groups
       .where("boardId")
@@ -411,6 +477,10 @@ export const GroupRepository = {
 };
 
 export const FileRepository = {
+  async countForBoard(boardId: string): Promise<number> {
+    return serenityDB.files.where("boardId").equals(boardId).count();
+  },
+
   async getAllForBoard(boardId: string): Promise<FileRecord[]> {
     const rows = await serenityDB.files
       .where("boardId")
@@ -444,6 +514,62 @@ export const FileRepository = {
       void storedBoardId;
       return file;
     });
+  },
+
+  async getByAssetId(
+    boardId: string,
+    assetId: string,
+  ): Promise<FileRecord | undefined> {
+    const row = await serenityDB.files
+      .where("asset_id")
+      .equals(assetId)
+      .and((file) => file.boardId === boardId)
+      .first();
+    if (!row) {
+      return undefined;
+    }
+    const { boardId: storedBoardId, ...file } = row;
+    void storedBoardId;
+    return file;
+  },
+
+  /** 更新圖片的 Storage 路徑（上傳完成後回寫）。id 參數為 file UUID。 */
+  async updateImagePath(id: string, imagePath: string | null): Promise<void> {
+    try {
+      await serenityDB.files.update(id, {
+        image_path: imagePath,
+        updatedAt: Date.now(),
+      });
+    } catch (error) {
+      console.error("Failed to update image path in IndexedDB", error);
+    }
+  },
+
+  /**
+   * 依 asset_id 批次更新同白板下所有對應 file rows 的 image_path。
+   * 用於避免重複 asset_id 時只更新單筆導致讀到舊/null path。
+   */
+  async updateImagePathByAssetId(
+    boardId: string,
+    assetId: string,
+    imagePath: string | null,
+  ): Promise<void> {
+    try {
+      const updatedAt = Date.now();
+      await serenityDB.files
+        .where("asset_id")
+        .equals(assetId)
+        .and((file) => file.boardId === boardId)
+        .modify((file) => {
+          file.image_path = imagePath;
+          file.updatedAt = updatedAt;
+        });
+    } catch (error) {
+      console.error(
+        "Failed to update image path by asset id in IndexedDB",
+        error,
+      );
+    }
   },
 
   async bulkPut(boardId: string, files: FileRecord[]): Promise<void> {

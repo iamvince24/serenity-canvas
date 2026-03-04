@@ -37,9 +37,10 @@ function createImageNode(id: string, assetId: string): ImageNode {
   };
 }
 
-function createFileRecord(id: string): FileRecord {
+function createFileRecord(id: string, assetId?: string): FileRecord {
   return {
     id,
+    asset_id: assetId ?? id,
     mime_type: "image/webp",
     original_width: 800,
     original_height: 600,

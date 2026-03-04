@@ -29,7 +29,7 @@ async function insertImageFromFile(editor: Editor, file: File): Promise<void> {
     {
       type: "imageBlock",
       attrs: {
-        assetId: fileRecord.id,
+        assetId: fileRecord.asset_id,
         alt: file.name,
       },
     },
@@ -42,7 +42,7 @@ async function insertImageFromFile(editor: Editor, file: File): Promise<void> {
       {
         type: "imageBlock",
         attrs: {
-          assetId: fileRecord.id,
+          assetId: fileRecord.asset_id,
           alt: file.name,
         },
       },

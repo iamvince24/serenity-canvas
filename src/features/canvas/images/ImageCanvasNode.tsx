@@ -4,6 +4,7 @@ import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import { toNodeGeometrySnapshot } from "../../../commands/nodeCommands";
 import { getCardColorStyle } from "../../../constants/colors";
 import { useCanvasStore } from "../../../stores/canvasStore";
+import { getFileByAssetId } from "../../../stores/slices/fileSlice";
 import type { ImageNode } from "../../../types/canvas";
 import {
   IMAGE_NODE_CAPTION_HEIGHT,
@@ -316,7 +317,9 @@ function ImageCanvasNodeComponent({
   zoom,
   onOpenContextMenu,
 }: ImageCanvasNodeProps) {
-  const file = useCanvasStore((state) => state.files[node.asset_id]);
+  const file = useCanvasStore((state) =>
+    getFileByAssetId(state.files, node.asset_id),
+  );
   const selectNode = useCanvasStore((state) => state.selectNode);
   const toggleNodeSelection = useCanvasStore(
     (state) => state.toggleNodeSelection,
@@ -353,12 +356,12 @@ function ImageCanvasNodeComponent({
   useEffect(() => {
     let disposed = false;
     let acquired = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const load = async () => {
+    const load = async (attempt: number) => {
       try {
         const entry = await acquireImage(node.asset_id);
         if (disposed) {
-          // Load completed after unmount; immediately release to avoid leaks.
           releaseImage(node.asset_id);
           return;
         }
@@ -368,20 +371,29 @@ function ImageCanvasNodeComponent({
       } catch {
         if (!disposed) {
           setCacheEntry(null);
+          // Retry with exponential backoff: 2s, 4s, 8s, capped at 15s
+          const MAX_RETRY_DELAY = 15_000;
+          const delay = Math.min(2_000 * Math.pow(2, attempt), MAX_RETRY_DELAY);
+          retryTimer = setTimeout(() => {
+            if (!disposed) {
+              void load(attempt + 1);
+            }
+          }, delay);
         }
       }
     };
 
-    void load();
+    void load(0);
 
     return () => {
       disposed = true;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+      }
       if (!acquired) {
         return;
       }
 
-      // deleteNode/deleteSelectedNodes release cache references in store actions.
-      // Skip duplicate release if this node has already been removed from store.
       const latestState = useCanvasStore.getState();
       if (latestState.nodes[node.id]) {
         releaseImage(node.asset_id);

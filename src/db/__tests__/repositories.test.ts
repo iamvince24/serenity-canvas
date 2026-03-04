@@ -31,6 +31,22 @@ function createTextNode(id: string, contentMarkdown = "hello"): CanvasNode {
   };
 }
 
+function createImageNode(id: string, assetId: string): CanvasNode {
+  return {
+    id,
+    type: "image",
+    x: 10,
+    y: 20,
+    width: 320,
+    height: 220,
+    heightMode: "fixed",
+    color: null,
+    content: "",
+    asset_id: assetId,
+    updatedAt: 1,
+  };
+}
+
 function createEdge(id: string, fromNode: string, toNode: string): Edge {
   return {
     id,
@@ -53,15 +69,25 @@ function createGroup(id: string, nodeIds: string[]): Group {
   };
 }
 
-function createFile(id: string): FileRecord {
-  return {
+function createFile(
+  id: string,
+  overrides: Partial<FileRecord> = {},
+): FileRecord {
+  const base: FileRecord = {
     id,
+    asset_id: "sha1-test-hash",
     mime_type: "image/png",
     original_width: 1200,
     original_height: 800,
     byte_size: 2048,
     created_at: 111,
     updatedAt: 111,
+  };
+
+  return {
+    ...base,
+    ...overrides,
+    id,
   };
 }
 
@@ -325,5 +351,49 @@ describe("repositories", () => {
       FileRepository.bulkPut("board-a", []),
     ).resolves.toBeUndefined();
     await expect(FileRepository.bulkDelete([])).resolves.toBeUndefined();
+  });
+
+  it("NodeRepository.getImageNodesForBoard prefers non-null image_path", async () => {
+    const boardId = "board-a";
+    const assetId = "asset-1";
+    await NodeRepository.bulkPut(boardId, [
+      createImageNode("image-node-1", assetId),
+    ]);
+    await FileRepository.bulkPut(boardId, [
+      createFile("file-1", { asset_id: assetId, image_path: null }),
+      createFile("file-2", { asset_id: assetId, image_path: "user/asset-1" }),
+    ]);
+
+    await expect(
+      NodeRepository.getImageNodesForBoard(boardId),
+    ).resolves.toEqual([
+      {
+        nodeId: "image-node-1",
+        assetId,
+        imagePath: "user/asset-1",
+      },
+    ]);
+  });
+
+  it("FileRepository.updateImagePathByAssetId updates all matching rows", async () => {
+    const boardId = "board-a";
+    const targetAssetId = "asset-1";
+    await FileRepository.bulkPut(boardId, [
+      createFile("file-a", { asset_id: targetAssetId, image_path: null }),
+      createFile("file-b", { asset_id: targetAssetId, image_path: null }),
+      createFile("file-c", { asset_id: "asset-2", image_path: null }),
+    ]);
+
+    await FileRepository.updateImagePathByAssetId(
+      boardId,
+      targetAssetId,
+      "user/asset-1",
+    );
+
+    const files = await FileRepository.getAllForBoard(boardId);
+    const byId = new Map(files.map((file) => [file.id, file]));
+    expect(byId.get("file-a")?.image_path).toBe("user/asset-1");
+    expect(byId.get("file-b")?.image_path).toBe("user/asset-1");
+    expect(byId.get("file-c")?.image_path).toBeNull();
   });
 });

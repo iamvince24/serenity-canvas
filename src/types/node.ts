@@ -30,10 +30,14 @@ export type ImageNode = BaseNode & {
 
 export type FileRecord = {
   id: string;
+  /** SHA-1 content hash — used for content deduplication and blob storage lookup. */
+  asset_id: string;
   mime_type: string;
   original_width: number;
   original_height: number;
   byte_size: number;
+  // Supabase Storage path, e.g. "{userId}/{assetId}".
+  image_path?: string | null;
   created_at: number;
   // Last-write-wins timestamp (unix ms).
   updatedAt?: number;

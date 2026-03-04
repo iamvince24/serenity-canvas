@@ -171,7 +171,7 @@ async function insertImageAtPos(
   const imageBlock = {
     type: "imageBlock",
     attrs: {
-      assetId: fileRecord.id,
+      assetId: fileRecord.asset_id,
       alt: file.name,
     },
   };

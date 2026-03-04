@@ -39,6 +39,7 @@ function createGroup(id: string, nodeIds: string[]): Group {
 function createFileRecord(): FileRecord {
   return {
     id: "file-1",
+    asset_id: "sha1-test-hash",
     mime_type: "image/webp",
     original_width: 100,
     original_height: 100,

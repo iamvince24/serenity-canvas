@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Board } from "../../../types/board";
 import { Sidebar, type SidebarProps } from "../Sidebar";
@@ -36,7 +37,11 @@ function renderSidebar(overrides: Partial<SidebarProps> = {}) {
     ...overrides,
   };
 
-  render(<Sidebar {...props} />);
+  render(
+    <MemoryRouter>
+      <Sidebar {...props} />
+    </MemoryRouter>,
+  );
 
   return {
     setIsOpen,
@@ -55,16 +60,18 @@ describe("Sidebar", () => {
 
   it("isOpen 會切換 aside 寬度 class", () => {
     const { rerender } = render(
-      <Sidebar
-        isOpen
-        setIsOpen={vi.fn()}
-        boards={boards}
-        activeBoardId="board-1"
-        onSelectBoard={vi.fn()}
-        onCreateBoard={vi.fn()}
-        onRenameBoard={vi.fn()}
-        onDeleteBoard={vi.fn()}
-      />,
+      <MemoryRouter>
+        <Sidebar
+          isOpen
+          setIsOpen={vi.fn()}
+          boards={boards}
+          activeBoardId="board-1"
+          onSelectBoard={vi.fn()}
+          onCreateBoard={vi.fn()}
+          onRenameBoard={vi.fn()}
+          onDeleteBoard={vi.fn()}
+        />
+      </MemoryRouter>,
     );
 
     let aside = screen.getByLabelText("Collapse sidebar").closest("aside");
@@ -74,16 +81,18 @@ describe("Sidebar", () => {
     expect(aside.className.includes("w-64")).toBe(true);
 
     rerender(
-      <Sidebar
-        isOpen={false}
-        setIsOpen={vi.fn()}
-        boards={boards}
-        activeBoardId="board-1"
-        onSelectBoard={vi.fn()}
-        onCreateBoard={vi.fn()}
-        onRenameBoard={vi.fn()}
-        onDeleteBoard={vi.fn()}
-      />,
+      <MemoryRouter>
+        <Sidebar
+          isOpen={false}
+          setIsOpen={vi.fn()}
+          boards={boards}
+          activeBoardId="board-1"
+          onSelectBoard={vi.fn()}
+          onCreateBoard={vi.fn()}
+          onRenameBoard={vi.fn()}
+          onDeleteBoard={vi.fn()}
+        />
+      </MemoryRouter>,
     );
 
     aside = screen.getByLabelText("Collapse sidebar").closest("aside");

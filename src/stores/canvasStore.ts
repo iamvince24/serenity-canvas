@@ -43,7 +43,12 @@ import {
 } from "../features/canvas/nodes/layerOrder";
 import { migrateLegacyNode } from "../features/canvas/nodes/nodePersistenceAdapter";
 import { InteractionState } from "../features/canvas/core/stateMachine";
-import { type CanvasNode, type Edge, type Group } from "../types/canvas";
+import {
+  type CanvasNode,
+  type Edge,
+  type FileRecord,
+  type Group,
+} from "../types/canvas";
 import { loadBoardSnapshot, removeBoardSnapshot } from "./boardSnapshotStorage";
 import { useDashboardStore } from "./dashboardStore";
 import { setSyncGuard, setupPersistMiddleware } from "./persistMiddleware";
@@ -72,7 +77,7 @@ import {
 } from "./groupHelpers";
 import type { BoardCanvasSnapshot, CanvasStore } from "./storeTypes";
 import { createViewportSlice } from "./slices/viewportSlice";
-import { createFileSlice } from "./slices/fileSlice";
+import { createFileSlice, getFileByAssetId } from "./slices/fileSlice";
 import { createInteractionSlice } from "./slices/interactionSlice";
 import { resolveDeleteTarget } from "./slices/selectionPolicy";
 import { createSelectionSlice } from "./slices/selectionSlice";
@@ -482,14 +487,28 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           if (legacySnapshot) {
             // 一次性 migration：localStorage snapshot -> IndexedDB。
             const migratedNodes: Record<string, CanvasNode> = {};
-            const migratedFiles = { ...legacySnapshot.files };
+            // Ensure legacy files have asset_id (old format used id as SHA-1).
+            const migratedFiles: Record<string, FileRecord> = {};
+            for (const [key, file] of Object.entries(legacySnapshot.files)) {
+              const hasAssetId =
+                typeof file.asset_id === "string" && file.asset_id.length > 0;
+              if (hasAssetId) {
+                migratedFiles[file.id] = file;
+              } else {
+                const newId = crypto.randomUUID();
+                migratedFiles[newId] = { ...file, id: newId, asset_id: key };
+              }
+            }
             for (const node of Object.values(legacySnapshot.nodes)) {
               const migratedNode = migrateLegacyNode(node);
               migratedNodes[migratedNode.node.id] = migratedNode.node;
 
               if (
                 migratedNode.extractedFile &&
-                !migratedFiles[migratedNode.extractedFile.id]
+                !getFileByAssetId(
+                  migratedFiles,
+                  migratedNode.extractedFile.asset_id,
+                )
               ) {
                 migratedFiles[migratedNode.extractedFile.id] =
                   migratedNode.extractedFile;
@@ -852,7 +871,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
 
       const nextNodeOrder = removeNodeFromOrder(state.nodeOrder, id);
       const file =
-        node.type === "image" ? state.files[node.asset_id] : undefined;
+        node.type === "image"
+          ? getFileByAssetId(state.files, node.asset_id)
+          : undefined;
       const affectedGroupSnapshots = getNodeAffectedGroupSnapshots(
         state.groups,
         node.id,
@@ -910,7 +931,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         const previousNodeOrder = [...simulatedOrder];
         const nextNodeOrder = removeNodeFromOrder(previousNodeOrder, nodeId);
         const file =
-          node.type === "image" ? state.files[node.asset_id] : undefined;
+          node.type === "image"
+            ? getFileByAssetId(state.files, node.asset_id)
+            : undefined;
         const affectedGroupSnapshots = getNodeAffectedGroupSnapshots(
           simulatedGroups,
           nodeId,
