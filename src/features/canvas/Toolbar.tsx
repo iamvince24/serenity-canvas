@@ -1,4 +1,5 @@
 import {
+  Download,
   Gauge,
   ImagePlus,
   LogIn,
@@ -18,6 +19,7 @@ import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import { createImageNodeCenteredAt } from "./nodes/nodeFactory";
 import { useImageUpload } from "./images/useImageUpload";
+import { ExportDialog } from "./export/ExportDialog";
 import { StressFixtureDialog } from "./StressFixtureDialog";
 
 /** 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復。改為 true 即可顯示。 */
@@ -34,6 +36,7 @@ export function Toolbar({
 }: ToolbarProps) {
   const user = useAuthStore((state) => state.user);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   const viewport = useCanvasStore((state) => state.viewport);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
@@ -157,6 +160,17 @@ export function Toolbar({
         >
           <Redo2 size={16} />
         </button>
+        <div className="h-5 w-px bg-border" aria-hidden="true" />
+        <button
+          type="button"
+          className="btn-secondary h-9 gap-2 px-3 text-sm"
+          aria-label="Export to Obsidian"
+          title="匯出 Obsidian 格式"
+          onClick={() => setIsExportDialogOpen(true)}
+        >
+          <Download size={16} />
+          <span className="hidden sm:inline">匯出</span>
+        </button>
         {/* 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復 */}
         {SHOW_IMAGE_UPLOAD_BUTTON && (
           <button
@@ -260,6 +274,10 @@ export function Toolbar({
       </div>
 
       <AuthModal open={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />
+      <ExportDialog
+        open={isExportDialogOpen}
+        onOpenChange={setIsExportDialogOpen}
+      />
 
       {SHOW_IMAGE_UPLOAD_BUTTON && (
         <input
