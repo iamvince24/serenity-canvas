@@ -125,7 +125,7 @@ function GroupRectComponent({
         x={bounds.x + 16}
         y={bounds.y + 14}
         width={Math.max(0, bounds.width - 32)}
-        text={group.label || "Untitled Group"}
+        text={group.label || "未命名群組"}
         fontSize={13}
         fontStyle={isSelected ? "bold" : "normal"}
         fill={strokeColor}

@@ -34,15 +34,15 @@ export function ColorPicker({
       className={cn("card-color-picker", className)}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <div className="card-color-picker__title">Card Color</div>
+      <div className="card-color-picker__title">卡片顏色</div>
       <div className="card-color-picker__grid">
         <button
           type="button"
           className={cn("card-color-picker__option", {
             "card-color-picker__option--active": color === null,
           })}
-          aria-label="Set card color to none"
-          title="None"
+          aria-label="設定卡片顏色為無"
+          title="無"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => handleSelectColor(null)}
         >
@@ -58,7 +58,7 @@ export function ColorPicker({
               className={cn("card-color-picker__option", {
                 "card-color-picker__option--active": isActive,
               })}
-              aria-label={`Set card color to ${preset.label}`}
+              aria-label={`設定卡片顏色為 ${preset.label}`}
               title={preset.label}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => handleSelectColor(preset.id)}

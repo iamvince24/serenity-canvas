@@ -672,7 +672,7 @@ function ImageCanvasNodeComponent({
             x={12}
             y={Math.max(8, imageHeight / 2 - 8)}
             width={Math.max(0, node.width - 24)}
-            text="Loading image..."
+            text="載入圖片中…"
             fontSize={14}
             fill={IMAGE_PLACEHOLDER_TEXT}
             align="center"

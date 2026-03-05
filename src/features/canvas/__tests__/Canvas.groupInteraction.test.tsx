@@ -191,7 +191,7 @@ describe("Canvas group interactions", () => {
       clientY: 180,
     });
 
-    expect(screen.getByRole("button", { name: "Rename Group" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Create Group" })).toBeNull();
+    expect(screen.getByRole("button", { name: "重新命名群組" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "建立群組" })).toBeNull();
   });
 });

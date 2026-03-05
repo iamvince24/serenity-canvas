@@ -48,10 +48,10 @@ export async function exportToObsidianZip(
       if (blob) {
         assetBlobs.set(assetId, blob);
       } else {
-        logLines.push(`Asset ${assetId}: not found in IndexedDB, skipped`);
+        logLines.push(`資產 ${assetId}：IndexedDB 中找不到，已略過`);
       }
     } catch {
-      logLines.push(`Asset ${assetId}: failed to read from IndexedDB, skipped`);
+      logLines.push(`資產 ${assetId}：從 IndexedDB 讀取失敗，已略過`);
     }
 
     const percent = 5 + Math.round(((i + 1) / assetIds.length) * 55);

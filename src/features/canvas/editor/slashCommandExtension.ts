@@ -16,9 +16,7 @@ type SlashEscapeHandledEvent = KeyboardEvent & {
 };
 
 function toUploadErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Image upload failed. Please try again.";
+  return error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
 }
 
 async function insertImageFromFile(editor: Editor, file: File): Promise<void> {
@@ -49,7 +47,7 @@ async function insertImageFromFile(editor: Editor, file: File): Promise<void> {
       { updateSelection: true },
     );
     if (!insertedAtEnd) {
-      throw new Error("Failed to insert image into this text card.");
+      throw new Error("無法將圖片插入此文字卡片。");
     }
   }
 

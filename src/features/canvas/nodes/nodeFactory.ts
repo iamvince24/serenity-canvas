@@ -88,7 +88,7 @@ export function createImageNodeCenteredAt(
     height: initialHeight,
     heightMode: "fixed",
     color: DEFAULT_NODE_COLOR,
-    content: "Add a caption...",
+    content: "新增說明文字…",
     asset_id: payload.asset_id,
     updatedAt: Date.now(),
   };

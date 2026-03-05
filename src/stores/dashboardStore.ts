@@ -14,7 +14,7 @@ export const BOARDS_STORAGE_KEY = "serenity-canvas:boards";
 // 保存目前 focus 的白板，刷新後可回到同一個 board。
 export const ACTIVE_BOARD_STORAGE_KEY = "serenity-canvas:active-board-id";
 export const DEFAULT_BOARD_ID = "local-board";
-export const DEFAULT_BOARD_TITLE = "My First Board";
+export const DEFAULT_BOARD_TITLE = "我的第一塊白板";
 
 type DashboardStore = {
   boards: Board[];
@@ -205,7 +205,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
             try {
               await syncService.pullWithConflictDetection(board.id);
             } catch (error) {
-              console.error("Failed to prefetch remote board", {
+              console.error("預載遠端白板失敗", {
                 boardId: board.id,
                 error,
               });
@@ -230,7 +230,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
           });
         })();
       } catch (error) {
-        console.error("Failed to load remote boards, fallback to local", error);
+        console.error("載入遠端白板失敗，退回本地資料", error);
         const boards = loadBoardsFromStorage(Date.now());
         set((state) => ({
           boards,
@@ -273,7 +273,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   },
   createBoard: (title) => {
     const now = Date.now();
-    const nextTitle = title.trim() || "Untitled Board";
+    const nextTitle = title.trim() || "未命名白板";
     const nextBoard: Board = {
       id: createBoardId(),
       title: nextTitle,
@@ -294,7 +294,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     const user = useAuthStore.getState().user;
     if (user) {
       void syncService.pushBoard(nextBoard, []).catch((error) => {
-        console.error("Failed to create board on remote", error);
+        console.error("遠端建立白板失敗", error);
       });
     }
 
@@ -334,7 +334,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     const user = useAuthStore.getState().user;
     if (user) {
       void syncService.renameBoardRemote(id, title).catch((error) => {
-        console.error("Failed to rename board on remote", error);
+        console.error("遠端重新命名白板失敗", error);
       });
     }
   },
@@ -370,7 +370,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     const user = useAuthStore.getState().user;
     if (user) {
       void syncService.deleteBoard(id).catch((error) => {
-        console.error("Failed to delete board on remote", error);
+        console.error("遠端刪除白板失敗", error);
       });
     }
 
@@ -382,7 +382,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       FileRepository.deleteAllForBoard(id),
       BoardRepository.delete(id),
     ]).catch((error) =>
-      console.error("Failed to clean IDB for deleted board", error),
+      console.error("清理已刪除白板的 IndexedDB 資料失敗", error),
     );
   },
 }));

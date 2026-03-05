@@ -51,8 +51,8 @@ describe("Toolbar canvas mode toggle", () => {
       </MemoryRouter>,
     );
 
-    const selectButton = screen.getByRole("button", { name: "Select mode" });
-    const connectButton = screen.getByRole("button", { name: "Connect mode" });
+    const selectButton = screen.getByRole("button", { name: "選取模式" });
+    const connectButton = screen.getByRole("button", { name: "連線模式" });
 
     expect(selectButton.getAttribute("aria-pressed")).toBe("true");
     expect(connectButton.getAttribute("aria-pressed")).toBe("false");

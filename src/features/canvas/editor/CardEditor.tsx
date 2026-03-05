@@ -28,8 +28,7 @@ import {
 } from "./markdownCodec";
 import { uploadImageFile } from "../images/useImageUpload";
 
-const EDITOR_NOT_READY_MESSAGE =
-  "Editor is not ready yet. Please try dropping the image again.";
+const EDITOR_NOT_READY_MESSAGE = "編輯器尚未就緒，請重新拖放圖片。";
 
 const TaskItemWithBackspaceBehavior = TaskItem.extend({
   addKeyboardShortcuts() {
@@ -153,9 +152,7 @@ export type CardEditorHandle = {
 };
 
 function toUploadErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Image upload failed. Please try again.";
+  return error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
 }
 
 export const CardEditor = forwardRef(CardEditorImpl);
@@ -191,7 +188,7 @@ async function insertImageAtPos(
   }
 
   if (!inserted) {
-    throw new Error("Failed to insert image into this text card.");
+    throw new Error("無法將圖片插入此文字卡片。");
   }
 
   useCanvasStore.getState().addFile(fileRecord);

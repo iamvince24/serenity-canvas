@@ -65,7 +65,7 @@ describe("canvasStore groups", () => {
       throw new Error("group not created");
     }
 
-    expect(createdGroup.label).toBe("Untitled Group");
+    expect(createdGroup.label).toBe("未命名群組");
     expect(createdGroup.nodeIds).toEqual(["text-1", "text-2"]);
     expect(useCanvasStore.getState().selectedGroupIds).toEqual([
       createdGroup.id,

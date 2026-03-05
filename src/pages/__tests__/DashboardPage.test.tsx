@@ -121,7 +121,7 @@ describe("DashboardPage", () => {
     localStorage.setItem("serenity-canvas:sidebar-open", "false");
     renderDashboard();
 
-    const openButton = screen.getByRole("button", { name: "Open sidebar" });
+    const openButton = screen.getByRole("button", { name: "展開側欄" });
     expect(openButton).toBeTruthy();
     expect(latestSidebarProps?.isOpen).toBe(false);
 

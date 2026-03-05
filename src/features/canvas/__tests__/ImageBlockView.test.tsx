@@ -65,7 +65,7 @@ describe("ImageBlockView", () => {
     render(<ImageBlockView {...createNodeViewProps()} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Failed to load image:/)).toBeTruthy();
+      expect(screen.getByText(/圖片載入失敗：/)).toBeTruthy();
     });
   });
 

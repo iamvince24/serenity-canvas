@@ -44,7 +44,7 @@ export function ImageBlockView({ node }: NodeViewProps) {
         }
 
         const message =
-          error instanceof Error ? error.message : "Failed to load image.";
+          error instanceof Error ? error.message : "圖片載入失敗。";
         setResult({ assetId, type: "error", message });
       });
 
@@ -58,7 +58,7 @@ export function ImageBlockView({ node }: NodeViewProps) {
 
   const status: ImageBlockStatus =
     assetId.length === 0
-      ? { type: "error", message: "Missing image asset id." }
+      ? { type: "error", message: "缺少圖片資產 ID。" }
       : result === null || result.assetId !== assetId
         ? { type: "loading" }
         : result.type === "loaded"
@@ -71,7 +71,7 @@ export function ImageBlockView({ node }: NodeViewProps) {
         <div
           className="h-[180px] w-full animate-pulse rounded-md bg-[#ECEAE6]"
           role="status"
-          aria-label="Loading image"
+          aria-label="載入圖片中"
         />
       ) : null}
 
@@ -86,7 +86,7 @@ export function ImageBlockView({ node }: NodeViewProps) {
 
       {status.type === "error" ? (
         <div className="rounded-md border border-[#E5A29B] bg-[#FFF2F0] px-3 py-2 text-xs text-[#B8635A]">
-          Failed to load image: {status.message}
+          圖片載入失敗：{status.message}
         </div>
       ) : null}
     </NodeViewWrapper>

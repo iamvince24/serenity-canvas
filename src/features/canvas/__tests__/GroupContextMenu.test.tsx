@@ -80,12 +80,12 @@ describe("GroupContextMenu", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Rename Group",
+        name: "重新命名群組",
       }),
     ).not.toBeNull();
     expect(
       screen.getByRole("button", {
-        name: "Ungroup",
+        name: "解散群組",
       }),
     ).not.toBeNull();
   });
@@ -102,7 +102,7 @@ describe("GroupContextMenu", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename Group" }));
+    fireEvent.click(screen.getByRole("button", { name: "重新命名群組" }));
 
     expect(useCanvasStore.getState().groups["group-1"]?.label).toBe(
       "Renamed Group",
@@ -127,8 +127,8 @@ describe("GroupContextMenu", () => {
       throw new Error("group context menu element not found");
     }
 
-    const renameButton = screen.getByRole("button", { name: "Rename Group" });
-    const ungroupButton = screen.getByRole("button", { name: "Ungroup" });
+    const renameButton = screen.getByRole("button", { name: "重新命名群組" });
+    const ungroupButton = screen.getByRole("button", { name: "解散群組" });
 
     renameButton.focus();
     expect(document.activeElement).toBe(renameButton);
@@ -151,7 +151,7 @@ describe("GroupContextMenu", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Ungroup" }));
+    fireEvent.click(screen.getByRole("button", { name: "解散群組" }));
 
     expect(useCanvasStore.getState().groups["group-1"]).toBeUndefined();
     expect(useCanvasStore.getState().groups["group-2"]).toBeUndefined();
@@ -169,9 +169,7 @@ describe("GroupContextMenu", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Set group color to Red" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "設定群組顏色為 Red" }));
 
     expect(useCanvasStore.getState().groups["group-1"]?.color).toBe("red");
     expect(onClose).toHaveBeenCalled();

@@ -32,19 +32,19 @@ export function HomePage() {
             className="animate-serenity-in text-[clamp(2.25rem,6vw,3rem)] font-normal leading-[1.16] tracking-[-0.025em]"
             style={{ fontFamily: "var(--font-serif)" }}
           >
-            Find Clarity in Calm
+            在寧靜中釐清思緒
           </h1>
 
           <p className="text-body animate-serenity-in animation-delay-80 mt-6 max-w-xl text-foreground-muted">
-            Serenity Canvas helps you turn scattered ideas into clear direction
-            through a quiet, layered workspace.
+            Serenity Canvas
+            透過安靜、層次分明的工作空間，幫助你將零散的想法轉化為清晰的方向。
           </p>
 
           <Link
             to={`/canvas/${LOCAL_BOARD_ID}`}
             className="btn-primary animate-serenity-in animation-delay-160 mt-10"
           >
-            Get Started
+            開始使用
           </Link>
         </section>
       </main>

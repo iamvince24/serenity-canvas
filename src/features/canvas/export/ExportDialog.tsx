@@ -40,7 +40,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
       const boardId = useCanvasStore.getState().currentBoardId;
       const boards = useDashboardStore.getState().boards;
       const board = boards.find((b) => b.id === boardId);
-      const boardTitle = board?.title ?? "Untitled";
+      const boardTitle = board?.title ?? "未命名";
 
       const result = await exportToObsidianZip(
         snapshot,

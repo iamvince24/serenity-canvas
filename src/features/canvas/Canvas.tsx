@@ -301,9 +301,7 @@ export function Canvas() {
         selectNode(imageNode.id);
       } catch (error) {
         const message =
-          error instanceof Error
-            ? error.message
-            : "Image upload failed. Please try again.";
+          error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
         notifyImageUploadError(message);
       }
     },

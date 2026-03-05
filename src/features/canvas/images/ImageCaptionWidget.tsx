@@ -110,7 +110,7 @@ export function ImageCaptionWidget({
     <div style={widgetStyle} data-card-node-id={node.id} role="presentation">
       <textarea
         value={isEditing ? draftCaption : node.content}
-        placeholder="Add a caption..."
+        placeholder="新增說明文字…"
         onChange={(event) => setDraftCaption(event.target.value)}
         onFocus={() => {
           setIsEditing(true);

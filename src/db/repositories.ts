@@ -90,7 +90,7 @@ export const BoardRepository = {
     try {
       await serenityDB.boards.put(board);
     } catch (error) {
-      console.error("Failed to create default board in IndexedDB", error);
+      console.error("在 IndexedDB 建立預設白板失敗", error);
     }
 
     return board;
@@ -100,7 +100,7 @@ export const BoardRepository = {
     try {
       await serenityDB.boards.put(board);
     } catch (error) {
-      console.error("Failed to save board row in IndexedDB", error);
+      console.error("儲存白板資料至 IndexedDB 失敗", error);
     }
   },
 
@@ -122,7 +122,7 @@ export const BoardRepository = {
       };
       await serenityDB.boards.put(next);
     } catch (error) {
-      console.error("Failed to update board row in IndexedDB", error);
+      console.error("更新白板資料至 IndexedDB 失敗", error);
     }
   },
 
@@ -130,7 +130,7 @@ export const BoardRepository = {
     try {
       await serenityDB.boards.delete(id);
     } catch (error) {
-      console.error("Failed to delete board row from IndexedDB", error);
+      console.error("從 IndexedDB 刪除白板資料失敗", error);
     }
   },
 };
@@ -227,7 +227,7 @@ export const NodeRepository = {
     try {
       await serenityDB.nodes.update(id, { updatedAt });
     } catch (error) {
-      console.error("Failed to update node timestamp in IndexedDB", error);
+      console.error("更新節點時間戳至 IndexedDB 失敗", error);
     }
   },
 
@@ -244,7 +244,7 @@ export const NodeRepository = {
     try {
       await serenityDB.nodes.bulkPut(rows);
     } catch (error) {
-      console.error("Failed to save nodes to IndexedDB", error);
+      console.error("儲存節點至 IndexedDB 失敗", error);
     }
   },
 
@@ -256,7 +256,7 @@ export const NodeRepository = {
     try {
       await serenityDB.nodes.bulkDelete(ids);
     } catch (error) {
-      console.error("Failed to delete nodes from IndexedDB", error);
+      console.error("從 IndexedDB 刪除節點失敗", error);
     }
   },
 
@@ -264,7 +264,7 @@ export const NodeRepository = {
     try {
       await serenityDB.nodes.where("boardId").equals(boardId).delete();
     } catch (error) {
-      console.error("Failed to delete board nodes from IndexedDB", error);
+      console.error("從 IndexedDB 刪除白板節點失敗", error);
     }
   },
 
@@ -284,7 +284,7 @@ export const NodeRepository = {
         }
       });
     } catch (error) {
-      console.error("Failed to replace board nodes in IndexedDB", error);
+      console.error("替換白板節點至 IndexedDB 失敗", error);
     }
   },
 };
@@ -340,7 +340,7 @@ export const EdgeRepository = {
     try {
       await serenityDB.edges.bulkPut(rows);
     } catch (error) {
-      console.error("Failed to save edges to IndexedDB", error);
+      console.error("儲存連線至 IndexedDB 失敗", error);
     }
   },
 
@@ -352,7 +352,7 @@ export const EdgeRepository = {
     try {
       await serenityDB.edges.bulkDelete(ids);
     } catch (error) {
-      console.error("Failed to delete edges from IndexedDB", error);
+      console.error("從 IndexedDB 刪除連線失敗", error);
     }
   },
 
@@ -360,7 +360,7 @@ export const EdgeRepository = {
     try {
       await serenityDB.edges.where("boardId").equals(boardId).delete();
     } catch (error) {
-      console.error("Failed to delete board edges from IndexedDB", error);
+      console.error("從 IndexedDB 刪除白板連線失敗", error);
     }
   },
 
@@ -376,7 +376,7 @@ export const EdgeRepository = {
         }
       });
     } catch (error) {
-      console.error("Failed to replace board edges in IndexedDB", error);
+      console.error("替換白板連線至 IndexedDB 失敗", error);
     }
   },
 };
@@ -434,7 +434,7 @@ export const GroupRepository = {
     try {
       await serenityDB.groups.bulkPut(rows);
     } catch (error) {
-      console.error("Failed to save groups to IndexedDB", error);
+      console.error("儲存群組至 IndexedDB 失敗", error);
     }
   },
 
@@ -446,7 +446,7 @@ export const GroupRepository = {
     try {
       await serenityDB.groups.bulkDelete(ids);
     } catch (error) {
-      console.error("Failed to delete groups from IndexedDB", error);
+      console.error("從 IndexedDB 刪除群組失敗", error);
     }
   },
 
@@ -454,7 +454,7 @@ export const GroupRepository = {
     try {
       await serenityDB.groups.where("boardId").equals(boardId).delete();
     } catch (error) {
-      console.error("Failed to delete board groups from IndexedDB", error);
+      console.error("從 IndexedDB 刪除白板群組失敗", error);
     }
   },
 
@@ -471,7 +471,7 @@ export const GroupRepository = {
         }
       });
     } catch (error) {
-      console.error("Failed to replace board groups in IndexedDB", error);
+      console.error("替換白板群組至 IndexedDB 失敗", error);
     }
   },
 };
@@ -541,7 +541,7 @@ export const FileRepository = {
         updatedAt: Date.now(),
       });
     } catch (error) {
-      console.error("Failed to update image path in IndexedDB", error);
+      console.error("更新圖片路徑至 IndexedDB 失敗", error);
     }
   },
 
@@ -565,10 +565,7 @@ export const FileRepository = {
           file.updatedAt = updatedAt;
         });
     } catch (error) {
-      console.error(
-        "Failed to update image path by asset id in IndexedDB",
-        error,
-      );
+      console.error("依資產 ID 更新圖片路徑至 IndexedDB 失敗", error);
     }
   },
 
@@ -585,7 +582,7 @@ export const FileRepository = {
     try {
       await serenityDB.files.bulkPut(rows);
     } catch (error) {
-      console.error("Failed to save files to IndexedDB", error);
+      console.error("儲存檔案至 IndexedDB 失敗", error);
     }
   },
 
@@ -597,7 +594,7 @@ export const FileRepository = {
     try {
       await serenityDB.files.bulkDelete(ids);
     } catch (error) {
-      console.error("Failed to delete files from IndexedDB", error);
+      console.error("從 IndexedDB 刪除檔案失敗", error);
     }
   },
 
@@ -605,7 +602,7 @@ export const FileRepository = {
     try {
       await serenityDB.files.where("boardId").equals(boardId).delete();
     } catch (error) {
-      console.error("Failed to delete board files from IndexedDB", error);
+      console.error("從 IndexedDB 刪除白板檔案失敗", error);
     }
   },
 
@@ -625,7 +622,7 @@ export const FileRepository = {
         }
       });
     } catch (error) {
-      console.error("Failed to replace board files in IndexedDB", error);
+      console.error("替換白板檔案至 IndexedDB 失敗", error);
     }
   },
 };

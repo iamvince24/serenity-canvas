@@ -59,7 +59,7 @@ export function GroupContextMenu({
       return;
     }
 
-    const nextLabel = window.prompt("Group name", primaryGroup.label);
+    const nextLabel = window.prompt("群組名稱", primaryGroup.label);
     if (nextLabel === null) {
       return;
     }
@@ -115,7 +115,7 @@ export function GroupContextMenu({
         onClick={handleRenameGroup}
       >
         <PenLine size={14} />
-        Rename Group
+        重新命名群組
       </button>
       <button
         type="button"
@@ -123,22 +123,22 @@ export function GroupContextMenu({
         onClick={handleUngroup}
       >
         <Ungroup size={14} />
-        Ungroup
+        解散群組
       </button>
       <div className="card-widget__settings-divider" />
       <div
         className="card-color-picker px-1 pb-1 pt-0"
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <div className="card-color-picker__title">Group Color</div>
+        <div className="card-color-picker__title">群組顏色</div>
         <div className="card-color-picker__grid">
           <button
             type="button"
             className={cn("card-color-picker__option", {
               "card-color-picker__option--active": primaryGroup.color === null,
             })}
-            aria-label="Set group color to none"
-            title="None"
+            aria-label="設定群組顏色為無"
+            title="無"
             onClick={() => handleSelectGroupColor(null)}
           >
             <span className="card-color-picker__swatch card-color-picker__swatch--none" />
@@ -152,7 +152,7 @@ export function GroupContextMenu({
                 className={cn("card-color-picker__option", {
                   "card-color-picker__option--active": isActive,
                 })}
-                aria-label={`Set group color to ${preset.label}`}
+                aria-label={`設定群組顏色為 ${preset.label}`}
                 title={preset.label}
                 onClick={() => handleSelectGroupColor(preset.id)}
               >

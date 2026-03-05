@@ -216,7 +216,7 @@ export function buildObsidianExport(
   for (const group of Object.values(groups)) {
     const bbox = computeGroupBoundingBox(group, nodes);
     if (!bbox) {
-      logLines.push(`Skipped empty group "${group.label || group.id}"`);
+      logLines.push(`略過空群組「${group.label || group.id}」`);
       continue;
     }
 
@@ -269,7 +269,7 @@ export function buildObsidianExport(
       const fileName = assetToFileName.get(imgNode.asset_id);
 
       if (!fileName) {
-        logLines.push(`Missing asset for image node ${nodeId}`);
+        logLines.push(`圖片節點 ${nodeId} 缺少資產`);
         continue;
       }
 
@@ -295,7 +295,7 @@ export function buildObsidianExport(
   for (const edge of Object.values(edges)) {
     const route = getEdgeRoute(edge, nodes);
     if (!route) {
-      logLines.push(`Skipped edge ${edge.id}: missing source or target node`);
+      logLines.push(`略過連線 ${edge.id}：缺少來源或目標節點`);
       continue;
     }
 

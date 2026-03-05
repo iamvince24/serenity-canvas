@@ -65,7 +65,7 @@ export function DashboardPage() {
             type="button"
             className="absolute top-4 left-4 z-40 flex h-9 w-9 items-center justify-center rounded-[6px] border border-[#E5E3DF] bg-[#FFFFFF] text-[#6B6B66] transition-colors duration-300 hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
             onClick={() => handleSetIsOpen(true)}
-            aria-label="Open sidebar"
+            aria-label="展開側欄"
           >
             <PanelLeftOpen className="h-4 w-4" />
           </button>

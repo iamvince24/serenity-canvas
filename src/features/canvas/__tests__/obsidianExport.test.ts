@@ -27,8 +27,8 @@ import type {
 
 describe("isDefaultCaption", () => {
   it("returns true for the placeholder text", () => {
-    expect(isDefaultCaption("Add a caption...")).toBe(true);
-    expect(isDefaultCaption("  Add a caption...  ")).toBe(true);
+    expect(isDefaultCaption("新增說明文字…")).toBe(true);
+    expect(isDefaultCaption("  新增說明文字…  ")).toBe(true);
   });
 
   it("returns false for real content", () => {
@@ -113,7 +113,7 @@ describe("canvasFileName", () => {
   });
 
   it("uses Untitled for empty", () => {
-    expect(canvasFileName("")).toBe("Untitled.canvas");
+    expect(canvasFileName("")).toBe("未命名.canvas");
   });
 
   it("sanitizes unsafe characters", () => {
@@ -150,7 +150,7 @@ function makeImageNode(overrides: Partial<ImageNode> = {}): ImageNode {
     width: 200,
     height: 200,
     heightMode: "fixed",
-    content: "Add a caption...",
+    content: "新增說明文字…",
     asset_id: "asset123",
     color: null,
     ...overrides,
@@ -268,7 +268,7 @@ describe("buildObsidianExport", () => {
   });
 
   it("renders image nodes with default caption as type:file", () => {
-    const imageNode = makeImageNode({ content: "Add a caption..." });
+    const imageNode = makeImageNode({ content: "新增說明文字…" });
     const input = makeInput({
       nodes: { i1: imageNode },
       nodeOrder: ["i1"],
@@ -406,7 +406,7 @@ describe("buildObsidianExport", () => {
       (n) => n.type === "group",
     );
     expect(groupNodes.length).toBe(0);
-    expect(logLines.some((l) => l.includes("Skipped empty group"))).toBe(true);
+    expect(logLines.some((l) => l.includes("略過空群組"))).toBe(true);
   });
 
   it("maps colors to Obsidian values", () => {
@@ -490,7 +490,7 @@ describe("buildObsidianExport", () => {
     const result = buildObsidianExport(input, "Test", new Map(), logLines);
 
     expect(result.canvasJson.edges.length).toBe(0);
-    expect(logLines.some((l) => l.includes("Skipped edge"))).toBe(true);
+    expect(logLines.some((l) => l.includes("略過連線"))).toBe(true);
   });
 
   it("edge includes fromSide/toSide based on smart anchors", () => {

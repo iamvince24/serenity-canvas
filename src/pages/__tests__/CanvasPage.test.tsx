@@ -69,7 +69,7 @@ describe("CanvasPage IndexedDB init flow", () => {
     mockCanvasState.isLoading = true;
     render(<CanvasPage boardId="board-1" />);
 
-    expect(screen.getByRole("status", { name: "Loading board" })).toBeTruthy();
+    expect(screen.getByRole("status", { name: "載入白板中" })).toBeTruthy();
     expect(screen.queryByTestId("canvas")).toBeNull();
     expect(screen.queryByTestId("toolbar")).toBeNull();
   });
@@ -78,7 +78,7 @@ describe("CanvasPage IndexedDB init flow", () => {
     mockCanvasState.isLoading = false;
     render(<CanvasPage boardId="board-1" />);
 
-    expect(screen.queryByRole("status", { name: "Loading board" })).toBeNull();
+    expect(screen.queryByRole("status", { name: "載入白板中" })).toBeNull();
     expect(screen.getByTestId("canvas")).toBeTruthy();
     expect(screen.getByTestId("toolbar")).toBeTruthy();
   });

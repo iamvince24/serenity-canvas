@@ -50,11 +50,11 @@ export async function uploadImageFile(
 ): Promise<UploadedImagePayload> {
   const sourceMimeType = resolveSourceMimeType(file);
   if (!sourceMimeType) {
-    throw new Error("Unsupported file format. Please upload JPG/PNG/GIF/WEBP.");
+    throw new Error("不支援的檔案格式，請上傳 JPG/PNG/GIF/WEBP。");
   }
 
   if (file.size > MAX_SOURCE_FILE_BYTES) {
-    throw new Error("File is too large. Max source size is 10MB.");
+    throw new Error("檔案過大，原始檔案上限為 10MB。");
   }
 
   const compressedOutput = await compressImageWithWorker(file).catch(
@@ -111,7 +111,7 @@ export async function computeAssetId(blob: Blob): Promise<string> {
     typeof crypto.subtle === "undefined" ||
     typeof crypto.subtle.digest !== "function"
   ) {
-    throw new Error("Web Crypto API is not available.");
+    throw new Error("Web Crypto API 不可用。");
   }
 
   const buffer = await blob.arrayBuffer();
@@ -142,7 +142,7 @@ function loadImageDimensions(blob: Blob): Promise<{
     };
 
     image.onerror = () => {
-      reject(new Error("Failed to read image dimensions."));
+      reject(new Error("無法讀取圖片尺寸。"));
       URL.revokeObjectURL(objectUrl);
     };
 

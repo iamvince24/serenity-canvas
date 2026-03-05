@@ -115,7 +115,7 @@ export function NodeContextMenu({
             onClick={handleCreateGroup}
           >
             <FolderPlus size={14} />
-            Create Group
+            建立群組
           </button>
           <button
             type="button"
@@ -123,7 +123,7 @@ export function NodeContextMenu({
             onClick={handleDeleteSelected}
           >
             <Trash2 size={14} />
-            Delete Selected
+            刪除已選取
           </button>
         </>
       ) : null}
@@ -141,7 +141,7 @@ export function NodeContextMenu({
                 className="card-widget__settings-item"
                 onClick={handleFitContent}
               >
-                Fit Content
+                自動調整大小
               </button>
               <div className="card-widget__settings-divider" />
             </>
@@ -164,7 +164,7 @@ export function NodeContextMenu({
                 onClick={handleDeleteImageNode}
               >
                 <Trash2 size={14} />
-                Delete
+                刪除
               </button>
             </>
           ) : null}

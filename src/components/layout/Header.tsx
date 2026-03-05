@@ -34,14 +34,14 @@ export function Header() {
               to="/dashboard"
               className="hidden text-sm text-foreground-muted transition-colors hover:text-sage-dark sm:inline"
             >
-              Dashboard
+              儀表板
             </Link>
 
             <div className="flex items-center gap-2 rounded-full border border-border bg-elevated px-2 py-1">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
-                  alt={`${displayName ?? "User"} avatar`}
+                  alt={`${displayName ?? "使用者"} 頭像`}
                   className="h-6 w-6 rounded-full object-cover"
                   referrerPolicy="no-referrer"
                 />

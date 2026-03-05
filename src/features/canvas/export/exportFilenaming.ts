@@ -1,6 +1,6 @@
 import sanitize from "sanitize-filename";
 
-const DEFAULT_IMAGE_CAPTION = "Add a caption...";
+const DEFAULT_IMAGE_CAPTION = "新增說明文字…";
 
 /** 判斷內容是否為 nodeFactory 的預設佔位說明文字。 */
 export function isDefaultCaption(content: string): boolean {
@@ -76,6 +76,6 @@ export function imageFileName(assetId: string, mimeType: string): string {
 /** 淨化白板標題並附加 `.canvas` 副檔名。 */
 export function canvasFileName(boardTitle: string): string {
   const sanitized = sanitize(boardTitle).trim();
-  const name = sanitized.length > 0 ? sanitized : "Untitled";
+  const name = sanitized.length > 0 ? sanitized : "未命名";
   return `${name}.canvas`;
 }

@@ -42,9 +42,7 @@ type CardWidgetProps = {
 };
 
 function toUploadErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Image upload failed. Please try again.";
+  return error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
 }
 
 function CardWidgetComponent({
@@ -169,7 +167,7 @@ function CardWidgetComponent({
       const editorHandle = cardEditorRef.current;
       if (!editorHandle) {
         console.warn("[CardWidget] CardEditor ref is not attached yet.");
-        notifyImageUploadError("Editor is not ready yet. Please try again.");
+        notifyImageUploadError("編輯器尚未就緒，請重試。");
         return;
       }
 

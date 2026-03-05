@@ -83,7 +83,7 @@ import { resolveDeleteTarget } from "./slices/selectionPolicy";
 import { createSelectionSlice } from "./slices/selectionSlice";
 import { createHistorySlice } from "./slices/historySlice";
 
-const DEFAULT_GROUP_LABEL = "Untitled Group";
+const DEFAULT_GROUP_LABEL = "未命名群組";
 const DEFAULT_GROUP_COLOR: Group["color"] = null;
 const EMPTY_BOARD_SNAPSHOT: BoardCanvasSnapshot = {
   nodes: {},

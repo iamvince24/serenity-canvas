@@ -40,9 +40,9 @@ const LINE_STYLE_OPTIONS: readonly {
   label: string;
   borderTopStyle: "solid" | "dashed" | "dotted";
 }[] = [
-  { id: "solid", label: "Solid", borderTopStyle: "solid" },
-  { id: "dashed", label: "Dashed", borderTopStyle: "dashed" },
-  { id: "dotted", label: "Dotted", borderTopStyle: "dotted" },
+  { id: "solid", label: "實線", borderTopStyle: "solid" },
+  { id: "dashed", label: "虛線", borderTopStyle: "dashed" },
+  { id: "dotted", label: "點線", borderTopStyle: "dotted" },
 ];
 
 export function EdgeContextMenu({
@@ -189,7 +189,7 @@ export function EdgeContextMenu({
     >
       <div className="px-1 pb-1">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
-          Line Style
+          線條樣式
         </p>
         <div className="flex gap-2">
           {LINE_STYLE_OPTIONS.map((option) => {
@@ -204,7 +204,7 @@ export function EdgeContextMenu({
                     ? "border-sage bg-sage-lighter/60"
                     : "border-border hover:bg-surface",
                 )}
-                aria-label={`Set line style to ${option.label}`}
+                aria-label={`設定線條樣式為${option.label}`}
                 onClick={() => handleSelectLineStyle(option.id)}
               >
                 <span
@@ -222,15 +222,15 @@ export function EdgeContextMenu({
       <div className="card-widget__settings-divider" />
 
       <div className="card-color-picker px-1 pb-1 pt-0">
-        <div className="card-color-picker__title">Color</div>
+        <div className="card-color-picker__title">顏色</div>
         <div className="card-color-picker__grid">
           <button
             type="button"
             className={cn("card-color-picker__option", {
               "card-color-picker__option--active": edge.color === null,
             })}
-            aria-label="Set edge color to none"
-            title="None"
+            aria-label="設定連線顏色為無"
+            title="無"
             onClick={() => handleSelectColor(null)}
           >
             <span className="card-color-picker__swatch card-color-picker__swatch--none" />
@@ -245,7 +245,7 @@ export function EdgeContextMenu({
                 className={cn("card-color-picker__option", {
                   "card-color-picker__option--active": isActive,
                 })}
-                aria-label={`Set edge color to ${preset.label}`}
+                aria-label={`設定連線顏色為 ${preset.label}`}
                 title={preset.label}
                 onClick={() => handleSelectColor(preset.id)}
               >
@@ -269,7 +269,7 @@ export function EdgeContextMenu({
           className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted"
           htmlFor={`edge-direction-${edge.id}`}
         >
-          Direction
+          方向
         </label>
         <select
           id={`edge-direction-${edge.id}`}
@@ -279,9 +279,9 @@ export function EdgeContextMenu({
             handleDirectionChange(event.target.value as EdgeDirection)
           }
         >
-          <option value="forward">Forward</option>
-          <option value="both">Both</option>
-          <option value="none">None</option>
+          <option value="forward">單向</option>
+          <option value="both">雙向</option>
+          <option value="none">無</option>
         </select>
       </div>
     </div>,

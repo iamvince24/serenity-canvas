@@ -83,9 +83,7 @@ export function Toolbar({
         selectNode(imageNode.id);
       } catch (error) {
         const message =
-          error instanceof Error
-            ? error.message
-            : "Image upload failed. Please try again.";
+          error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
         notifyImageUploadError(message);
       }
     },
@@ -116,13 +114,13 @@ export function Toolbar({
               ? "border-sage-light bg-sage/20 text-sage-dark hover:bg-sage/20"
               : ""
           }`}
-          aria-label="Select mode"
+          aria-label="選取模式"
           aria-pressed={canvasMode === "select"}
-          title="Select (V)"
+          title="選取 (V)"
           onClick={() => setCanvasMode("select")}
         >
           <MousePointer2 size={16} />
-          Select
+          選取
         </button>
         <button
           type="button"
@@ -131,20 +129,20 @@ export function Toolbar({
               ? "border-sage-light bg-sage/20 text-sage-dark hover:bg-sage/20"
               : ""
           }`}
-          aria-label="Connect mode"
+          aria-label="連線模式"
           aria-pressed={canvasMode === "connect"}
-          title="Connect (C)"
+          title="連線 (C)"
           onClick={() => setCanvasMode("connect")}
         >
           <Spline size={16} />
-          Connect
+          連線
         </button>
         <div className="h-5 w-px bg-border" aria-hidden="true" />
         <button
           type="button"
           className="btn-secondary h-9 w-9 justify-center px-0"
-          aria-label="Undo"
-          title="Undo (Cmd/Ctrl+Z)"
+          aria-label="復原"
+          title="復原 (Cmd/Ctrl+Z)"
           onClick={undo}
           disabled={!canUndo}
         >
@@ -153,8 +151,8 @@ export function Toolbar({
         <button
           type="button"
           className="btn-secondary h-9 w-9 justify-center px-0"
-          aria-label="Redo"
-          title="Redo (Cmd/Ctrl+Shift+Z)"
+          aria-label="重做"
+          title="重做 (Cmd/Ctrl+Shift+Z)"
           onClick={redo}
           disabled={!canRedo}
         >
@@ -164,7 +162,7 @@ export function Toolbar({
         <button
           type="button"
           className="btn-secondary h-9 gap-2 px-3 text-sm"
-          aria-label="Export to Obsidian"
+          aria-label="匯出至 Obsidian"
           title="匯出 Obsidian 格式"
           onClick={() => setIsExportDialogOpen(true)}
         >
@@ -179,7 +177,7 @@ export function Toolbar({
             onClick={handleOpenFileDialog}
           >
             <ImagePlus size={16} />
-            Upload Image
+            上傳圖片
           </button>
         )}
         {isDev && (
@@ -190,7 +188,7 @@ export function Toolbar({
                 <button
                   type="button"
                   className="btn-secondary h-9 gap-2 px-3 text-sm"
-                  aria-label="Insert stress test data"
+                  aria-label="插入壓力測試資料"
                   title="插入壓力測試資料"
                 >
                   <TestTube2 size={16} />
@@ -206,7 +204,7 @@ export function Toolbar({
                     ? "border-sage-light bg-sage/20 text-sage-dark hover:bg-sage/20"
                     : ""
                 }`}
-                aria-label="Toggle FPS overlay"
+                aria-label="切換 FPS 顯示"
                 aria-pressed={showFpsOverlay}
                 title="顯示 FPS"
                 onClick={onFpsOverlayToggle}
@@ -218,7 +216,7 @@ export function Toolbar({
             <button
               type="button"
               className="btn-secondary h-9 gap-2 px-3 text-sm"
-              aria-label="Clear canvas"
+              aria-label="清除白板"
               title="清除白板"
               onClick={handleClearCanvas}
             >
@@ -244,7 +242,7 @@ export function Toolbar({
                     {avatarUrl ? (
                       <img
                         src={avatarUrl}
-                        alt={`${displayName} avatar`}
+                        alt={`${displayName} 頭像`}
                         className="h-6 w-6 rounded-full object-cover"
                         referrerPolicy="no-referrer"
                       />

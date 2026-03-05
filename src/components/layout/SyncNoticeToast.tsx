@@ -44,7 +44,7 @@ export function SyncNoticeToast() {
             type="button"
             className="btn-ghost h-7 shrink-0 px-2 text-xs"
             onClick={dismissWarning}
-            aria-label="Dismiss sync warning"
+            aria-label="關閉同步警告"
           >
             關閉
           </button>

@@ -86,7 +86,7 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
         <div
           className="absolute inset-0 z-30 flex items-center justify-center bg-canvas"
           role="status"
-          aria-label="Loading board"
+          aria-label="載入白板中"
         >
           <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#C9D3C4] border-t-[#708067]" />
         </div>
@@ -120,7 +120,7 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
             <div className="flex items-start justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-destructive">
-                  Image Upload Failed
+                  圖片上傳失敗
                 </p>
                 <p className="mt-1 text-sm leading-[1.4] text-foreground">
                   {imageUploadErrorMessage}
@@ -131,9 +131,9 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
                 type="button"
                 className="btn-ghost h-7 shrink-0 px-2 text-xs"
                 onClick={dismissImageUploadError}
-                aria-label="Dismiss upload error"
+                aria-label="關閉上傳錯誤"
               >
-                Close
+                關閉
               </button>
             </div>
           </div>
