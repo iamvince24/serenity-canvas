@@ -12,6 +12,7 @@ import { InteractionEvent } from "../core/stateMachine";
 import { toCanvasPoint } from "../core/canvasCoordinates";
 import { usePointerCapture } from "../hooks/usePointerCapture";
 import {
+  calculateBezierControlPoints,
   findClosestNodeAnchor,
   getNodeAnchorPoint,
   type NodeAnchor,
@@ -38,6 +39,8 @@ type UseConnectionDragOptions = {
 type ConnectionPreview = {
   start: Point;
   end: Point;
+  cp1: Point;
+  cp2: Point;
 };
 
 type UseConnectionDragResult = {
@@ -277,9 +280,38 @@ export function useConnectionDrag({
       return null;
     }
 
+    const hoveredTarget = connection.hoveredTarget;
+    const start = getNodeAnchorPoint(sourceNode, connection.source.anchor);
+    const hoveredTargetNode = hoveredTarget
+      ? nodes[hoveredTarget.nodeId]
+      : null;
+    const end =
+      hoveredTargetNode && hoveredTarget
+        ? getNodeAnchorPoint(hoveredTargetNode, hoveredTarget.anchor)
+        : connection.pointer;
+    if (hoveredTarget && hoveredTargetNode) {
+      const { cp1, cp2 } = calculateBezierControlPoints(
+        connection.source.anchor,
+        start,
+        hoveredTarget.anchor,
+        end,
+      );
+
+      return { start, end, cp1, cp2 };
+    }
+
+    const { cp1 } = calculateBezierControlPoints(
+      connection.source.anchor,
+      start,
+      connection.source.anchor,
+      end,
+    );
+
     return {
-      start: getNodeAnchorPoint(sourceNode, connection.source.anchor),
-      end: connection.pointer,
+      start,
+      end,
+      cp1,
+      cp2: end,
     };
   }, [connection, nodes]);
 

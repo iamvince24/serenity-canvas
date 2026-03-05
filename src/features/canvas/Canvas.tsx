@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { Layer, Line, Rect, Stage } from "react-konva";
+import { Layer, Rect, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import {
@@ -40,6 +40,7 @@ import {
   useVisibleNodeIds,
 } from "./hooks/useVisibleElements";
 import { useConnectionDrag } from "./edges/useConnectionDrag";
+import { ConnectionPreviewLine } from "./edges/ConnectionPreviewLine";
 import { useImageUpload } from "./images/useImageUpload";
 import {
   NodeContextMenu,
@@ -637,18 +638,11 @@ export function Canvas() {
           ))}
 
           {previewLine ? (
-            <Line
-              points={[
-                previewLine.start.x,
-                previewLine.start.y,
-                previewLine.end.x,
-                previewLine.end.y,
-              ]}
-              stroke="#8B9D83"
-              strokeWidth={2}
-              dash={[8, 6]}
-              lineCap="round"
-              listening={false}
+            <ConnectionPreviewLine
+              start={previewLine.start}
+              end={previewLine.end}
+              cp1={previewLine.cp1}
+              cp2={previewLine.cp2}
             />
           ) : null}
         </Layer>

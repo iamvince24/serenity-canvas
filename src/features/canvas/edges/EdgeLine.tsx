@@ -1,11 +1,20 @@
 import { memo, useState } from "react";
-import { Arrow, Circle, Line } from "react-konva";
+import { Circle, Shape } from "react-konva";
 import { getEdgeStrokeColor } from "../../../constants/colors";
-import type { CanvasNode, Edge, EdgeLineStyle } from "../../../types/canvas";
-import { getCanvasBackgroundColor } from "./canvasBackgroundCache";
+import type { CanvasNode, Edge } from "../../../types/canvas";
+import { EDGE_CURVATURE } from "../core/constants";
 import { EdgeLabel } from "./EdgeLabel";
 import { getEdgeLabelLayout } from "./edgeLabelLayout";
-import { getEdgeRoute, type Point } from "./edgeUtils";
+import {
+  calculateBezierControlPoints,
+  getBezierPoint,
+  getBezierTangent,
+  getEdgeRoute,
+  getLabelGapTRange,
+  getLineDash,
+  splitBezier,
+  type Point,
+} from "./edgeUtils";
 
 export type EdgeEndpoint = "from" | "to";
 
@@ -35,20 +44,43 @@ type EdgeLineProps = {
 const EDGE_HANDLE_STROKE = "#1f77c8";
 const EDGE_HANDLE_RADIUS = 5;
 const EDGE_HANDLE_RADIUS_ACTIVE = 6.5;
-const EDGE_LABEL_GAP_PADDING = 6;
 const EMPTY_LABEL_GAP_WIDTH = 80;
 const EMPTY_LABEL_GAP_HEIGHT = 20;
+const ARROW_LENGTH = 10;
+const ARROW_WIDTH = 10;
 
-function getLineDash(lineStyle: EdgeLineStyle): number[] | undefined {
-  if (lineStyle === "dashed") {
-    return [12, 8];
-  }
+type ArrowDrawContext = {
+  beginPath: () => void;
+  moveTo: (x: number, y: number) => void;
+  lineTo: (x: number, y: number) => void;
+  closePath: () => void;
+  fill: () => void;
+  fillStyle: string | CanvasGradient | CanvasPattern;
+};
 
-  if (lineStyle === "dotted") {
-    return [3, 6];
-  }
+function drawArrowhead(
+  ctx: ArrowDrawContext,
+  tip: Point,
+  angle: number,
+  fillColor: string,
+): void {
+  const halfWidth = ARROW_WIDTH / 2;
+  const ax =
+    tip.x - ARROW_LENGTH * Math.cos(angle) + halfWidth * Math.sin(angle);
+  const ay =
+    tip.y - ARROW_LENGTH * Math.sin(angle) - halfWidth * Math.cos(angle);
+  const bx =
+    tip.x - ARROW_LENGTH * Math.cos(angle) - halfWidth * Math.sin(angle);
+  const by =
+    tip.y - ARROW_LENGTH * Math.sin(angle) + halfWidth * Math.cos(angle);
 
-  return undefined;
+  ctx.beginPath();
+  ctx.moveTo(tip.x, tip.y);
+  ctx.lineTo(ax, ay);
+  ctx.lineTo(bx, by);
+  ctx.closePath();
+  ctx.fillStyle = fillColor;
+  ctx.fill();
 }
 
 function EdgeLineComponent({
@@ -77,13 +109,37 @@ function EdgeLineComponent({
     start.x === previewEnd.x && start.y === previewEnd.y
       ? { x: previewEnd.x + 0.001, y: previewEnd.y }
       : previewEnd;
-  const midpoint = {
-    x: (start.x + end.x) / 2,
-    y: (start.y + end.y) / 2,
-  };
+  const hasEndpointPreview = Boolean(endpointPreview);
+  const isDraggingFromEndpoint = endpointPreview
+    ? endpointPreview.start.x !== route.start.x ||
+      endpointPreview.start.y !== route.start.y
+    : false;
+  const nextControlPoints = hasEndpointPreview
+    ? calculateBezierControlPoints(
+        route.fromAnchor,
+        start,
+        route.toAnchor,
+        end,
+        EDGE_CURVATURE,
+      )
+    : null;
+  const cp1 = hasEndpointPreview
+    ? isDraggingFromEndpoint
+      ? start
+      : nextControlPoints!.cp1
+    : route.cp1;
+  const cp2 = hasEndpointPreview
+    ? isDraggingFromEndpoint
+      ? nextControlPoints!.cp2
+      : end
+    : route.cp2;
+  const midpoint = hasEndpointPreview
+    ? getBezierPoint(0.5, start, cp1, cp2, end)
+    : route.midpoint;
   const stroke = getEdgeStrokeColor(edge.color);
   const strokeWidth = isSelected ? 3 : 2;
-  const hasArrow = edge.direction !== "none";
+  const hasStartArrow = edge.direction === "both";
+  const hasEndArrow = edge.direction === "forward" || edge.direction === "both";
   const lineDash = getLineDash(edge.lineStyle);
   const displayLabel = labelOverride ?? edge.label;
   const labelLayout =
@@ -97,52 +153,94 @@ function EdgeLineComponent({
           textHeight: EMPTY_LABEL_GAP_HEIGHT,
         }
       : null);
-  const canvasBackground = getCanvasBackgroundColor();
-
-  const edgeDx = end.x - start.x;
-  const edgeDy = end.y - start.y;
-  const edgeLength = Math.hypot(edgeDx, edgeDy);
-  let gapSegment: { start: Point; end: Point } | null = null;
-
-  if (labelLayout && edgeLength > 1) {
-    const ux = edgeDx / edgeLength;
-    const uy = edgeDy / edgeLength;
-    const projectedHalfLength =
-      (Math.abs(ux) * labelLayout.width + Math.abs(uy) * labelLayout.height) /
-      2;
-    const halfGapLength = Math.min(
-      projectedHalfLength + EDGE_LABEL_GAP_PADDING,
-      Math.max(edgeLength / 2 - 1, 0),
-    );
-    if (halfGapLength > 0) {
-      gapSegment = {
-        start: {
-          x: midpoint.x - ux * halfGapLength,
-          y: midpoint.y - uy * halfGapLength,
-        },
-        end: {
-          x: midpoint.x + ux * halfGapLength,
-          y: midpoint.y + uy * halfGapLength,
-        },
-      };
-    }
-  }
+  const labelGap = labelLayout
+    ? getLabelGapTRange({ start, cp1, cp2, end }, labelLayout)
+    : null;
 
   return (
     <>
-      <Arrow
-        points={[start.x, start.y, end.x, end.y]}
+      <Shape
         stroke={stroke}
         fill={stroke}
         strokeWidth={strokeWidth}
-        lineCap="round"
-        lineJoin="round"
-        pointerAtBeginning={edge.direction === "both"}
-        pointerAtEnding={hasArrow}
-        pointerLength={hasArrow ? 10 : 0}
-        pointerWidth={hasArrow ? 10 : 0}
-        dash={lineDash}
         hitStrokeWidth={20}
+        sceneFunc={(ctx, shape) => {
+          const strokeColor = String(shape.getAttr("stroke") ?? stroke);
+          const lineWidth = Number(shape.getAttr("strokeWidth") ?? strokeWidth);
+          const fillColor = String(shape.getAttr("fill") ?? strokeColor);
+
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = lineWidth;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.setLineDash(lineDash);
+
+          if (labelGap) {
+            const [firstHalf] = splitBezier(
+              labelGap.tStart,
+              start,
+              cp1,
+              cp2,
+              end,
+            );
+            const [, secondHalf] = splitBezier(
+              labelGap.tEnd,
+              start,
+              cp1,
+              cp2,
+              end,
+            );
+
+            ctx.beginPath();
+            ctx.moveTo(firstHalf.p0.x, firstHalf.p0.y);
+            ctx.bezierCurveTo(
+              firstHalf.cp1.x,
+              firstHalf.cp1.y,
+              firstHalf.cp2.x,
+              firstHalf.cp2.y,
+              firstHalf.p3.x,
+              firstHalf.p3.y,
+            );
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(secondHalf.p0.x, secondHalf.p0.y);
+            ctx.bezierCurveTo(
+              secondHalf.cp1.x,
+              secondHalf.cp1.y,
+              secondHalf.cp2.x,
+              secondHalf.cp2.y,
+              secondHalf.p3.x,
+              secondHalf.p3.y,
+            );
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+            ctx.stroke();
+          }
+
+          ctx.setLineDash([]);
+
+          if (hasEndArrow) {
+            const tangent = getBezierTangent(1, start, cp1, cp2, end);
+            const angle = Math.atan2(tangent.y, tangent.x);
+            drawArrowhead(ctx, end, angle, fillColor);
+          }
+
+          if (hasStartArrow) {
+            const tangent = getBezierTangent(0, start, cp1, cp2, end);
+            const angle = Math.atan2(-tangent.y, -tangent.x);
+            drawArrowhead(ctx, start, angle, fillColor);
+          }
+        }}
+        hitFunc={(ctx, shape) => {
+          ctx.beginPath();
+          ctx.moveTo(start.x, start.y);
+          ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+          ctx.strokeShape(shape);
+        }}
         onMouseDown={(event) => {
           event.cancelBubble = true;
           onSelect(edge.id);
@@ -165,22 +263,6 @@ function EdgeLineComponent({
           onDblClick(edge.id);
         }}
       />
-
-      {gapSegment ? (
-        <Line
-          points={[
-            gapSegment.start.x,
-            gapSegment.start.y,
-            gapSegment.end.x,
-            gapSegment.end.y,
-          ]}
-          stroke={canvasBackground}
-          strokeWidth={strokeWidth + 4}
-          lineCap="round"
-          lineJoin="round"
-          listening={false}
-        />
-      ) : null}
 
       {!hideLabel ? (
         <EdgeLabel

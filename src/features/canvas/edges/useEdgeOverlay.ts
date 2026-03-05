@@ -221,18 +221,12 @@ export function useEdgeOverlay({
         return;
       }
 
-      const start = route.start;
-      const end =
-        route.start.x === route.end.x && route.start.y === route.end.y
-          ? { x: route.end.x + 0.001, y: route.end.y }
-          : route.end;
-
       selectEdge(edgeId);
       setOverlaySlot({
         type: "edgeLabelEditor",
         edgeId,
-        canvasX: (start.x + end.x) / 2,
-        canvasY: (start.y + end.y) / 2,
+        canvasX: route.midpoint.x,
+        canvasY: route.midpoint.y,
       });
       setEdgeLabelDraftState({ edgeId, label: edge.label });
     },

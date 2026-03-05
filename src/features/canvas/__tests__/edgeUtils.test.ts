@@ -33,7 +33,7 @@ function createEdge(id: string, fromNode: string, toNode: string): Edge {
 }
 
 describe("edgeUtils", () => {
-  it("getEdgeBounds 使用兩節點中心點計算外接矩形", () => {
+  it("getEdgeBounds 使用貝茲曲線極值計算外接矩形", () => {
     const nodes: Record<string, CanvasNode> = {
       a: createTextNode("a", 10, 20),
       b: createTextNode("b", 410, 220),
@@ -41,9 +41,9 @@ describe("edgeUtils", () => {
 
     const bounds = getEdgeBounds(createEdge("edge-1", "a", "b"), nodes);
     expect(bounds).toEqual({
-      x: 110,
+      x: 210,
       y: 70,
-      width: 400,
+      width: 200,
       height: 200,
     });
   });

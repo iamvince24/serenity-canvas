@@ -22,10 +22,39 @@ vi.mock("../edges/edgeLabelLayout", () => ({
 }));
 
 vi.mock("react-konva", () => ({
-  Arrow: ({ children }: { children?: ReactNode }) => (
-    <div data-testid="edge-arrow">{children}</div>
+  Shape: ({
+    children,
+    onMouseDown,
+    onContextMenu,
+    onDblClick,
+  }: {
+    children?: ReactNode;
+    onMouseDown?: (event: { cancelBubble: boolean }) => void;
+    onContextMenu?: (event: {
+      evt: { preventDefault: () => void; clientX: number; clientY: number };
+      cancelBubble: boolean;
+    }) => void;
+    onDblClick?: (event: { cancelBubble: boolean }) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="edge-shape"
+      onMouseDown={() => onMouseDown?.({ cancelBubble: false })}
+      onContextMenu={(event) => {
+        onContextMenu?.({
+          evt: {
+            preventDefault: () => event.preventDefault(),
+            clientX: 320,
+            clientY: 180,
+          },
+          cancelBubble: false,
+        });
+      }}
+      onDoubleClick={() => onDblClick?.({ cancelBubble: false })}
+    >
+      {children}
+    </button>
   ),
-  Line: () => <div data-testid="edge-label-gap" />,
   Circle: ({
     onMouseDown,
     onMouseEnter,
@@ -109,7 +138,36 @@ describe("EdgeLine endpoint handles", () => {
     );
 
     expect(screen.queryAllByTestId("edge-endpoint-handle")).toHaveLength(0);
-    expect(screen.getByTestId("edge-label-gap")).toBeTruthy();
+    expect(screen.getByTestId("edge-shape")).toBeTruthy();
+  });
+
+  it("keeps edge editing interactions: select/contextmenu/dblclick", () => {
+    const onSelect = vi.fn();
+    const onContextMenu = vi.fn();
+    const onDblClick = vi.fn();
+
+    render(
+      <EdgeLine
+        edge={createEdge("edge-1")}
+        nodes={nodes}
+        isSelected={false}
+        onSelect={onSelect}
+        onContextMenu={onContextMenu}
+        onDblClick={onDblClick}
+        showEndpointHandles={false}
+        endpointPreview={null}
+        onEndpointDragStart={vi.fn()}
+      />,
+    );
+
+    const shape = screen.getByTestId("edge-shape");
+    fireEvent.mouseDown(shape);
+    fireEvent.contextMenu(shape);
+    fireEvent.doubleClick(shape);
+
+    expect(onSelect).toHaveBeenCalledWith("edge-1");
+    expect(onContextMenu).toHaveBeenCalledWith("edge-1", 320, 180);
+    expect(onDblClick).toHaveBeenCalledWith("edge-1");
   });
 
   it("renders endpoint handles and triggers drag start callbacks", () => {
@@ -152,7 +210,7 @@ describe("EdgeLine endpoint handles", () => {
     );
   });
 
-  it("does not render label gap when label is empty", () => {
+  it("label 為空仍可正常渲染曲線", () => {
     render(
       <EdgeLine
         edge={{ ...createEdge("edge-1"), label: "" }}
@@ -166,11 +224,10 @@ describe("EdgeLine endpoint handles", () => {
         onEndpointDragStart={vi.fn()}
       />,
     );
-
-    expect(screen.queryByTestId("edge-label-gap")).toBeNull();
+    expect(screen.getByTestId("edge-shape")).toBeTruthy();
   });
 
-  it("renders label gap immediately when forced in editing state", () => {
+  it("forceLabelGap 啟用時仍可正常渲染曲線", () => {
     render(
       <EdgeLine
         edge={{ ...createEdge("edge-1"), label: "" }}
@@ -185,7 +242,6 @@ describe("EdgeLine endpoint handles", () => {
         onEndpointDragStart={vi.fn()}
       />,
     );
-
-    expect(screen.getByTestId("edge-label-gap")).toBeTruthy();
+    expect(screen.getByTestId("edge-shape")).toBeTruthy();
   });
 });

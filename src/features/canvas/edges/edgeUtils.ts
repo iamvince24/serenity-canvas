@@ -1,4 +1,6 @@
-import type { CanvasNode, Edge } from "../../../types/canvas";
+import type { CanvasNode, Edge, EdgeLineStyle } from "../../../types/canvas";
+import { EDGE_CURVATURE } from "../core/constants";
+import type { EdgeLabelLayout } from "./edgeLabelLayout";
 
 export type Bounds = {
   x: number;
@@ -20,6 +22,8 @@ export type EdgeRoute = {
   end: Point;
   fromAnchor: NodeAnchor;
   toAnchor: NodeAnchor;
+  cp1: Point;
+  cp2: Point;
   midpoint: Point;
 };
 
@@ -29,6 +33,295 @@ export type AnchorCandidate = {
   point: Point;
   distance: number;
 };
+
+type BezierSegment = {
+  p0: Point;
+  cp1: Point;
+  cp2: Point;
+  p3: Point;
+};
+
+const LABEL_GAP_MIN_SPEED = 0.001;
+const LABEL_GAP_PADDING = 6;
+const CONTROL_POINT_FALLBACK_EPSILON = 0.0001;
+
+function calculateControlOffset(
+  distance: number,
+  curvature: number = EDGE_CURVATURE,
+): number {
+  if (distance >= 0) {
+    return distance * 0.5;
+  }
+
+  return curvature * 25 * Math.sqrt(-distance);
+}
+
+function getControlPoint(
+  anchor: NodeAnchor,
+  x: number,
+  y: number,
+  targetX: number,
+  targetY: number,
+  curvature: number,
+): Point {
+  switch (anchor) {
+    case "right":
+      return {
+        x: x + calculateControlOffset(targetX - x, curvature),
+        y,
+      };
+    case "left":
+      return {
+        x: x - calculateControlOffset(x - targetX, curvature),
+        y,
+      };
+    case "bottom":
+      return {
+        x,
+        y: y + calculateControlOffset(targetY - y, curvature),
+      };
+    case "top":
+      return {
+        x,
+        y: y - calculateControlOffset(y - targetY, curvature),
+      };
+    default: {
+      const unreachable: never = anchor;
+      throw new Error(`Unsupported anchor: ${String(unreachable)}`);
+    }
+  }
+}
+
+export function calculateBezierControlPoints(
+  fromAnchor: NodeAnchor,
+  fromPos: Point,
+  toAnchor: NodeAnchor,
+  toPos: Point,
+  curvature: number = EDGE_CURVATURE,
+): { cp1: Point; cp2: Point } {
+  return {
+    cp1: getControlPoint(
+      fromAnchor,
+      fromPos.x,
+      fromPos.y,
+      toPos.x,
+      toPos.y,
+      curvature,
+    ),
+    cp2: getControlPoint(
+      toAnchor,
+      toPos.x,
+      toPos.y,
+      fromPos.x,
+      fromPos.y,
+      curvature,
+    ),
+  };
+}
+
+export function getBezierPoint(
+  t: number,
+  p0: Point,
+  cp1: Point,
+  cp2: Point,
+  p3: Point,
+): Point {
+  const mt = 1 - t;
+
+  return {
+    x:
+      mt * mt * mt * p0.x +
+      3 * mt * mt * t * cp1.x +
+      3 * mt * t * t * cp2.x +
+      t * t * t * p3.x,
+    y:
+      mt * mt * mt * p0.y +
+      3 * mt * mt * t * cp1.y +
+      3 * mt * t * t * cp2.y +
+      t * t * t * p3.y,
+  };
+}
+
+export function getBezierTangent(
+  t: number,
+  p0: Point,
+  cp1: Point,
+  cp2: Point,
+  p3: Point,
+): Point {
+  const mt = 1 - t;
+  const tx =
+    3 * mt * mt * (cp1.x - p0.x) +
+    6 * mt * t * (cp2.x - cp1.x) +
+    3 * t * t * (p3.x - cp2.x);
+  const ty =
+    3 * mt * mt * (cp1.y - p0.y) +
+    6 * mt * t * (cp2.y - cp1.y) +
+    3 * t * t * (p3.y - cp2.y);
+
+  if (
+    Math.abs(tx) < CONTROL_POINT_FALLBACK_EPSILON &&
+    Math.abs(ty) < CONTROL_POINT_FALLBACK_EPSILON
+  ) {
+    return {
+      x: p3.x - p0.x,
+      y: p3.y - p0.y,
+    };
+  }
+
+  return { x: tx, y: ty };
+}
+
+function lerpPoint(from: Point, to: Point, t: number): Point {
+  return {
+    x: from.x + (to.x - from.x) * t,
+    y: from.y + (to.y - from.y) * t,
+  };
+}
+
+export function splitBezier(
+  t: number,
+  p0: Point,
+  cp1: Point,
+  cp2: Point,
+  p3: Point,
+): [BezierSegment, BezierSegment] {
+  const p01 = lerpPoint(p0, cp1, t);
+  const p12 = lerpPoint(cp1, cp2, t);
+  const p23 = lerpPoint(cp2, p3, t);
+  const p012 = lerpPoint(p01, p12, t);
+  const p123 = lerpPoint(p12, p23, t);
+  const p0123 = lerpPoint(p012, p123, t);
+
+  return [
+    {
+      p0,
+      cp1: p01,
+      cp2: p012,
+      p3: p0123,
+    },
+    {
+      p0: p0123,
+      cp1: p123,
+      cp2: p23,
+      p3,
+    },
+  ];
+}
+
+function getCubicDerivativeRoots(
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+): number[] {
+  const a = -p0 + 3 * p1 - 3 * p2 + p3;
+  const b = 2 * (p0 - 2 * p1 + p2);
+  const c = p1 - p0;
+
+  if (Math.abs(a) < CONTROL_POINT_FALLBACK_EPSILON) {
+    if (Math.abs(b) < CONTROL_POINT_FALLBACK_EPSILON) {
+      return [];
+    }
+
+    return [-c / b];
+  }
+
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) {
+    return [];
+  }
+
+  if (Math.abs(discriminant) < CONTROL_POINT_FALLBACK_EPSILON) {
+    return [-b / (2 * a)];
+  }
+
+  const sqrtDiscriminant = Math.sqrt(discriminant);
+
+  return [(-b + sqrtDiscriminant) / (2 * a), (-b - sqrtDiscriminant) / (2 * a)];
+}
+
+export function getBezierBounds(
+  p0: Point,
+  cp1: Point,
+  cp2: Point,
+  p3: Point,
+): Bounds {
+  const candidateTs = new Set<number>([0, 1]);
+  const rootCandidates = [
+    ...getCubicDerivativeRoots(p0.x, cp1.x, cp2.x, p3.x),
+    ...getCubicDerivativeRoots(p0.y, cp1.y, cp2.y, p3.y),
+  ];
+
+  for (const t of rootCandidates) {
+    if (t > 0 && t < 1) {
+      candidateTs.add(t);
+    }
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const t of candidateTs) {
+    const point = getBezierPoint(t, p0, cp1, cp2, p3);
+    minX = Math.min(minX, point.x);
+    minY = Math.min(minY, point.y);
+    maxX = Math.max(maxX, point.x);
+    maxY = Math.max(maxY, point.y);
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(0, maxX - minX),
+    height: Math.max(0, maxY - minY),
+  };
+}
+
+export function getLabelGapTRange(
+  route: Pick<EdgeRoute, "start" | "cp1" | "cp2" | "end">,
+  labelLayout: EdgeLabelLayout,
+): { tStart: number; tEnd: number } | null {
+  const tangent = getBezierTangent(
+    0.5,
+    route.start,
+    route.cp1,
+    route.cp2,
+    route.end,
+  );
+  const speed = Math.hypot(tangent.x, tangent.y);
+  if (speed < LABEL_GAP_MIN_SPEED) {
+    return null;
+  }
+
+  const ux = tangent.x / speed;
+  const uy = tangent.y / speed;
+  const projectedHalfLength =
+    (Math.abs(ux) * labelLayout.width + Math.abs(uy) * labelLayout.height) / 2;
+  const halfGapArcLength = projectedHalfLength + LABEL_GAP_PADDING;
+  const dt = Math.min(halfGapArcLength / speed, 0.45);
+  const tStart = Math.max(0, 0.5 - dt);
+  const tEnd = Math.min(1, 0.5 + dt);
+  if (tStart >= tEnd) {
+    return null;
+  }
+
+  return { tStart, tEnd };
+}
+
+export function getLineDash(lineStyle: EdgeLineStyle): number[] {
+  if (lineStyle === "dashed") {
+    return [12, 8];
+  }
+
+  if (lineStyle === "dotted") {
+    return [3, 6];
+  }
+
+  return [];
+}
 
 export function getNodeCenter(node: CanvasNode): Point {
   return {
@@ -105,16 +398,21 @@ export function getEdgeRoute(
   const { fromAnchor, toAnchor } = getSmartAnchors(source, target);
   const start = getNodeAnchorPoint(source, fromAnchor);
   const end = getNodeAnchorPoint(target, toAnchor);
+  const { cp1, cp2 } = calculateBezierControlPoints(
+    fromAnchor,
+    start,
+    toAnchor,
+    end,
+  );
 
   return {
     start,
     end,
     fromAnchor,
     toAnchor,
-    midpoint: {
-      x: (start.x + end.x) / 2,
-      y: (start.y + end.y) / 2,
-    },
+    cp1,
+    cp2,
+    midpoint: getBezierPoint(0.5, start, cp1, cp2, end),
   };
 }
 
@@ -164,19 +462,10 @@ export function getEdgeBounds(
   edge: Edge,
   elements: Record<string, CanvasNode>,
 ): Bounds {
-  const source = elements[edge.fromNode];
-  const target = elements[edge.toNode];
-  if (!source || !target) {
+  const route = getEdgeRoute(edge, elements);
+  if (!route) {
     return { x: 0, y: 0, width: 0, height: 0 };
   }
 
-  const sourceCenter = getNodeCenter(source);
-  const targetCenter = getNodeCenter(target);
-
-  return {
-    x: Math.min(sourceCenter.x, targetCenter.x),
-    y: Math.min(sourceCenter.y, targetCenter.y),
-    width: Math.abs(targetCenter.x - sourceCenter.x),
-    height: Math.abs(targetCenter.y - sourceCenter.y),
-  };
+  return getBezierBounds(route.start, route.cp1, route.cp2, route.end);
 }
