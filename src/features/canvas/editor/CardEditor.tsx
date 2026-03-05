@@ -16,6 +16,7 @@ import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { TextSelection } from "@tiptap/pm/state";
+import i18n from "@/i18n";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
 import { extractImageFilesFromTransfer } from "../images/editorImageTransfer";
@@ -28,7 +29,9 @@ import {
 } from "./markdownCodec";
 import { uploadImageFile } from "../images/useImageUpload";
 
-const EDITOR_NOT_READY_MESSAGE = "編輯器尚未就緒，請重新拖放圖片。";
+function getEditorNotReadyMessage() {
+  return i18n.t("editor.notReady");
+}
 
 const TaskItemWithBackspaceBehavior = TaskItem.extend({
   addKeyboardShortcuts() {
@@ -152,7 +155,9 @@ export type CardEditorHandle = {
 };
 
 function toUploadErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
+  return error instanceof Error
+    ? error.message
+    : i18n.t("editor.error.uploadFailed");
 }
 
 export const CardEditor = forwardRef(CardEditorImpl);
@@ -188,7 +193,7 @@ async function insertImageAtPos(
   }
 
   if (!inserted) {
-    throw new Error("無法將圖片插入此文字卡片。");
+    throw new Error(i18n.t("editor.error.insertFailed"));
   }
 
   useCanvasStore.getState().addFile(fileRecord);
@@ -231,7 +236,7 @@ function getReadyEditor(editorRef: React.RefObject<Editor | null>): Editor {
     return editor;
   }
 
-  throw new Error(EDITOR_NOT_READY_MESSAGE);
+  throw new Error(getEditorNotReadyMessage());
 }
 
 function fallbackMarkdownDoc(markdown: string): TiptapJSONContent {

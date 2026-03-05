@@ -7,6 +7,7 @@ import {
   type SlashCommandMenuHandle,
   type SlashCommandItem,
 } from "./SlashCommandMenu";
+import i18n from "@/i18n";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
 import { uploadImageFile } from "../images/useImageUpload";
@@ -16,7 +17,9 @@ type SlashEscapeHandledEvent = KeyboardEvent & {
 };
 
 function toUploadErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
+  return error instanceof Error
+    ? error.message
+    : i18n.t("image.upload.fallbackError");
 }
 
 async function insertImageFromFile(editor: Editor, file: File): Promise<void> {
@@ -47,7 +50,7 @@ async function insertImageFromFile(editor: Editor, file: File): Promise<void> {
       { updateSelection: true },
     );
     if (!insertedAtEnd) {
-      throw new Error("無法將圖片插入此文字卡片。");
+      throw new Error(i18n.t("editor.error.insertFailed"));
     }
   }
 
@@ -83,8 +86,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "heading1",
     label: "Heading 1",
-    description: "大標題",
-    keywords: ["heading", "h1", "標題"],
+    description: "Big heading",
+    keywords: ["heading", "h1"],
     shortcut: "⌘⌥1 / Ctrl+Shift+1",
     shortcutKeys: ["Mod-Alt-1", "Ctrl-Shift-1"],
     action: (editor, range) => {
@@ -99,8 +102,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "heading2",
     label: "Heading 2",
-    description: "中標題",
-    keywords: ["heading", "h2", "標題"],
+    description: "Medium heading",
+    keywords: ["heading", "h2"],
     shortcut: "⌘⌥2 / Ctrl+Shift+2",
     shortcutKeys: ["Mod-Alt-2", "Ctrl-Shift-2"],
     action: (editor, range) => {
@@ -115,8 +118,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "heading3",
     label: "Heading 3",
-    description: "小標題",
-    keywords: ["heading", "h3", "標題"],
+    description: "Small heading",
+    keywords: ["heading", "h3"],
     shortcut: "⌘⌥3 / Ctrl+Shift+3",
     shortcutKeys: ["Mod-Alt-3", "Ctrl-Shift-3"],
     action: (editor, range) => {
@@ -131,8 +134,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "bulletList",
     label: "Bullet List",
-    description: "無序清單",
-    keywords: ["bullet", "list", "清單"],
+    description: "Unordered list",
+    keywords: ["bullet", "list"],
     shortcut: "⌘⌥5 / Ctrl+Shift+5",
     shortcutKeys: ["Mod-Alt-5", "Ctrl-Shift-5"],
     action: (editor, range) => {
@@ -147,8 +150,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "orderedList",
     label: "Ordered List",
-    description: "有序清單",
-    keywords: ["ordered", "number", "清單"],
+    description: "Numbered list",
+    keywords: ["ordered", "number"],
     shortcut: "⌘⌥6 / Ctrl+Shift+6",
     shortcutKeys: ["Mod-Alt-6", "Ctrl-Shift-6"],
     action: (editor, range) => {
@@ -163,8 +166,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "taskList",
     label: "Task List",
-    description: "待辦清單",
-    keywords: ["task", "todo", "待辦"],
+    description: "To-do list",
+    keywords: ["task", "todo"],
     shortcut: "⌘⌥4 / Ctrl+Shift+4",
     shortcutKeys: ["Mod-Alt-4", "Ctrl-Shift-4"],
     action: (editor, range) => {
@@ -179,8 +182,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "image",
     label: "Image",
-    description: "插入圖片",
-    keywords: ["image", "圖片", "img"],
+    description: "Insert image",
+    keywords: ["image", "img"],
     action: (editor, range) => {
       if (range) {
         editor.chain().focus().deleteRange(range).run();
@@ -192,8 +195,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "codeBlock",
     label: "Code Block",
-    description: "程式碼區塊",
-    keywords: ["code", "程式碼"],
+    description: "Code block",
+    keywords: ["code"],
     action: (editor, range) => {
       const chain = editor.chain().focus();
       if (range) {
@@ -206,8 +209,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "blockquote",
     label: "Blockquote",
-    description: "引用區塊",
-    keywords: ["quote", "引用"],
+    description: "Quote block",
+    keywords: ["quote"],
     action: (editor, range) => {
       const chain = editor.chain().focus();
       if (range) {
@@ -220,8 +223,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
   {
     id: "divider",
     label: "Divider",
-    description: "分隔線",
-    keywords: ["divider", "hr", "分隔線"],
+    description: "Horizontal rule",
+    keywords: ["divider", "hr"],
     action: (editor, range) => {
       const chain = editor.chain().focus();
       if (range) {

@@ -1,9 +1,11 @@
+import { useTranslation } from "react-i18next";
 import { Link, Navigate } from "react-router";
 import { LOCAL_BOARD_ID } from "../features/canvas/core/constants";
 import { Header } from "../components/layout/Header";
 import { useAuthStore } from "../stores/authStore";
 
 export function HomePage() {
+  const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const loading = useAuthStore((state) => state.loading);
 
@@ -32,19 +34,18 @@ export function HomePage() {
             className="animate-serenity-in text-[clamp(2.25rem,6vw,3rem)] font-normal leading-[1.16] tracking-[-0.025em]"
             style={{ fontFamily: "var(--font-serif)" }}
           >
-            在寧靜中釐清思緒
+            {t("home.hero.title")}
           </h1>
 
           <p className="text-body animate-serenity-in animation-delay-80 mt-6 max-w-xl text-foreground-muted">
-            Serenity Canvas
-            透過安靜、層次分明的工作空間，幫助你將零散的想法轉化為清晰的方向。
+            {t("home.hero.description")}
           </p>
 
           <Link
             to={`/canvas/${LOCAL_BOARD_ID}`}
             className="btn-primary animate-serenity-in animation-delay-160 mt-10"
           >
-            開始使用
+            {t("home.hero.cta")}
           </Link>
         </section>
       </main>

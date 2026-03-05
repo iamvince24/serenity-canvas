@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   CANVAS_COLOR_PRESETS,
@@ -37,12 +38,24 @@ function clamp(value: number, min: number, max: number): number {
 
 const LINE_STYLE_OPTIONS: readonly {
   id: EdgeLineStyle;
-  label: string;
+  labelKey: string;
   borderTopStyle: "solid" | "dashed" | "dotted";
 }[] = [
-  { id: "solid", label: "實線", borderTopStyle: "solid" },
-  { id: "dashed", label: "虛線", borderTopStyle: "dashed" },
-  { id: "dotted", label: "點線", borderTopStyle: "dotted" },
+  {
+    id: "solid",
+    labelKey: "edgeContext.lineStyle.solid",
+    borderTopStyle: "solid",
+  },
+  {
+    id: "dashed",
+    labelKey: "edgeContext.lineStyle.dashed",
+    borderTopStyle: "dashed",
+  },
+  {
+    id: "dotted",
+    labelKey: "edgeContext.lineStyle.dotted",
+    borderTopStyle: "dotted",
+  },
 ];
 
 export function EdgeContextMenu({
@@ -51,6 +64,7 @@ export function EdgeContextMenu({
   clientY,
   onClose,
 }: EdgeContextMenuProps) {
+  const { t } = useTranslation();
   const edge = useCanvasStore((state) => state.edges[edgeId]);
   const updateEdge = useCanvasStore((state) => state.updateEdge);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -189,7 +203,7 @@ export function EdgeContextMenu({
     >
       <div className="px-1 pb-1">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
-          線條樣式
+          {t("edgeContext.lineStyle")}
         </p>
         <div className="flex gap-2">
           {LINE_STYLE_OPTIONS.map((option) => {
@@ -198,13 +212,16 @@ export function EdgeContextMenu({
               <button
                 key={option.id}
                 type="button"
+                data-testid={`line-style-${option.id}`}
                 className={cn(
                   "inline-flex h-8 flex-1 items-center justify-center rounded-md border bg-elevated transition-colors",
                   isActive
                     ? "border-sage bg-sage-lighter/60"
                     : "border-border hover:bg-surface",
                 )}
-                aria-label={`設定線條樣式為${option.label}`}
+                aria-label={t("edgeContext.lineStyleLabel", {
+                  style: t(option.labelKey),
+                })}
                 onClick={() => handleSelectLineStyle(option.id)}
               >
                 <span
@@ -222,15 +239,15 @@ export function EdgeContextMenu({
       <div className="card-widget__settings-divider" />
 
       <div className="card-color-picker px-1 pb-1 pt-0">
-        <div className="card-color-picker__title">顏色</div>
+        <div className="card-color-picker__title">{t("edgeContext.color")}</div>
         <div className="card-color-picker__grid">
           <button
             type="button"
             className={cn("card-color-picker__option", {
               "card-color-picker__option--active": edge.color === null,
             })}
-            aria-label="設定連線顏色為無"
-            title="無"
+            aria-label={t("edgeContext.colorNoneLabel")}
+            title={t("edgeContext.colorNone")}
             onClick={() => handleSelectColor(null)}
           >
             <span className="card-color-picker__swatch card-color-picker__swatch--none" />
@@ -245,7 +262,9 @@ export function EdgeContextMenu({
                 className={cn("card-color-picker__option", {
                   "card-color-picker__option--active": isActive,
                 })}
-                aria-label={`設定連線顏色為 ${preset.label}`}
+                aria-label={t("edgeContext.colorLabel", {
+                  color: preset.label,
+                })}
                 title={preset.label}
                 onClick={() => handleSelectColor(preset.id)}
               >
@@ -269,7 +288,7 @@ export function EdgeContextMenu({
           className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted"
           htmlFor={`edge-direction-${edge.id}`}
         >
-          方向
+          {t("edgeContext.direction")}
         </label>
         <select
           id={`edge-direction-${edge.id}`}
@@ -279,9 +298,9 @@ export function EdgeContextMenu({
             handleDirectionChange(event.target.value as EdgeDirection)
           }
         >
-          <option value="forward">單向</option>
-          <option value="both">雙向</option>
-          <option value="none">無</option>
+          <option value="forward">{t("edgeContext.direction.forward")}</option>
+          <option value="both">{t("edgeContext.direction.both")}</option>
+          <option value="none">{t("edgeContext.direction.none")}</option>
         </select>
       </div>
     </div>,

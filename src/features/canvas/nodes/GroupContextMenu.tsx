@@ -1,5 +1,6 @@
 import { PenLine, Ungroup } from "lucide-react";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   CANVAS_COLOR_PRESETS,
@@ -22,6 +23,7 @@ export function GroupContextMenu({
   clientY,
   onClose,
 }: GroupContextMenuProps) {
+  const { t } = useTranslation();
   const groups = useCanvasStore((state) => state.groups);
   const selectedGroupIds = useCanvasStore((state) => state.selectedGroupIds);
   const updateGroup = useCanvasStore((state) => state.updateGroup);
@@ -59,7 +61,10 @@ export function GroupContextMenu({
       return;
     }
 
-    const nextLabel = window.prompt("群組名稱", primaryGroup.label);
+    const nextLabel = window.prompt(
+      t("groupContext.renamePrompt"),
+      primaryGroup.label,
+    );
     if (nextLabel === null) {
       return;
     }
@@ -71,7 +76,7 @@ export function GroupContextMenu({
 
     updateGroup(primaryGroup.id, { label: trimmedLabel });
     onClose();
-  }, [onClose, primaryGroup, updateGroup]);
+  }, [onClose, primaryGroup, t, updateGroup]);
 
   const handleUngroup = useCallback(() => {
     if (activeSelectedGroupIds.length === 0) {
@@ -115,7 +120,7 @@ export function GroupContextMenu({
         onClick={handleRenameGroup}
       >
         <PenLine size={14} />
-        重新命名群組
+        {t("groupContext.rename")}
       </button>
       <button
         type="button"
@@ -123,22 +128,24 @@ export function GroupContextMenu({
         onClick={handleUngroup}
       >
         <Ungroup size={14} />
-        解散群組
+        {t("groupContext.ungroup")}
       </button>
       <div className="card-widget__settings-divider" />
       <div
         className="card-color-picker px-1 pb-1 pt-0"
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <div className="card-color-picker__title">群組顏色</div>
+        <div className="card-color-picker__title">
+          {t("groupContext.color")}
+        </div>
         <div className="card-color-picker__grid">
           <button
             type="button"
             className={cn("card-color-picker__option", {
               "card-color-picker__option--active": primaryGroup.color === null,
             })}
-            aria-label="設定群組顏色為無"
-            title="無"
+            aria-label={t("groupContext.colorNoneLabel")}
+            title={t("groupContext.colorNone")}
             onClick={() => handleSelectGroupColor(null)}
           >
             <span className="card-color-picker__swatch card-color-picker__swatch--none" />
@@ -152,7 +159,9 @@ export function GroupContextMenu({
                 className={cn("card-color-picker__option", {
                   "card-color-picker__option--active": isActive,
                 })}
-                aria-label={`設定群組顏色為 ${preset.label}`}
+                aria-label={t("groupContext.colorLabel", {
+                  color: preset.label,
+                })}
                 title={preset.label}
                 onClick={() => handleSelectGroupColor(preset.id)}
               >

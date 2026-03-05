@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,11 +14,11 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { exportToObsidianZip } from "./obsidianExportService";
 import type { ExportProgress } from "./obsidianExport.types";
 
-const STAGE_LABELS: Record<ExportProgress["stage"], string> = {
-  preparing: "準備中…",
-  collecting_assets: "收集圖片資產…",
-  building_zip: "打包 ZIP…",
-  done: "完成",
+const STAGE_LABEL_KEYS: Record<ExportProgress["stage"], string> = {
+  preparing: "export.stage.preparing",
+  collecting_assets: "export.stage.collectingAssets",
+  building_zip: "export.stage.buildingZip",
+  done: "export.stage.done",
 };
 
 type ExportDialogProps = {
@@ -26,6 +27,7 @@ type ExportDialogProps = {
 };
 
 export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
+  const { t } = useTranslation();
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [errorSummary, setErrorSummary] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
       const boardId = useCanvasStore.getState().currentBoardId;
       const boards = useDashboardStore.getState().boards;
       const board = boards.find((b) => b.id === boardId);
-      const boardTitle = board?.title ?? "未命名";
+      const boardTitle = board?.title ?? t("export.fallbackBoardTitle");
 
       const result = await exportToObsidianZip(
         snapshot,
@@ -60,19 +62,19 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
 
       if (result.logLines.length > 0) {
         setErrorSummary(
-          `匯出完成，但有 ${result.logLines.length} 個警告。已附在 ZIP 中的 _export_log.txt。`,
+          t("export.warningResult", { count: result.logLines.length }),
         );
       } else {
         onOpenChange(false);
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "匯出失敗，請再試一次。";
+        error instanceof Error ? error.message : t("export.error.fallback");
       setErrorSummary(message);
     } finally {
       setIsExporting(false);
     }
-  }, [onOpenChange]);
+  }, [onOpenChange, t]);
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
@@ -88,19 +90,18 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>匯出為 Obsidian 格式</DialogTitle>
+          <DialogTitle>{t("export.title")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <p className="text-sm text-foreground-muted">
-            將白板匯出為 Obsidian Canvas 相容的 .zip 檔案，包含 .canvas
-            JSON、Markdown 檔案與圖片資產。
+            {t("export.description")}
           </p>
 
           {progress && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-foreground-muted">
-                <span>{STAGE_LABELS[progress.stage]}</span>
+                <span>{t(STAGE_LABEL_KEYS[progress.stage])}</span>
                 <span>{progress.percent}%</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-surface">
@@ -125,12 +126,16 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
             onClick={() => handleOpenChange(false)}
             disabled={isExporting}
           >
-            {errorSummary ? "關閉" : "取消"}
+            {errorSummary
+              ? t("export.button.close")
+              : t("export.button.cancel")}
           </Button>
           {!errorSummary && (
             <Button onClick={handleExport} disabled={isExporting}>
               <Download size={16} className="mr-2" />
-              {isExporting ? "匯出中…" : "匯出"}
+              {isExporting
+                ? t("export.button.exporting")
+                : t("export.button.export")}
             </Button>
           )}
         </DialogFooter>

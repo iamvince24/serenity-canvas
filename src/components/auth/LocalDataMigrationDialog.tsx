@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,8 @@ export function LocalDataMigrationDialog({
   onMerge,
   onDiscard,
 }: LocalDataMigrationDialogProps) {
+  const { t } = useTranslation();
+
   return (
     <Dialog
       open={open}
@@ -41,10 +44,8 @@ export function LocalDataMigrationDialog({
         showCloseButton={false}
       >
         <DialogHeader>
-          <DialogTitle>發現本地白板資料</DialogTitle>
-          <DialogDescription>
-            你有尚未同步的本地內容。請選擇要如何處理這批資料。
-          </DialogDescription>
+          <DialogTitle>{t("migration.title")}</DialogTitle>
+          <DialogDescription>{t("migration.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -55,10 +56,10 @@ export function LocalDataMigrationDialog({
             disabled={isSubmitting}
           >
             <p className="text-sm font-semibold text-foreground">
-              合併至新白板
+              {t("migration.option.merge")}
             </p>
             <p className="mt-1 text-xs text-foreground-muted">
-              建立一個新的雲端白板，保留本地內容與圖片。
+              {t("migration.option.mergeDescription")}
             </p>
           </button>
 
@@ -69,10 +70,10 @@ export function LocalDataMigrationDialog({
             disabled={isSubmitting}
           >
             <p className="text-sm font-semibold text-foreground">
-              捨棄本地資料
+              {t("migration.option.discard")}
             </p>
             <p className="mt-1 text-xs text-foreground-muted">
-              清除 local-board，直接使用雲端白板。
+              {t("migration.option.discardDescription")}
             </p>
           </button>
         </div>

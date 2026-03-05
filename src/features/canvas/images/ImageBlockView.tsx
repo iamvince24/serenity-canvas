@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { acquireImage, releaseImage } from "./imageUrlCache";
 
@@ -16,6 +17,7 @@ function readNodeAttr(value: unknown, fallback = ""): string {
 }
 
 export function ImageBlockView({ node }: NodeViewProps) {
+  const { t } = useTranslation();
   const assetId = readNodeAttr(node.attrs.assetId);
   const alt = readNodeAttr(node.attrs.alt);
   const [result, setResult] = useState<ImageLoadResult | null>(null);
@@ -44,7 +46,9 @@ export function ImageBlockView({ node }: NodeViewProps) {
         }
 
         const message =
-          error instanceof Error ? error.message : "圖片載入失敗。";
+          error instanceof Error
+            ? error.message
+            : t("image.block.loadErrorFallback");
         setResult({ assetId, type: "error", message });
       });
 
@@ -54,11 +58,11 @@ export function ImageBlockView({ node }: NodeViewProps) {
         releaseImage(assetId);
       }
     };
-  }, [assetId]);
+  }, [assetId, t]);
 
   const status: ImageBlockStatus =
     assetId.length === 0
-      ? { type: "error", message: "缺少圖片資產 ID。" }
+      ? { type: "error", message: t("image.block.missingAssetId") }
       : result === null || result.assetId !== assetId
         ? { type: "loading" }
         : result.type === "loaded"
@@ -71,7 +75,7 @@ export function ImageBlockView({ node }: NodeViewProps) {
         <div
           className="h-[180px] w-full animate-pulse rounded-md bg-[#ECEAE6]"
           role="status"
-          aria-label="載入圖片中"
+          aria-label={t("image.block.loading")}
         />
       ) : null}
 
@@ -86,7 +90,7 @@ export function ImageBlockView({ node }: NodeViewProps) {
 
       {status.type === "error" ? (
         <div className="rounded-md border border-[#E5A29B] bg-[#FFF2F0] px-3 py-2 text-xs text-[#B8635A]">
-          圖片載入失敗：{status.message}
+          {t("image.block.loadError", { message: status.message })}
         </div>
       ) : null}
     </NodeViewWrapper>

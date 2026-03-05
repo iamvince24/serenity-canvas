@@ -14,12 +14,13 @@ import {
 } from "./services/localDataMigrationService";
 import { useAuthStore } from "./stores/authStore";
 import { useDashboardStore } from "./stores/dashboardStore";
+import i18n from "./i18n";
 
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
     return error.message;
   }
-  return "本地資料遷移失敗，請稍後再試。";
+  return i18n.t("app.migration.fallbackError");
 }
 
 function App() {

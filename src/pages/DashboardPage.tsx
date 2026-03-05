@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PanelLeftOpen } from "lucide-react";
 import { Sidebar } from "../components/layout/Sidebar";
 import { useDashboardKeyboard } from "../hooks/useDashboardKeyboard";
@@ -9,6 +10,7 @@ import { CanvasPage } from "./CanvasPage";
 const SIDEBAR_OPEN_STORAGE_KEY = "serenity-canvas:sidebar-open";
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const {
     boards,
     activeBoardId,
@@ -65,7 +67,7 @@ export function DashboardPage() {
             type="button"
             className="absolute top-4 left-4 z-40 flex h-9 w-9 items-center justify-center rounded-[6px] border border-[#E5E3DF] bg-[#FFFFFF] text-[#6B6B66] transition-colors duration-300 hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
             onClick={() => handleSetIsOpen(true)}
-            aria-label="展開側欄"
+            aria-label={t("dashboard.sidebar.expand")}
           >
             <PanelLeftOpen className="h-4 w-4" />
           </button>

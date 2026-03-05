@@ -71,9 +71,9 @@ describe("EdgeContextMenu", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "設定線條樣式為點線" }));
-    fireEvent.click(screen.getByRole("button", { name: "設定連線顏色為 Red" }));
-    fireEvent.change(screen.getByLabelText("方向"), {
+    fireEvent.click(screen.getByTestId("line-style-dotted"));
+    fireEvent.click(screen.getByTitle("Red"));
+    fireEvent.change(screen.getByLabelText("edgeContext.direction"), {
       target: { value: "both" },
     });
 

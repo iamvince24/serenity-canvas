@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import i18n from "@/i18n";
 import type { FileRecord } from "../../../types/canvas";
 import { compressImageWithWorker } from "../../../workers/imageCompression";
 import type { ImageNodeUploadPayload } from "../nodes/nodeFactory";
@@ -50,11 +51,11 @@ export async function uploadImageFile(
 ): Promise<UploadedImagePayload> {
   const sourceMimeType = resolveSourceMimeType(file);
   if (!sourceMimeType) {
-    throw new Error("不支援的檔案格式，請上傳 JPG/PNG/GIF/WEBP。");
+    throw new Error(i18n.t("image.upload.unsupportedFormat"));
   }
 
   if (file.size > MAX_SOURCE_FILE_BYTES) {
-    throw new Error("檔案過大，原始檔案上限為 10MB。");
+    throw new Error(i18n.t("image.upload.fileTooLarge"));
   }
 
   const compressedOutput = await compressImageWithWorker(file).catch(
@@ -111,7 +112,7 @@ export async function computeAssetId(blob: Blob): Promise<string> {
     typeof crypto.subtle === "undefined" ||
     typeof crypto.subtle.digest !== "function"
   ) {
-    throw new Error("Web Crypto API 不可用。");
+    throw new Error(i18n.t("image.upload.cryptoUnavailable"));
   }
 
   const buffer = await blob.arrayBuffer();
@@ -142,7 +143,7 @@ function loadImageDimensions(blob: Blob): Promise<{
     };
 
     image.onerror = () => {
-      reject(new Error("無法讀取圖片尺寸。"));
+      reject(new Error(i18n.t("image.upload.dimensionError")));
       URL.revokeObjectURL(objectUrl);
     };
 

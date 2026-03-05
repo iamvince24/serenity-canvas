@@ -8,6 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { Editor, Range } from "@tiptap/core";
+import i18n from "@/i18n";
 
 export type SlashCommandItem = {
   id: string;
@@ -112,7 +113,7 @@ export const SlashCommandMenu = forwardRef<
       style={menuStyle}
       className="slash-command-menu min-w-[220px] max-w-[280px] rounded-lg border border-[#E8E7E3] bg-white py-1 shadow-lg"
       role="listbox"
-      aria-label="命令選單"
+      aria-label={i18n.t("slashCommand.menuLabel")}
     >
       {items.map((item, index) => {
         const isSelected = index === activeIndex;

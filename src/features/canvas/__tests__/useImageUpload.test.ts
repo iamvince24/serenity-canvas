@@ -127,7 +127,7 @@ describe("useImageUpload", () => {
     });
 
     await expect(result.current.uploadImageFile(file)).rejects.toThrow(
-      "不支援的檔案格式，請上傳 JPG/PNG/GIF/WEBP。",
+      "image.upload.unsupportedFormat",
     );
   });
 
@@ -140,7 +140,7 @@ describe("useImageUpload", () => {
     });
 
     await expect(result.current.uploadImageFile(file)).rejects.toThrow(
-      "檔案過大，原始檔案上限為 10MB。",
+      "image.upload.fileTooLarge",
     );
   });
 

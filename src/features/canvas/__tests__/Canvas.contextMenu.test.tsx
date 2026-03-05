@@ -125,7 +125,9 @@ describe("Canvas node context menu actions", () => {
     }
 
     fireEvent.contextMenu(card, { clientX: 180, clientY: 160 });
-    fireEvent.click(screen.getByRole("button", { name: "自動調整大小" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "nodeContext.fitContent" }),
+    );
 
     const fittedNode = useCanvasStore.getState().nodes["text-1"];
     if (!fittedNode || fittedNode.type !== "text") {
@@ -134,7 +136,7 @@ describe("Canvas node context menu actions", () => {
     expect(fittedNode.heightMode).toBe("auto");
 
     fireEvent.contextMenu(card, { clientX: 200, clientY: 200 });
-    fireEvent.click(screen.getByRole("button", { name: "設定卡片顏色為 Red" }));
+    fireEvent.click(screen.getByTitle("Red"));
 
     const coloredNode = useCanvasStore.getState().nodes["text-1"];
     if (!coloredNode || coloredNode.type !== "text") {

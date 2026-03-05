@@ -74,7 +74,7 @@ describe("Sidebar", () => {
       </MemoryRouter>,
     );
 
-    let aside = screen.getByLabelText("收合側欄").closest("aside");
+    let aside = screen.getByLabelText("sidebar.collapse").closest("aside");
     if (!aside) {
       throw new Error("aside not found");
     }
@@ -95,7 +95,7 @@ describe("Sidebar", () => {
       </MemoryRouter>,
     );
 
-    aside = screen.getByLabelText("收合側欄").closest("aside");
+    aside = screen.getByLabelText("sidebar.collapse").closest("aside");
     if (!aside) {
       throw new Error("aside not found");
     }
@@ -104,7 +104,7 @@ describe("Sidebar", () => {
 
   it("點擊收合按鈕會呼叫 setIsOpen(false)", () => {
     const { setIsOpen } = renderSidebar();
-    fireEvent.click(screen.getByRole("button", { name: "收合側欄" }));
+    fireEvent.click(screen.getByRole("button", { name: "sidebar.collapse" }));
     expect(setIsOpen).toHaveBeenCalledWith(false);
   });
 
@@ -137,9 +137,9 @@ describe("Sidebar", () => {
       throw new Error("row not found");
     }
 
-    const actionButton = screen.getByRole("button", {
-      name: "Board 1 的操作選單",
-    });
+    const actionButton = screen.getAllByRole("button", {
+      name: "sidebar.boardMenu",
+    })[0];
     expect(actionButton.className.includes("opacity-0")).toBe(true);
 
     fireEvent.mouseEnter(row);
@@ -154,8 +154,10 @@ describe("Sidebar", () => {
 
   it("點擊 Plus 會建立 Untitled Board", () => {
     const { onCreateBoard } = renderSidebar();
-    fireEvent.click(screen.getByRole("button", { name: "建立白板" }));
-    expect(onCreateBoard).toHaveBeenCalledWith("未命名白板");
+    fireEvent.click(
+      screen.getByRole("button", { name: "sidebar.createBoard" }),
+    );
+    expect(onCreateBoard).toHaveBeenCalledWith("sidebar.defaultBoardTitle");
   });
 
   it("點擊 MoreHorizontal 會開啟 DropdownMenu", () => {
@@ -166,12 +168,12 @@ describe("Sidebar", () => {
     }
 
     fireEvent.mouseEnter(row);
-    const trigger = screen.getByRole("button", {
-      name: "Board 1 的操作選單",
-    });
+    const trigger = screen.getAllByRole("button", {
+      name: "sidebar.boardMenu",
+    })[0];
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
-    expect(screen.getByText("重新命名")).toBeTruthy();
-    expect(screen.getByText("刪除")).toBeTruthy();
+    expect(screen.getByText("sidebar.rename")).toBeTruthy();
+    expect(screen.getByText("sidebar.delete")).toBeTruthy();
   });
 
   it("右鍵 board item 會開啟 DropdownMenu", () => {
@@ -182,7 +184,7 @@ describe("Sidebar", () => {
     }
 
     fireEvent.contextMenu(row);
-    expect(screen.getByText("重新命名")).toBeTruthy();
+    expect(screen.getByText("sidebar.rename")).toBeTruthy();
   });
 
   it("DropdownMenu 開啟後點擊外部會關閉", async () => {
@@ -193,11 +195,13 @@ describe("Sidebar", () => {
     }
 
     fireEvent.contextMenu(row);
-    expect(screen.getByText("重新命名")).toBeTruthy();
+    expect(screen.getByText("sidebar.rename")).toBeTruthy();
 
-    fireEvent.pointerDown(screen.getByRole("button", { name: "建立白板" }));
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "sidebar.createBoard" }),
+    );
     await waitFor(() => {
-      expect(screen.queryByText("重新命名")).toBeNull();
+      expect(screen.queryByText("sidebar.rename")).toBeNull();
     });
   });
 
@@ -220,7 +224,7 @@ describe("Sidebar", () => {
     }
 
     fireEvent.contextMenu(row);
-    const deleteItem = screen.getByText("刪除");
+    const deleteItem = screen.getByText("sidebar.delete");
     expect(deleteItem.getAttribute("data-disabled")).not.toBeNull();
   });
 
@@ -233,16 +237,16 @@ describe("Sidebar", () => {
     }
 
     fireEvent.contextMenu(row);
-    fireEvent.click(screen.getByText("重新命名"));
+    fireEvent.click(screen.getByText("sidebar.rename"));
 
-    const input = screen.getByLabelText("重新命名 Board 1");
+    const input = screen.getByLabelText("sidebar.renameLabel");
     fireEvent.change(input, { target: { value: "Board One" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onRenameBoard).toHaveBeenCalledWith("board-1", "Board One");
 
     fireEvent.contextMenu(row);
-    fireEvent.click(screen.getByText("重新命名"));
-    const inputForBlur = screen.getByLabelText("重新命名 Board 1");
+    fireEvent.click(screen.getByText("sidebar.rename"));
+    const inputForBlur = screen.getByLabelText("sidebar.renameLabel");
     fireEvent.change(inputForBlur, { target: { value: "Board Uno" } });
     fireEvent.blur(inputForBlur);
     expect(onRenameBoard).toHaveBeenCalledWith("board-1", "Board Uno");
@@ -256,9 +260,9 @@ describe("Sidebar", () => {
     }
 
     fireEvent.contextMenu(row);
-    fireEvent.click(screen.getByText("重新命名"));
+    fireEvent.click(screen.getByText("sidebar.rename"));
 
-    const input = screen.getByLabelText("重新命名 Board 1");
+    const input = screen.getByLabelText("sidebar.renameLabel");
     fireEvent.change(input, { target: { value: "   " } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -273,8 +277,10 @@ describe("Sidebar", () => {
     }
 
     fireEvent.contextMenu(row);
-    fireEvent.click(screen.getByText("刪除"));
-    fireEvent.click(screen.getAllByRole("button", { name: "刪除" })[0]);
+    fireEvent.click(screen.getByText("sidebar.delete"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "sidebar.deleteDialog.confirm" }),
+    );
 
     expect(onDeleteBoard).toHaveBeenCalledWith("board-1");
   });
@@ -282,18 +288,18 @@ describe("Sidebar", () => {
   it("點擊 Settings 會開啟 DropdownMenu 並顯示登出按鈕", () => {
     renderSidebar();
 
-    const trigger = screen.getByRole("button", { name: "開啟設定選單" });
+    const trigger = screen.getByRole("button", { name: "sidebar.settings" });
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
 
-    expect(screen.getByText("登出")).toBeTruthy();
+    expect(screen.getByText("header.button.signOut")).toBeTruthy();
   });
 
   it("點擊登出會呼叫 signOut", async () => {
     renderSidebar();
 
-    const trigger = screen.getByRole("button", { name: "開啟設定選單" });
+    const trigger = screen.getByRole("button", { name: "sidebar.settings" });
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
-    fireEvent.click(screen.getByText("登出"));
+    fireEvent.click(screen.getByText("header.button.signOut"));
 
     await waitFor(() => {
       expect(signOut).toHaveBeenCalledTimes(1);

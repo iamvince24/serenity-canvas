@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/authStore";
+import i18n from "@/i18n";
 
 type AuthMode = "signIn" | "signUp";
 
@@ -24,11 +26,11 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function validateForm(email: string, password: string): string | null {
   const trimmedEmail = email.trim();
   if (!emailPattern.test(trimmedEmail)) {
-    return "請輸入有效的 Email 格式。";
+    return i18n.t("auth.validation.invalidEmail");
   }
 
   if (password.length < 6) {
-    return "密碼至少需要 6 個字元。";
+    return i18n.t("auth.validation.passwordTooShort");
   }
 
   return null;
@@ -39,10 +41,11 @@ function getErrorMessage(error: unknown): string {
     return error.message;
   }
 
-  return "發生未知錯誤，請稍後再試。";
+  return i18n.t("auth.error.unknown");
 }
 
 export function AuthModal({ open, onOpenChange }: AuthModalProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
   const signInWithEmail = useAuthStore((state) => state.signInWithEmail);
@@ -68,8 +71,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     setIsSubmitting(false);
   }, [open]);
 
-  const title = mode === "signIn" ? "登入 Serenity Canvas" : "建立帳號";
-  const submitLabel = mode === "signIn" ? "Email 登入" : "建立帳號";
+  const title =
+    mode === "signIn" ? t("auth.title.signIn") : t("auth.title.signUp");
+  const submitLabel =
+    mode === "signIn" ? t("auth.button.emailSignIn") : t("auth.button.signUp");
 
   const handleGoogleLogin = async () => {
     setErrorMessage(null);
@@ -107,7 +112,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
 
       const result = await signUp(email.trim(), password);
       if (result.requiresEmailConfirmation) {
-        setNoticeMessage("註冊成功，請先到 Email 完成驗證，再回來登入。");
+        setNoticeMessage(i18n.t("auth.notice.emailConfirmation"));
         setMode("signIn");
         setPassword("");
         return;
@@ -141,9 +146,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
       <DialogContent className="border-border bg-elevated sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            使用 Google 或 Email/Password 來登入你的工作空間。
-          </DialogDescription>
+          <DialogDescription>{t("auth.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -154,12 +157,14 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
             onClick={handleGoogleLogin}
             disabled={isSubmitting}
           >
-            使用 Google 登入
+            {t("auth.button.google")}
           </Button>
 
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-divider" />
-            <span className="text-xs text-foreground-subtle">或</span>
+            <span className="text-xs text-foreground-subtle">
+              {t("auth.divider")}
+            </span>
             <div className="h-px flex-1 bg-divider" />
           </div>
 
@@ -181,7 +186,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
 
             <div className="space-y-1">
               <label htmlFor="auth-password" className="text-sm font-medium">
-                密碼
+                {t("auth.label.password")}
               </label>
               <Input
                 id="auth-password"
@@ -191,7 +196,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
                 }
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="至少 6 個字元"
+                placeholder={t("auth.placeholder.password")}
                 disabled={isSubmitting}
               />
             </div>
@@ -209,19 +214,23 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
             ) : null}
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "處理中..." : submitLabel}
+              {isSubmitting ? t("auth.button.submitting") : submitLabel}
             </Button>
           </form>
 
           <div className="text-center text-sm text-foreground-muted">
-            {mode === "signIn" ? "還沒有帳號？" : "已經有帳號？"}
+            {mode === "signIn"
+              ? t("auth.toggle.noAccount")
+              : t("auth.toggle.hasAccount")}
             <button
               type="button"
               className="ml-1 text-sage-dark transition-colors hover:text-sage"
               onClick={handleModeToggle}
               disabled={isSubmitting}
             >
-              {mode === "signIn" ? "註冊" : "改用登入"}
+              {mode === "signIn"
+                ? t("auth.toggle.signUp")
+                : t("auth.toggle.signIn")}
             </button>
           </div>
         </div>

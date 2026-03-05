@@ -11,8 +11,10 @@ import {
   Undo2,
 } from "lucide-react";
 import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { getAvatarUrl, getDisplayName } from "@/lib/userMetadata";
 import { useAuthStore } from "@/stores/authStore";
 import { useCanvasStore } from "../../stores/canvasStore";
@@ -34,6 +36,7 @@ export function Toolbar({
   showFpsOverlay = false,
   onFpsOverlayToggle,
 }: ToolbarProps) {
+  const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -83,7 +86,9 @@ export function Toolbar({
         selectNode(imageNode.id);
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
+          error instanceof Error
+            ? error.message
+            : t("toolbar.error.uploadFailed");
         notifyImageUploadError(message);
       }
     },
@@ -91,6 +96,7 @@ export function Toolbar({
       addFile,
       addNode,
       selectNode,
+      t,
       uploadImageFile,
       viewport.x,
       viewport.y,
@@ -114,13 +120,13 @@ export function Toolbar({
               ? "border-sage-light bg-sage/20 text-sage-dark hover:bg-sage/20"
               : ""
           }`}
-          aria-label="選取模式"
+          aria-label={t("toolbar.mode.select")}
           aria-pressed={canvasMode === "select"}
-          title="選取 (V)"
+          title={t("toolbar.mode.selectTitle")}
           onClick={() => setCanvasMode("select")}
         >
           <MousePointer2 size={16} />
-          選取
+          {t("toolbar.mode.select")}
         </button>
         <button
           type="button"
@@ -129,20 +135,20 @@ export function Toolbar({
               ? "border-sage-light bg-sage/20 text-sage-dark hover:bg-sage/20"
               : ""
           }`}
-          aria-label="連線模式"
+          aria-label={t("toolbar.mode.connect")}
           aria-pressed={canvasMode === "connect"}
-          title="連線 (C)"
+          title={t("toolbar.mode.connectTitle")}
           onClick={() => setCanvasMode("connect")}
         >
           <Spline size={16} />
-          連線
+          {t("toolbar.mode.connect")}
         </button>
         <div className="h-5 w-px bg-border" aria-hidden="true" />
         <button
           type="button"
           className="btn-secondary h-9 w-9 justify-center px-0"
-          aria-label="復原"
-          title="復原 (Cmd/Ctrl+Z)"
+          aria-label={t("toolbar.button.undo")}
+          title={t("toolbar.button.undoTitle")}
           onClick={undo}
           disabled={!canUndo}
         >
@@ -151,8 +157,8 @@ export function Toolbar({
         <button
           type="button"
           className="btn-secondary h-9 w-9 justify-center px-0"
-          aria-label="重做"
-          title="重做 (Cmd/Ctrl+Shift+Z)"
+          aria-label={t("toolbar.button.redo")}
+          title={t("toolbar.button.redoTitle")}
           onClick={redo}
           disabled={!canRedo}
         >
@@ -162,12 +168,12 @@ export function Toolbar({
         <button
           type="button"
           className="btn-secondary h-9 gap-2 px-3 text-sm"
-          aria-label="匯出至 Obsidian"
-          title="匯出 Obsidian 格式"
+          aria-label={t("toolbar.button.exportTitle")}
+          title={t("toolbar.button.exportTitle")}
           onClick={() => setIsExportDialogOpen(true)}
         >
           <Download size={16} />
-          <span className="hidden sm:inline">匯出</span>
+          <span className="hidden sm:inline">{t("toolbar.button.export")}</span>
         </button>
         {/* 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復 */}
         {SHOW_IMAGE_UPLOAD_BUTTON && (
@@ -177,7 +183,7 @@ export function Toolbar({
             onClick={handleOpenFileDialog}
           >
             <ImagePlus size={16} />
-            上傳圖片
+            {t("toolbar.button.uploadImage")}
           </button>
         )}
         {isDev && (
@@ -228,6 +234,7 @@ export function Toolbar({
 
         <div className="ml-auto flex items-center gap-2">
           <div className="h-5 w-px bg-border" aria-hidden="true" />
+          <LanguageToggle />
           {user ? (
             <Link
               to="/dashboard"
@@ -242,7 +249,7 @@ export function Toolbar({
                     {avatarUrl ? (
                       <img
                         src={avatarUrl}
-                        alt={`${displayName} 頭像`}
+                        alt={t("toolbar.avatar.alt", { name: displayName })}
                         className="h-6 w-6 rounded-full object-cover"
                         referrerPolicy="no-referrer"
                       />
@@ -265,7 +272,9 @@ export function Toolbar({
               onClick={() => setIsAuthModalOpen(true)}
             >
               <LogIn size={16} />
-              <span className="hidden sm:inline">登入</span>
+              <span className="hidden sm:inline">
+                {t("toolbar.button.signIn")}
+              </span>
             </button>
           )}
         </div>

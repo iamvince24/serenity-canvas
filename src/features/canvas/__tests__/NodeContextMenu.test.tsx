@@ -65,7 +65,7 @@ describe("NodeContextMenu", () => {
     );
 
     const fitContentButton = screen.getByRole("button", {
-      name: "自動調整大小",
+      name: "nodeContext.fitContent",
     });
     fireEvent.click(fitContentButton);
 
@@ -92,7 +92,9 @@ describe("NodeContextMenu", () => {
       />,
     );
 
-    const deleteButton = screen.getByRole("button", { name: "刪除" });
+    const deleteButton = screen.getByRole("button", {
+      name: "nodeContext.delete",
+    });
     fireEvent.click(deleteButton);
 
     expect(useCanvasStore.getState().nodes["img-1"]).toBeUndefined();
@@ -119,7 +121,9 @@ describe("NodeContextMenu", () => {
         />,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "自動調整大小" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: "nodeContext.fitContent" }),
+      );
 
       const node = useCanvasStore.getState().nodes["text-1"];
       if (!node || node.type !== "text") {

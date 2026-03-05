@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CANVAS_COLOR_PRESETS,
   type CanvasNodeColor,
@@ -19,6 +20,7 @@ export function ColorPicker({
   className,
   onSelectColor,
 }: ColorPickerProps) {
+  const { t } = useTranslation();
   const updateNodeColor = useCanvasStore((state) => state.updateNodeColor);
 
   const handleSelectColor = useCallback(
@@ -34,15 +36,15 @@ export function ColorPicker({
       className={cn("card-color-picker", className)}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <div className="card-color-picker__title">卡片顏色</div>
+      <div className="card-color-picker__title">{t("colorPicker.title")}</div>
       <div className="card-color-picker__grid">
         <button
           type="button"
           className={cn("card-color-picker__option", {
             "card-color-picker__option--active": color === null,
           })}
-          aria-label="設定卡片顏色為無"
-          title="無"
+          aria-label={t("colorPicker.noneLabel")}
+          title={t("colorPicker.none")}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => handleSelectColor(null)}
         >
@@ -58,7 +60,7 @@ export function ColorPicker({
               className={cn("card-color-picker__option", {
                 "card-color-picker__option--active": isActive,
               })}
-              aria-label={`設定卡片顏色為 ${preset.label}`}
+              aria-label={t("colorPicker.colorLabel", { color: preset.label })}
               title={preset.label}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => handleSelectColor(preset.id)}

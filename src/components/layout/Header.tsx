@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { SyncIndicator } from "@/components/layout/SyncIndicator";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/hooks/useSignOut";
@@ -8,6 +10,7 @@ import { getAvatarUrl, getDisplayName } from "@/lib/userMetadata";
 import { useAuthStore } from "@/stores/authStore";
 
 export function Header() {
+  const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const { isSigningOut, handleSignOut } = useSignOut();
@@ -34,14 +37,16 @@ export function Header() {
               to="/dashboard"
               className="hidden text-sm text-foreground-muted transition-colors hover:text-sage-dark sm:inline"
             >
-              儀表板
+              {t("header.nav.dashboard")}
             </Link>
 
             <div className="flex items-center gap-2 rounded-full border border-border bg-elevated px-2 py-1">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
-                  alt={`${displayName ?? "使用者"} 頭像`}
+                  alt={t("header.avatar.alt", {
+                    name: displayName ?? t("header.avatar.fallbackName"),
+                  })}
                   className="h-6 w-6 rounded-full object-cover"
                   referrerPolicy="no-referrer"
                 />
@@ -55,6 +60,7 @@ export function Header() {
               </span>
             </div>
 
+            <LanguageToggle />
             <Button
               type="button"
               variant="secondary"
@@ -62,18 +68,23 @@ export function Header() {
               onClick={handleSignOut}
               disabled={isSigningOut}
             >
-              {isSigningOut ? "登出中..." : "登出"}
+              {isSigningOut
+                ? t("header.button.signingOut")
+                : t("header.button.signOut")}
             </Button>
           </div>
         ) : (
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => setIsAuthOpen(true)}
-            className="h-8"
-          >
-            登入
-          </Button>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setIsAuthOpen(true)}
+              className="h-8"
+            >
+              {t("header.button.signIn")}
+            </Button>
+          </div>
         )}
       </div>
 

@@ -1,5 +1,6 @@
 import { FolderPlus, Trash2 } from "lucide-react";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { ColorPicker } from "../card/ColorPicker";
@@ -22,6 +23,7 @@ export function NodeContextMenu({
   clientY,
   onClose,
 }: NodeContextMenuProps) {
+  const { t } = useTranslation();
   const node = useCanvasStore((state) => (nodeId ? state.nodes[nodeId] : null));
   const nodes = useCanvasStore((state) => state.nodes);
   const selectedNodeIds = useCanvasStore((state) => state.selectedNodeIds);
@@ -115,7 +117,7 @@ export function NodeContextMenu({
             onClick={handleCreateGroup}
           >
             <FolderPlus size={14} />
-            建立群組
+            {t("nodeContext.createGroup")}
           </button>
           <button
             type="button"
@@ -123,7 +125,7 @@ export function NodeContextMenu({
             onClick={handleDeleteSelected}
           >
             <Trash2 size={14} />
-            刪除已選取
+            {t("nodeContext.deleteSelected")}
           </button>
         </>
       ) : null}
@@ -141,7 +143,7 @@ export function NodeContextMenu({
                 className="card-widget__settings-item"
                 onClick={handleFitContent}
               >
-                自動調整大小
+                {t("nodeContext.fitContent")}
               </button>
               <div className="card-widget__settings-divider" />
             </>
@@ -164,7 +166,7 @@ export function NodeContextMenu({
                 onClick={handleDeleteImageNode}
               >
                 <Trash2 size={14} />
-                刪除
+                {t("nodeContext.delete")}
               </button>
             </>
           ) : null}

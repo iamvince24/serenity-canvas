@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
   MoreHorizontal,
@@ -55,6 +56,7 @@ function BoardRow({
   onRenameBoard,
   onDeleteBoard,
 }: BoardRowProps) {
+  const { t } = useTranslation();
   const isActive = board.id === activeBoardId;
   const rowRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -175,7 +177,7 @@ function BoardRow({
               }
             }}
             className="h-6 min-w-0 flex-1 rounded border border-[#E5E3DF] bg-[#FFFFFF] px-2 text-[14px] text-[#1C1C1A] outline-none"
-            aria-label={`重新命名 ${board.title}`}
+            aria-label={t("sidebar.renameLabel", { title: board.title })}
           />
         ) : (
           <>
@@ -194,7 +196,7 @@ function BoardRow({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label={`${board.title} 的操作選單`}
+              aria-label={t("sidebar.boardMenu", { title: board.title })}
               onClick={(event) => event.stopPropagation()}
               className={cn(
                 "flex h-6 w-6 items-center justify-center rounded-[6px] text-[#6B6B66] transition-opacity duration-200 hover:bg-[#EBF0E9] hover:text-[#5E6E58]",
@@ -222,7 +224,7 @@ function BoardRow({
                 setIsEditing(true);
               }}
             >
-              重新命名
+              {t("sidebar.rename")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -237,7 +239,7 @@ function BoardRow({
                 setIsDeleteDialogOpen(true);
               }}
             >
-              刪除
+              {t("sidebar.delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -249,19 +251,23 @@ function BoardRow({
       >
         <AlertDialogContent className="border-[#E5E3DF] bg-[#FFFFFF]">
           <AlertDialogHeader>
-            <AlertDialogTitle>刪除白板？</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("sidebar.deleteDialog.title")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              此操作將永久移除「{board.title}」。
+              {t("sidebar.deleteDialog.description", { title: board.title })}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>
+              {t("sidebar.deleteDialog.cancel")}
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-[#B8635A] hover:bg-[#A65850]"
               onClick={() => onDeleteBoard(board.id)}
             >
-              刪除
+              {t("sidebar.deleteDialog.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -280,6 +286,7 @@ export function Sidebar({
   onRenameBoard,
   onDeleteBoard,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const { isSigningOut, handleSignOut } = useSignOut();
 
   return (
@@ -305,7 +312,7 @@ export function Sidebar({
                 E
               </div>
               <span className="text-[14px] font-medium text-[#1C1C1A]">
-                工作空間
+                {t("sidebar.workspace")}
               </span>
             </div>
 
@@ -313,7 +320,7 @@ export function Sidebar({
               type="button"
               className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#6B6B66] transition-colors duration-300 hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
               onClick={() => setIsOpen(false)}
-              aria-label="收合側欄"
+              aria-label={t("sidebar.collapse")}
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -322,13 +329,13 @@ export function Sidebar({
           <div className="flex-1 overflow-y-auto px-2 py-3">
             <div className="mb-2 flex items-center justify-between px-2">
               <p className="text-[12px] tracking-wider text-[#A3A29D] uppercase">
-                白板
+                {t("sidebar.boards")}
               </p>
               <button
                 type="button"
                 className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[#6B6B66] transition-colors duration-300 hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
-                aria-label="建立白板"
-                onClick={() => onCreateBoard("未命名白板")}
+                aria-label={t("sidebar.createBoard")}
+                onClick={() => onCreateBoard(t("sidebar.defaultBoardTitle"))}
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -355,11 +362,11 @@ export function Sidebar({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="開啟設定選單"
+                  aria-label={t("sidebar.settings")}
                   className="flex w-full items-center gap-2 rounded-[6px] border border-transparent px-3 py-2 text-[14px] text-[#6B6B66] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
                 >
                   <Settings className="h-4 w-4" />
-                  <span>設定</span>
+                  <span>{t("sidebar.settings")}</span>
                 </button>
               </DropdownMenuTrigger>
 
@@ -376,7 +383,9 @@ export function Sidebar({
                     handleSignOut();
                   }}
                 >
-                  {isSigningOut ? "登出中..." : "登出"}
+                  {isSigningOut
+                    ? t("header.button.signingOut")
+                    : t("header.button.signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

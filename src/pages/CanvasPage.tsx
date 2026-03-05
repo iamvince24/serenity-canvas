@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 import { LOCAL_BOARD_ID } from "../features/canvas/core/constants";
@@ -15,6 +16,7 @@ interface CanvasPageProps {
 }
 
 export function CanvasPage({ boardId }: CanvasPageProps) {
+  const { t } = useTranslation();
   const [showFpsOverlay, setShowFpsOverlay] = useState(false);
   const isLoading = useCanvasStore((state) => state.isLoading);
   const user = useAuthStore((state) => state.user);
@@ -86,7 +88,7 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
         <div
           className="absolute inset-0 z-30 flex items-center justify-center bg-canvas"
           role="status"
-          aria-label="載入白板中"
+          aria-label={t("canvas.loading")}
         >
           <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#C9D3C4] border-t-[#708067]" />
         </div>
@@ -97,10 +99,10 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
             <Link
               to="/"
               className="pointer-events-auto fixed left-4 top-4 z-40 flex h-9 items-center gap-1.5 rounded-lg border border-border bg-elevated/95 px-3 text-sm font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-surface hover:text-sage-dark md:top-6"
-              aria-label="返回首頁"
+              aria-label={t("canvas.backHomeLabel")}
             >
               <ArrowLeft size={16} />
-              <span className="hidden sm:inline">首頁</span>
+              <span className="hidden sm:inline">{t("canvas.backHome")}</span>
             </Link>
           )}
           <Toolbar
@@ -120,7 +122,7 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
             <div className="flex items-start justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-destructive">
-                  圖片上傳失敗
+                  {t("canvas.uploadError.title")}
                 </p>
                 <p className="mt-1 text-sm leading-[1.4] text-foreground">
                   {imageUploadErrorMessage}
@@ -131,9 +133,9 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
                 type="button"
                 className="btn-ghost h-7 shrink-0 px-2 text-xs"
                 onClick={dismissImageUploadError}
-                aria-label="關閉上傳錯誤"
+                aria-label={t("canvas.uploadError.dismissLabel")}
               >
-                關閉
+                {t("canvas.uploadError.dismiss")}
               </button>
             </div>
           </div>

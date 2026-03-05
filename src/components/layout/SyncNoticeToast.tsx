@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useSyncNoticeStore } from "@/stores/syncNoticeStore";
 
 /** 若有新訊息進來會重設計時器，確保最新訊息至少顯示完整的 5 秒。 */
@@ -9,6 +10,7 @@ const AUTO_DISMISS_MS = 5000;
  * 浮動於畫面頂部，顯示 syncNoticeStore 中的警告訊息，5 秒後自動消失。
  */
 export function SyncNoticeToast() {
+  const { t } = useTranslation();
   const warningMessage = useSyncNoticeStore((state) => state.warningMessage);
   const dismissWarning = useSyncNoticeStore((state) => state.dismissWarning);
 
@@ -35,7 +37,9 @@ export function SyncNoticeToast() {
       <div className="pointer-events-auto w-full max-w-md rounded-lg border border-amber-300 bg-amber-50 shadow-lg">
         <div className="flex items-start justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-amber-800">同步提醒</p>
+            <p className="text-sm font-semibold text-amber-800">
+              {t("syncNotice.title")}
+            </p>
             <p className="mt-1 text-sm leading-[1.4] text-amber-900">
               {warningMessage}
             </p>
@@ -44,9 +48,9 @@ export function SyncNoticeToast() {
             type="button"
             className="btn-ghost h-7 shrink-0 px-2 text-xs"
             onClick={dismissWarning}
-            aria-label="關閉同步警告"
+            aria-label={t("syncNotice.dismissLabel")}
           >
-            關閉
+            {t("syncNotice.dismiss")}
           </button>
         </div>
       </div>

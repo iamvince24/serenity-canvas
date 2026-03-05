@@ -7,6 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { ImageNode } from "../../../types/canvas";
 import {
@@ -34,6 +35,7 @@ export function ImageCaptionWidget({
   isSelected,
   onOpenContextMenu,
 }: ImageCaptionWidgetProps) {
+  const { t } = useTranslation();
   const selectNode = useCanvasStore((state) => state.selectNode);
   const toggleNodeSelection = useCanvasStore(
     (state) => state.toggleNodeSelection,
@@ -110,7 +112,7 @@ export function ImageCaptionWidget({
     <div style={widgetStyle} data-card-node-id={node.id} role="presentation">
       <textarea
         value={isEditing ? draftCaption : node.content}
-        placeholder="新增說明文字…"
+        placeholder={t("image.caption.placeholder")}
         onChange={(event) => setDraftCaption(event.target.value)}
         onFocus={() => {
           setIsEditing(true);
