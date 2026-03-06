@@ -81,6 +81,7 @@
   "sidebar.deleteDialog.description": "此操作將永久移除「{{title}}」。",
   "sidebar.deleteDialog.cancel": "取消",
   "sidebar.deleteDialog.confirm": "刪除",
+  "sidebar.avatar.alt": "{{name}} 頭像",
   "sidebar.settings": "設定",
   "sidebar.boardMenu": "{{title}} 的操作選單",
 

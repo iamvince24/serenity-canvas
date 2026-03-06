@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import type { Board } from "../../types/board";
 import { cn } from "../../lib/utils";
+import { useAuthStore } from "../../stores/authStore";
+import { getAvatarUrl, getDisplayName } from "../../lib/userMetadata";
 import { useSignOut } from "../../hooks/useSignOut";
 import {
   DropdownMenu,
@@ -288,6 +290,10 @@ export function Sidebar({
 }: SidebarProps) {
   const { t } = useTranslation();
   const { isSigningOut, handleSignOut } = useSignOut();
+  const user = useAuthStore((s) => s.user);
+  const avatarUrl = user ? getAvatarUrl(user) : null;
+  const displayName = user ? getDisplayName(user) : null;
+  const userInitial = displayName?.[0]?.toUpperCase() ?? "E";
 
   return (
     <aside
@@ -305,14 +311,23 @@ export function Sidebar({
         <div className="relative z-10 flex h-full flex-col">
           <header className="flex h-14 items-center justify-between border-b border-[#F0EEEA] px-4">
             <div className="flex items-center gap-2">
-              <div
-                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8B9D83] text-[12px] font-bold text-white"
-                style={{ fontFamily: "var(--font-serif)" }}
-              >
-                E
-              </div>
-              <span className="text-[14px] font-medium text-[#1C1C1A]">
-                {t("sidebar.workspace")}
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={t("sidebar.avatar.alt", { name: displayName })}
+                  className="h-5 w-5 rounded-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8B9D83] text-[12px] font-bold text-white"
+                  style={{ fontFamily: "var(--font-serif)" }}
+                >
+                  {userInitial}
+                </div>
+              )}
+              <span className="truncate text-[14px] font-medium text-[#1C1C1A]">
+                {displayName ?? t("sidebar.workspace")}
               </span>
             </div>
 

@@ -81,6 +81,7 @@
   "sidebar.deleteDialog.description": "This will permanently remove \"{{title}}\".",
   "sidebar.deleteDialog.cancel": "Cancel",
   "sidebar.deleteDialog.confirm": "Delete",
+  "sidebar.avatar.alt": "{{name}} avatar",
   "sidebar.settings": "Settings",
   "sidebar.boardMenu": "Actions for {{title}}",
 

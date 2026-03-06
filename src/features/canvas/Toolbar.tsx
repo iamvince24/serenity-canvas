@@ -12,10 +12,8 @@ import {
 } from "lucide-react";
 import { useCallback, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LanguageToggle } from "@/components/layout/LanguageToggle";
-import { getAvatarUrl, getDisplayName } from "@/lib/userMetadata";
 import { useAuthStore } from "@/stores/authStore";
 import { useCanvasStore } from "../../stores/canvasStore";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
@@ -235,37 +233,7 @@ export function Toolbar({
         <div className="ml-auto flex items-center gap-2">
           <div className="h-5 w-px bg-border" aria-hidden="true" />
           <LanguageToggle />
-          {user ? (
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-foreground-muted transition-colors hover:bg-surface hover:text-sage-dark"
-            >
-              {(() => {
-                const avatarUrl = getAvatarUrl(user);
-                const displayName = getDisplayName(user);
-                const initial = displayName[0]?.toUpperCase() ?? "S";
-                return (
-                  <>
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt={t("toolbar.avatar.alt", { name: displayName })}
-                        className="h-6 w-6 rounded-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light text-xs font-semibold text-sage-dark">
-                        {initial}
-                      </span>
-                    )}
-                    <span className="hidden max-w-20 truncate sm:inline">
-                      {displayName}
-                    </span>
-                  </>
-                );
-              })()}
-            </Link>
-          ) : (
+          {!user && (
             <button
               type="button"
               className="btn-secondary h-9 gap-2 px-3 text-sm"
