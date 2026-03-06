@@ -19,6 +19,7 @@ import {
   intersects,
   type Point,
 } from "../core/marqueeUtils";
+import { getClientPosition } from "../core/pointerUtils";
 import { InteractionEvent } from "../core/stateMachine";
 import { usePointerCapture } from "./usePointerCapture";
 
@@ -64,25 +65,6 @@ function isLeftPointer(event: MouseEvent | TouchEvent): boolean {
 
 function getShiftKey(event: MouseEvent | TouchEvent): boolean {
   return event instanceof MouseEvent ? event.shiftKey : false;
-}
-
-function getClientPosition(event: MouseEvent | TouchEvent): Point | null {
-  if (event instanceof MouseEvent) {
-    return {
-      x: event.clientX,
-      y: event.clientY,
-    };
-  }
-
-  const touch = event.touches[0] ?? event.changedTouches[0];
-  if (!touch) {
-    return null;
-  }
-
-  return {
-    x: touch.clientX,
-    y: touch.clientY,
-  };
 }
 
 export function useMarqueeSelect({

@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create, type StoreApi } from "zustand";
 import { CompositeCommand, type Command } from "../commands/types";
 import { HistoryManager } from "../commands/historyManager";
 import {
@@ -31,10 +31,16 @@ import {
   UpdateGroupCommand,
   type GroupCommandContext,
 } from "../commands/groupCommands";
+import {
+  createEdgeCommandContextMethods,
+  createGroupCommandContextMethods,
+  createNodeCommandContextMethods,
+  DEFAULT_GROUP_COLOR,
+  DEFAULT_GROUP_LABEL,
+} from "./commandContextFactory";
 import { createStressFixture } from "../features/canvas/core/stressFixture";
 import { releaseImage } from "../features/canvas/images/imageUrlCache";
 import {
-  appendNodeToOrder,
   removeNodeFromOrder,
   reorderMoveDownInSubset,
   reorderMoveUpInSubset,
@@ -50,7 +56,6 @@ import {
   type Group,
 } from "../types/canvas";
 import { loadBoardSnapshot, removeBoardSnapshot } from "./boardSnapshotStorage";
-import { useDashboardStore } from "./dashboardStore";
 import { setSyncGuard, setupPersistMiddleware } from "./persistMiddleware";
 import {
   getConnectedEdgeIds,
@@ -61,9 +66,6 @@ import {
   isGeometryEqual,
   isNodeOrderEqual,
   isPositionEqual,
-  patchEdge,
-  patchNode,
-  removeEdgesByIds,
   sanitizeNodeOrder,
   toNodeGeometry,
 } from "./storeHelpers";
@@ -71,20 +73,19 @@ import {
   getAffectedGroupSnapshots,
   getNodeAffectedGroupSnapshots,
   removeNodeFromGroups,
-  restoreGroupSnapshots,
   sanitizeGroupNodeIds,
-  setGroupWithExclusivity,
 } from "./groupHelpers";
 import type { BoardCanvasSnapshot, CanvasStore } from "./storeTypes";
 import { createViewportSlice } from "./slices/viewportSlice";
 import { createFileSlice, getFileByAssetId } from "./slices/fileSlice";
 import { createInteractionSlice } from "./slices/interactionSlice";
 import { resolveDeleteTarget } from "./slices/selectionPolicy";
-import { createSelectionSlice } from "./slices/selectionSlice";
+import {
+  clearAllSelections,
+  createSelectionSlice,
+} from "./slices/selectionSlice";
 import { createHistorySlice } from "./slices/historySlice";
 
-const DEFAULT_GROUP_LABEL = "未命名群組";
-const DEFAULT_GROUP_COLOR: Group["color"] = null;
 const EMPTY_BOARD_SNAPSHOT: BoardCanvasSnapshot = {
   nodes: {},
   nodeOrder: [],
@@ -133,6 +134,138 @@ function releaseStaleImageEntries(
   }
 }
 
+async function migrateLegacyBoard(boardId: string): Promise<void> {
+  const board = await BoardRepository.getById(boardId);
+  if (board) {
+    return;
+  }
+
+  const legacySnapshot = loadBoardSnapshot(boardId);
+  if (!legacySnapshot) {
+    return;
+  }
+
+  const migratedNodes: Record<string, CanvasNode> = {};
+  const migratedFiles: Record<string, FileRecord> = {};
+
+  for (const [key, file] of Object.entries(legacySnapshot.files)) {
+    const hasAssetId =
+      typeof file.asset_id === "string" && file.asset_id.length > 0;
+    if (hasAssetId) {
+      migratedFiles[file.id] = file;
+    } else {
+      const newId = crypto.randomUUID();
+      migratedFiles[newId] = { ...file, id: newId, asset_id: key };
+    }
+  }
+
+  for (const node of Object.values(legacySnapshot.nodes)) {
+    const migratedNode = migrateLegacyNode(node);
+    migratedNodes[migratedNode.node.id] = migratedNode.node;
+
+    if (
+      migratedNode.extractedFile &&
+      !getFileByAssetId(migratedFiles, migratedNode.extractedFile.asset_id)
+    ) {
+      migratedFiles[migratedNode.extractedFile.id] = migratedNode.extractedFile;
+    }
+  }
+
+  const migratedNodeOrder = sanitizeNodeOrder(
+    legacySnapshot.nodeOrder,
+    migratedNodes,
+  );
+
+  await BoardRepository.put({
+    id: boardId,
+    nodeOrder: migratedNodeOrder,
+    nodeCount: Object.keys(migratedNodes).length,
+    updatedAt: Date.now(),
+  });
+  await NodeRepository.bulkPut(boardId, Object.values(migratedNodes));
+  await EdgeRepository.bulkPut(boardId, Object.values(legacySnapshot.edges));
+  await GroupRepository.bulkPut(boardId, Object.values(legacySnapshot.groups));
+  await FileRepository.bulkPut(boardId, Object.values(migratedFiles));
+  removeBoardSnapshot(boardId);
+}
+
+async function loadBoardFromDB(boardId: string): Promise<BoardCanvasSnapshot> {
+  let board = await BoardRepository.getById(boardId);
+  if (!board) {
+    board = await BoardRepository.createDefault(boardId);
+  }
+
+  const [nodes, edges, groups, files] = await Promise.all([
+    NodeRepository.getByBoardId(boardId),
+    EdgeRepository.getByBoardId(boardId),
+    GroupRepository.getByBoardId(boardId),
+    FileRepository.getByBoardId(boardId),
+  ]);
+
+  return {
+    nodes,
+    edges,
+    groups,
+    files,
+    nodeOrder: sanitizeNodeOrder(board.nodeOrder, nodes),
+  };
+}
+
+type ApplyBoardStateOptions = {
+  boardId?: string | null;
+  isLoading?: boolean;
+  resetCanvasMode?: boolean;
+};
+
+type CanvasStoreSet = StoreApi<CanvasStore>["setState"];
+
+function applyBoardState(
+  set: CanvasStoreSet,
+  data: BoardCanvasSnapshot,
+  history: HistoryManager,
+  syncHistoryState: () => void,
+  options: ApplyBoardStateOptions = {},
+): void {
+  history.clear();
+  syncHistoryState();
+
+  const nextState: Partial<CanvasStore> = {
+    nodes: data.nodes,
+    nodeOrder: sanitizeNodeOrder(data.nodeOrder, data.nodes),
+    edges: data.edges,
+    groups: data.groups,
+    files: data.files,
+    ...clearAllSelections(),
+    interactionState: InteractionState.Idle,
+    isLoading: options.isLoading ?? false,
+  };
+
+  if (options.boardId !== undefined) {
+    nextState.currentBoardId = options.boardId;
+  }
+
+  if (options.resetCanvasMode !== false) {
+    nextState.canvasMode = "select";
+  }
+
+  set(nextState);
+}
+
+function applyEmptyBoardState(
+  set: CanvasStoreSet,
+  history: HistoryManager,
+  syncHistoryState: () => void,
+  options: ApplyBoardStateOptions = {},
+): void {
+  applyBoardState(
+    set,
+    EMPTY_BOARD_SNAPSHOT,
+    history,
+    syncHistoryState,
+    options,
+  );
+}
+
 let persistController: {
   cancel: () => void;
   flush: () => Promise<void>;
@@ -154,312 +287,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     syncHistoryState();
   };
 
+  const nodeCtx = createNodeCommandContextMethods(set);
+  const edgeCtx = createEdgeCommandContextMethods(set);
+  const groupCtx = createGroupCommandContextMethods(set);
   const commandContext: NodeCommandContext &
     EdgeCommandContext &
-    GroupCommandContext = {
-    addNode: (node, file) => {
-      set((state) => {
-        const now = Date.now();
-        const nextFiles = file
-          ? {
-              ...state.files,
-              [file.id]: {
-                ...file,
-                updatedAt: now,
-              },
-            }
-          : state.files;
-
-        return {
-          files: nextFiles,
-          nodes: {
-            ...state.nodes,
-            [node.id]: {
-              ...node,
-              updatedAt: now,
-            },
-          },
-          nodeOrder: appendNodeToOrder(state.nodeOrder, node.id),
-        };
-      });
-    },
-    deleteNode: (id) => {
-      set((state) => {
-        const targetNode = state.nodes[id];
-        if (!targetNode) {
-          return state;
-        }
-
-        if (targetNode.type === "image") {
-          releaseImage(targetNode.asset_id);
-        }
-
-        const remainingNodes = { ...state.nodes };
-        delete remainingNodes[id];
-        const connectedEdgeIds = getConnectedEdgeIds(state.edges, id);
-        const { groups: nextGroups, removedGroupIds } = removeNodeFromGroups(
-          state.groups,
-          id,
-        );
-
-        return {
-          nodes: remainingNodes,
-          nodeOrder: removeNodeFromOrder(state.nodeOrder, id),
-          edges: removeEdgesByIds(state.edges, connectedEdgeIds),
-          groups: nextGroups,
-          selectedNodeIds: state.selectedNodeIds.filter(
-            (selectedNodeId) => selectedNodeId !== id,
-          ),
-          selectedEdgeIds: state.selectedEdgeIds.filter(
-            (selectedEdgeId) => !connectedEdgeIds.includes(selectedEdgeId),
-          ),
-          selectedGroupIds: state.selectedGroupIds.filter(
-            (selectedGroupId) => !removedGroupIds.includes(selectedGroupId),
-          ),
-          interactionState: InteractionState.Idle,
-        };
-      });
-    },
-    setNodePosition: (id, x, y) => {
-      set((state) => {
-        const node = state.nodes[id];
-        if (!node) {
-          return state;
-        }
-
-        if (node.x === x && node.y === y) {
-          return state;
-        }
-
-        return {
-          nodes: patchNode(state.nodes, id, { x, y, updatedAt: Date.now() }),
-        };
-      });
-    },
-    setNodeGeometry: (id, geometry) => {
-      set((state) => {
-        const node = state.nodes[id];
-        if (!node) {
-          return state;
-        }
-
-        if (
-          node.x === geometry.x &&
-          node.y === geometry.y &&
-          node.width === geometry.width &&
-          node.height === geometry.height &&
-          node.heightMode === geometry.heightMode
-        ) {
-          return state;
-        }
-
-        return {
-          nodes: patchNode(state.nodes, id, {
-            x: geometry.x,
-            y: geometry.y,
-            width: geometry.width,
-            height: geometry.height,
-            heightMode: geometry.heightMode,
-            updatedAt: Date.now(),
-          }),
-        };
-      });
-    },
-    setNodeContent: (id, content) => {
-      set((state) => {
-        const node = state.nodes[id];
-        if (!node) {
-          return state;
-        }
-
-        if (node.type === "text") {
-          if (node.contentMarkdown === content) {
-            return state;
-          }
-
-          return {
-            nodes: patchNode(state.nodes, id, {
-              contentMarkdown: content,
-              updatedAt: Date.now(),
-            }),
-          };
-        }
-
-        if (node.content === content) {
-          return state;
-        }
-
-        return {
-          nodes: patchNode(state.nodes, id, {
-            content,
-            updatedAt: Date.now(),
-          }),
-        };
-      });
-    },
-    setNodeColor: (id, color) => {
-      set((state) => {
-        const node = state.nodes[id];
-        if (!node || node.color === color) {
-          return state;
-        }
-
-        return {
-          nodes: patchNode(state.nodes, id, {
-            color,
-            updatedAt: Date.now(),
-          }),
-        };
-      });
-    },
-    setNodeHeightMode: (id, mode) => {
-      set((state) => {
-        const node = state.nodes[id];
-        if (!node || node.heightMode === mode) {
-          return state;
-        }
-
-        return {
-          nodes: patchNode(state.nodes, id, {
-            heightMode: mode,
-            updatedAt: Date.now(),
-          }),
-        };
-      });
-    },
-    setNodeOrder: (nodeOrder) => {
-      set((state) => {
-        const nextNodeOrder = sanitizeNodeOrder(nodeOrder, state.nodes);
-        if (isNodeOrderEqual(state.nodeOrder, nextNodeOrder)) {
-          return state;
-        }
-
-        return {
-          nodeOrder: nextNodeOrder,
-        };
-      });
-    },
-    addEdge: (edge) => {
-      set((state) => {
-        if (!isEdgeValid(edge, state.nodes)) {
-          return state;
-        }
-
-        return {
-          edges: {
-            ...state.edges,
-            [edge.id]: {
-              ...edge,
-              updatedAt: Date.now(),
-            },
-          },
-        };
-      });
-    },
-    deleteEdge: (edgeId) => {
-      set((state) => {
-        if (!state.edges[edgeId]) {
-          return state;
-        }
-
-        return {
-          edges: removeEdgesByIds(state.edges, [edgeId]),
-          selectedEdgeIds: state.selectedEdgeIds.filter(
-            (selectedEdgeId) => selectedEdgeId !== edgeId,
-          ),
-        };
-      });
-    },
-    setEdge: (edge) => {
-      set((state) => {
-        if (!state.edges[edge.id] || !isEdgeValid(edge, state.nodes)) {
-          return state;
-        }
-
-        return {
-          edges: patchEdge(state.edges, edge.id, {
-            ...edge,
-            updatedAt: Date.now(),
-          }),
-        };
-      });
-    },
-    setGroup: (group) => {
-      set((state) => {
-        const sanitizedNodeIds = sanitizeGroupNodeIds(
-          group.nodeIds,
-          state.nodes,
-        );
-        if (sanitizedNodeIds.length === 0) {
-          if (!state.groups[group.id]) {
-            return state;
-          }
-
-          const nextGroups = { ...state.groups };
-          delete nextGroups[group.id];
-          return {
-            groups: nextGroups,
-            selectedGroupIds: state.selectedGroupIds.filter(
-              (selectedGroupId) => selectedGroupId !== group.id,
-            ),
-          };
-        }
-
-        const nextGroup: Group = {
-          id: group.id,
-          label: group.label || DEFAULT_GROUP_LABEL,
-          color: group.color ?? DEFAULT_GROUP_COLOR,
-          nodeIds: sanitizedNodeIds,
-        };
-        const nextGroups = setGroupWithExclusivity(state.groups, nextGroup);
-        const nextSelectedGroupIds = state.selectedGroupIds.filter(
-          (selectedGroupId) => Boolean(nextGroups[selectedGroupId]),
-        );
-
-        return {
-          groups: nextGroups,
-          selectedGroupIds: nextSelectedGroupIds,
-        };
-      });
-    },
-    deleteGroup: (groupId) => {
-      set((state) => {
-        if (!state.groups[groupId]) {
-          return state;
-        }
-
-        const nextGroups = { ...state.groups };
-        delete nextGroups[groupId];
-
-        return {
-          groups: nextGroups,
-          selectedGroupIds: state.selectedGroupIds.filter(
-            (selectedGroupId) => selectedGroupId !== groupId,
-          ),
-        };
-      });
-    },
-    restoreGroups: (snapshots) => {
-      if (snapshots.length === 0) {
-        return;
-      }
-
-      set((state) => {
-        const nextGroups = restoreGroupSnapshots(
-          state.groups,
-          snapshots,
-          state.nodes,
-        );
-        if (nextGroups === state.groups) {
-          return state;
-        }
-
-        return {
-          groups: nextGroups,
-        };
-      });
-    },
-  };
+    GroupCommandContext = { ...nodeCtx, ...edgeCtx, ...groupCtx };
 
   return {
     currentBoardId: null,
@@ -480,125 +313,21 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       set({ isLoading: true });
 
       try {
-        let board = await BoardRepository.getById(boardId);
-
-        if (!board) {
-          const legacySnapshot = loadBoardSnapshot(boardId);
-          if (legacySnapshot) {
-            // 一次性 migration：localStorage snapshot -> IndexedDB。
-            const migratedNodes: Record<string, CanvasNode> = {};
-            // Ensure legacy files have asset_id (old format used id as SHA-1).
-            const migratedFiles: Record<string, FileRecord> = {};
-            for (const [key, file] of Object.entries(legacySnapshot.files)) {
-              const hasAssetId =
-                typeof file.asset_id === "string" && file.asset_id.length > 0;
-              if (hasAssetId) {
-                migratedFiles[file.id] = file;
-              } else {
-                const newId = crypto.randomUUID();
-                migratedFiles[newId] = { ...file, id: newId, asset_id: key };
-              }
-            }
-            for (const node of Object.values(legacySnapshot.nodes)) {
-              const migratedNode = migrateLegacyNode(node);
-              migratedNodes[migratedNode.node.id] = migratedNode.node;
-
-              if (
-                migratedNode.extractedFile &&
-                !getFileByAssetId(
-                  migratedFiles,
-                  migratedNode.extractedFile.asset_id,
-                )
-              ) {
-                migratedFiles[migratedNode.extractedFile.id] =
-                  migratedNode.extractedFile;
-              }
-            }
-
-            const migratedNodeOrder = sanitizeNodeOrder(
-              legacySnapshot.nodeOrder,
-              migratedNodes,
-            );
-
-            await BoardRepository.put({
-              id: boardId,
-              nodeOrder: migratedNodeOrder,
-              nodeCount: Object.keys(migratedNodes).length,
-              updatedAt: Date.now(),
-            });
-            await NodeRepository.bulkPut(boardId, Object.values(migratedNodes));
-            await EdgeRepository.bulkPut(
-              boardId,
-              Object.values(legacySnapshot.edges),
-            );
-            await GroupRepository.bulkPut(
-              boardId,
-              Object.values(legacySnapshot.groups),
-            );
-            await FileRepository.bulkPut(boardId, Object.values(migratedFiles));
-            removeBoardSnapshot(boardId);
-          }
-        }
-
-        board = await BoardRepository.getById(boardId);
-        if (!board) {
-          board = await BoardRepository.createDefault(boardId);
-        }
-
-        const [loadedNodes, loadedEdges, loadedGroups, loadedFiles] =
-          await Promise.all([
-            NodeRepository.getByBoardId(boardId),
-            EdgeRepository.getByBoardId(boardId),
-            GroupRepository.getByBoardId(boardId),
-            FileRepository.getByBoardId(boardId),
-          ]);
-
-        const loadedNodeOrder = sanitizeNodeOrder(board.nodeOrder, loadedNodes);
+        await migrateLegacyBoard(boardId);
+        const data = await loadBoardFromDB(boardId);
         const prevNodes = get().nodes;
-        releaseStaleImageEntries(prevNodes, loadedNodes);
-
-        set({
-          currentBoardId: boardId,
-          nodes: loadedNodes,
-          edges: loadedEdges,
-          groups: loadedGroups,
-          files: loadedFiles,
-          nodeOrder: loadedNodeOrder,
-          selectedNodeIds: [],
-          selectedEdgeIds: [],
-          selectedGroupIds: [],
-          interactionState: InteractionState.Idle,
-          canvasMode: "select",
+        releaseStaleImageEntries(prevNodes, data.nodes);
+        applyBoardState(set, data, history, syncHistoryState, {
+          boardId,
           isLoading: false,
         });
-
-        history.clear();
-        syncHistoryState();
-        // Dashboard 上的 nodeCount 以當前載入結果回填。
-        useDashboardStore
-          .getState()
-          .setBoardNodeCount(boardId, Object.keys(loadedNodes).length);
       } catch (error) {
         console.error("Failed to initialize board from IndexedDB", error);
-        const prevNodes = get().nodes;
-        releaseStaleImageEntries(prevNodes, EMPTY_BOARD_SNAPSHOT.nodes);
-        history.clear();
-        syncHistoryState();
-        set({
-          currentBoardId: boardId,
-          nodes: {},
-          nodeOrder: [],
-          edges: {},
-          groups: {},
-          files: {},
-          selectedNodeIds: [],
-          selectedEdgeIds: [],
-          selectedGroupIds: [],
-          interactionState: InteractionState.Idle,
-          canvasMode: "select",
+        releaseStaleImageEntries(get().nodes, EMPTY_BOARD_SNAPSHOT.nodes);
+        applyEmptyBoardState(set, history, syncHistoryState, {
+          boardId,
           isLoading: false,
         });
-        useDashboardStore.getState().setBoardNodeCount(boardId, 0);
       }
     },
     addNode: (node) => {
@@ -1084,43 +813,15 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     loadSnapshot: (snapshot) => {
       const state = get();
       const nextSnapshot = cloneBoardSnapshot(snapshot);
-      const nextNodeOrder = sanitizeNodeOrder(
-        nextSnapshot.nodeOrder,
-        nextSnapshot.nodes,
-      );
       releaseStaleImageEntries(state.nodes, nextSnapshot.nodes);
-      history.clear();
-      syncHistoryState();
-      set({
-        nodes: nextSnapshot.nodes,
-        nodeOrder: nextNodeOrder,
-        edges: nextSnapshot.edges,
-        groups: nextSnapshot.groups,
-        files: nextSnapshot.files,
-        selectedNodeIds: [],
-        selectedEdgeIds: [],
-        selectedGroupIds: [],
-        interactionState: InteractionState.Idle,
-        canvasMode: "select",
+      applyBoardState(set, nextSnapshot, history, syncHistoryState, {
         isLoading: false,
       });
     },
     resetBoardState: () => {
       const state = get();
       releaseStaleImageEntries(state.nodes, EMPTY_BOARD_SNAPSHOT.nodes);
-      history.clear();
-      syncHistoryState();
-      set({
-        nodes: {},
-        nodeOrder: [],
-        edges: {},
-        groups: {},
-        files: {},
-        selectedNodeIds: [],
-        selectedEdgeIds: [],
-        selectedGroupIds: [],
-        interactionState: InteractionState.Idle,
-        canvasMode: "select",
+      applyEmptyBoardState(set, history, syncHistoryState, {
         isLoading: false,
       });
     },
@@ -1146,24 +847,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     },
     clearCanvas: () => {
       const state = get();
-      for (const node of Object.values(state.nodes)) {
-        if (node.type === "image") {
-          releaseImage(node.asset_id);
-        }
-      }
-      history.clear();
-      syncHistoryState();
-      set({
-        nodes: {},
-        nodeOrder: [],
-        edges: {},
-        groups: {},
-        files: {},
-        selectedNodeIds: [],
-        selectedEdgeIds: [],
-        selectedGroupIds: [],
-        interactionState: InteractionState.Idle,
+      releaseStaleImageEntries(state.nodes, EMPTY_BOARD_SNAPSHOT.nodes);
+      applyEmptyBoardState(set, history, syncHistoryState, {
         isLoading: false,
+        resetCanvasMode: false,
       });
     },
   };

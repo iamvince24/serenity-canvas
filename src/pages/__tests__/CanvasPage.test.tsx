@@ -31,6 +31,8 @@ vi.mock("../../features/canvas/FpsOverlay", () => ({
   FpsOverlay: () => <div data-testid="fps-overlay" />,
 }));
 
+vi.mock("../../stores/canvasStoreSideEffects", () => ({}));
+
 vi.mock("../../stores/canvasStore", () => ({
   flushCanvasPersistence,
   useCanvasStore: Object.assign(

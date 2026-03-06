@@ -1,4 +1,5 @@
 import { reorderToFront } from "../../features/canvas/nodes/layerOrder";
+import { hasAnySelection } from "./selectionPolicy";
 import type { CanvasStore } from "../storeTypes";
 
 type SetState = (
@@ -53,6 +54,51 @@ function isSameSelection(a: string[], b: string[]): boolean {
   return a.every((value, index) => value === b[index]);
 }
 
+export type SelectionSnapshot = Pick<
+  CanvasStore,
+  "selectedNodeIds" | "selectedEdgeIds" | "selectedGroupIds"
+>;
+
+type SelectionRemoval = {
+  nodeIds?: string[];
+  edgeIds?: string[];
+  groupIds?: string[];
+};
+
+export function clearAllSelections(): SelectionSnapshot {
+  return {
+    selectedNodeIds: [],
+    selectedEdgeIds: [],
+    selectedGroupIds: [],
+  };
+}
+
+export function removeSelections(
+  state: SelectionSnapshot,
+  removals: SelectionRemoval,
+): SelectionSnapshot {
+  const removedNodeIds = new Set(removals.nodeIds ?? []);
+  const removedEdgeIds = new Set(removals.edgeIds ?? []);
+  const removedGroupIds = new Set(removals.groupIds ?? []);
+
+  return {
+    selectedNodeIds:
+      removedNodeIds.size === 0
+        ? state.selectedNodeIds
+        : state.selectedNodeIds.filter((nodeId) => !removedNodeIds.has(nodeId)),
+    selectedEdgeIds:
+      removedEdgeIds.size === 0
+        ? state.selectedEdgeIds
+        : state.selectedEdgeIds.filter((edgeId) => !removedEdgeIds.has(edgeId)),
+    selectedGroupIds:
+      removedGroupIds.size === 0
+        ? state.selectedGroupIds
+        : state.selectedGroupIds.filter(
+            (groupId) => !removedGroupIds.has(groupId),
+          ),
+  };
+}
+
 export type SelectionSlice = {
   selectedNodeIds: string[];
   selectedEdgeIds: string[];
@@ -74,11 +120,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
     selectNode: (nodeId) => {
       set((state) => {
         if (!nodeId || !state.nodes[nodeId]) {
-          return {
-            selectedNodeIds: [],
-            selectedEdgeIds: [],
-            selectedGroupIds: [],
-          };
+          return !hasAnySelection(state) ? state : clearAllSelections();
         }
 
         const selectedNode = state.nodes[nodeId];
@@ -99,9 +141,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
     selectEdge: (edgeId) => {
       set((state) => {
         if (!edgeId || !state.edges[edgeId]) {
-          return {
-            selectedEdgeIds: [],
-          };
+          return !hasAnySelection(state) ? state : clearAllSelections();
         }
 
         return {
@@ -114,13 +154,11 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
     selectGroup: (groupId) => {
       set((state) => {
         if (!groupId || !state.groups[groupId]) {
-          if (state.selectedGroupIds.length === 0) {
+          if (!hasAnySelection(state)) {
             return state;
           }
 
-          return {
-            selectedGroupIds: [],
-          };
+          return clearAllSelections();
         }
 
         const nextSelectedGroupIds = sanitizeGroupSelection(state, [groupId]);
@@ -236,11 +274,7 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
       });
     },
     deselectAll: () => {
-      set({
-        selectedNodeIds: [],
-        selectedEdgeIds: [],
-        selectedGroupIds: [],
-      });
+      set(clearAllSelections());
     },
   };
 }

@@ -201,4 +201,32 @@ describe("canvasStore selection actions", () => {
     expect(useCanvasStore.getState().selectedGroupIds).toEqual([]);
     expect(useCanvasStore.getState().selectedEdgeIds).toEqual(["edge-1"]);
   });
+
+  it("selectEdge(null) 會清空全部 selection", () => {
+    useCanvasStore.setState({
+      selectedNodeIds: ["text-1"],
+      selectedEdgeIds: ["edge-1"],
+      selectedGroupIds: ["group-1"],
+    });
+
+    useCanvasStore.getState().selectEdge(null);
+
+    expect(useCanvasStore.getState().selectedNodeIds).toEqual([]);
+    expect(useCanvasStore.getState().selectedEdgeIds).toEqual([]);
+    expect(useCanvasStore.getState().selectedGroupIds).toEqual([]);
+  });
+
+  it("selectGroup(null) 會清空全部 selection", () => {
+    useCanvasStore.setState({
+      selectedNodeIds: ["text-1"],
+      selectedEdgeIds: ["edge-1"],
+      selectedGroupIds: ["group-1"],
+    });
+
+    useCanvasStore.getState().selectGroup(null);
+
+    expect(useCanvasStore.getState().selectedNodeIds).toEqual([]);
+    expect(useCanvasStore.getState().selectedEdgeIds).toEqual([]);
+    expect(useCanvasStore.getState().selectedGroupIds).toEqual([]);
+  });
 });

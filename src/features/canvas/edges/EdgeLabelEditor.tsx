@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import type { ViewportState } from "../../../types/canvas";
 
 type EdgeLabelEditorProps = {
   edgeId: string;
   canvasX: number;
   canvasY: number;
-  viewport: ViewportState;
   containerRect: DOMRect;
   onDraftChange?: (value: string) => void;
   onClose: () => void;
@@ -32,12 +30,12 @@ export function EdgeLabelEditor({
   edgeId,
   canvasX,
   canvasY,
-  viewport,
   containerRect,
   onDraftChange,
   onClose,
 }: EdgeLabelEditorProps) {
   const edge = useCanvasStore((state) => state.edges[edgeId]);
+  const viewport = useCanvasStore((state) => state.viewport);
   const updateEdge = useCanvasStore((state) => state.updateEdge);
   const [value, setValue] = useState(() => edge?.label ?? "");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);

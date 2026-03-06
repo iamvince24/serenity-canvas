@@ -8,6 +8,7 @@ import { FpsOverlay } from "../features/canvas/FpsOverlay";
 import { Toolbar } from "../features/canvas/Toolbar";
 import { syncManager } from "../services/syncManager";
 import { flushCanvasPersistence, useCanvasStore } from "../stores/canvasStore";
+import "../stores/canvasStoreSideEffects";
 import { useAuthStore } from "../stores/authStore";
 import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
 

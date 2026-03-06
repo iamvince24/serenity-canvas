@@ -18,8 +18,7 @@ import {
   type ImageNode,
 } from "../../types/canvas";
 import { CardOverlay } from "./card/CardOverlay";
-import { EdgeContextMenu } from "./edges/EdgeContextMenu";
-import { EdgeLabelEditor } from "./edges/EdgeLabelEditor";
+import { CanvasOverlays } from "./CanvasOverlays";
 import { EdgeLine } from "./edges/EdgeLine";
 import { ImageCanvasNode } from "./images/ImageCanvasNode";
 import { GroupRect } from "./groups/GroupRect";
@@ -42,11 +41,7 @@ import {
 import { useConnectionDrag } from "./edges/useConnectionDrag";
 import { ConnectionPreviewLine } from "./edges/ConnectionPreviewLine";
 import { useImageUpload } from "./images/useImageUpload";
-import {
-  NodeContextMenu,
-  type ContextMenuNodeType,
-} from "./nodes/NodeContextMenu";
-import { GroupContextMenu } from "./nodes/GroupContextMenu";
+import { type ContextMenuNodeType } from "./nodes/NodeContextMenu";
 import { resolveOrderedNodeIds } from "./nodes/orderUtils";
 
 type StageSize = {
@@ -74,7 +69,7 @@ function getWindowSize(): StageSize {
   };
 }
 
-export function Canvas() {
+function useCanvasData() {
   const viewport = useCanvasStore((state) => state.viewport);
   const nodes = useCanvasStore((state) => state.nodes);
   const nodeOrder = useCanvasStore((state) => state.nodeOrder);
@@ -84,11 +79,50 @@ export function Canvas() {
   const selectedEdgeIds = useCanvasStore((state) => state.selectedEdgeIds);
   const selectedGroupIds = useCanvasStore((state) => state.selectedGroupIds);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
+
+  return {
+    viewport,
+    nodes,
+    nodeOrder,
+    edges,
+    groups,
+    selectedNodeIds,
+    selectedEdgeIds,
+    selectedGroupIds,
+    canvasMode,
+  };
+}
+
+function useCanvasActions() {
   const selectNode = useCanvasStore((state) => state.selectNode);
   const selectEdge = useCanvasStore((state) => state.selectEdge);
   const selectGroup = useCanvasStore((state) => state.selectGroup);
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
+
+  return {
+    selectNode,
+    selectEdge,
+    selectGroup,
+    addNode,
+    addFile,
+  };
+}
+
+export function Canvas() {
+  const {
+    viewport,
+    nodes,
+    nodeOrder,
+    edges,
+    groups,
+    selectedNodeIds,
+    selectedEdgeIds,
+    selectedGroupIds,
+    canvasMode,
+  } = useCanvasData();
+  const { selectNode, selectEdge, selectGroup, addNode, addFile } =
+    useCanvasActions();
   const { uploadImageFile } = useImageUpload();
   const visibleNodeIds = useVisibleNodeIds();
   const visibleEdgeIds = useVisibleEdgeIds();
@@ -502,16 +536,17 @@ export function Canvas() {
     };
   }, [autoFocusNodeId]);
 
-  const handleStagePointerDown = (
-    event: KonvaEventObject<MouseEvent | TouchEvent>,
-  ) => {
-    const stage = event.target.getStage();
-    const isBackgroundTarget =
-      stage && (event.target === stage || event.target.getType() === "Layer");
-    if (isBackgroundTarget) {
-      handleMarqueeStagePointerDown(event);
-    }
-  };
+  const handleStagePointerDown = useCallback(
+    (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+      const stage = event.target.getStage();
+      const isBackgroundTarget =
+        stage && (event.target === stage || event.target.getType() === "Layer");
+      if (isBackgroundTarget) {
+        handleMarqueeStagePointerDown(event);
+      }
+    },
+    [handleMarqueeStagePointerDown],
+  );
 
   const handleEdgeEndpointDragStart = useCallback(
     (
@@ -526,35 +561,36 @@ export function Canvas() {
     [cancelMarquee, openEdgeEndpointDrag],
   );
 
-  const handleStageDoubleClick = (
-    event: KonvaEventObject<MouseEvent | TouchEvent>,
-  ) => {
-    const storeState = useCanvasStore.getState();
-    const stage = event.target.getStage();
-    const isBackgroundTarget =
-      stage && (event.target === stage || event.target.getType() === "Layer");
-    if (!stage || !isBackgroundTarget) {
-      return;
-    }
+  const handleStageDoubleClick = useCallback(
+    (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+      const storeState = useCanvasStore.getState();
+      const stage = event.target.getStage();
+      const isBackgroundTarget =
+        stage && (event.target === stage || event.target.getType() === "Layer");
+      if (!stage || !isBackgroundTarget) {
+        return;
+      }
 
-    if (storeState.canvasMode !== "select") {
-      return;
-    }
+      if (storeState.canvasMode !== "select") {
+        return;
+      }
 
-    const pointer = stage.getPointerPosition();
-    if (!pointer) {
-      return;
-    }
+      const pointer = stage.getPointerPosition();
+      if (!pointer) {
+        return;
+      }
 
-    const currentViewport = storeState.viewport;
-    const canvasX = (pointer.x - currentViewport.x) / currentViewport.zoom;
-    const canvasY = (pointer.y - currentViewport.y) / currentViewport.zoom;
-    const node = createTextNodeCenteredAt(canvasX, canvasY);
+      const currentViewport = storeState.viewport;
+      const canvasX = (pointer.x - currentViewport.x) / currentViewport.zoom;
+      const canvasY = (pointer.y - currentViewport.y) / currentViewport.zoom;
+      const node = createTextNodeCenteredAt(canvasX, canvasY);
 
-    addNode(node);
-    selectNode(node.id);
-    setAutoFocusNodeId(node.id);
-  };
+      addNode(node);
+      selectNode(node.id);
+      setAutoFocusNodeId(node.id);
+    },
+    [addNode, selectNode],
+  );
 
   const visibleNodeContextMenuState =
     overlaySlot.type === "nodeContextMenu" && nodes[overlaySlot.nodeId]
@@ -573,11 +609,22 @@ export function Canvas() {
       ? edgeLabelEditorState
       : null;
   const labelEditorContainerRect =
-    overlayContainer?.getBoundingClientRect() ?? null;
+    visibleEdgeLabelEditorState && overlayContainer
+      ? overlayContainer.getBoundingClientRect()
+      : null;
   const visibleEdgeLabelDraftState =
     edgeLabelDraftState && edges[edgeLabelDraftState.edgeId]
       ? edgeLabelDraftState
       : null;
+
+  const handleEdgeLabelDraftChange = useCallback(
+    (value: string) => {
+      if (visibleEdgeLabelEditorState) {
+        setEdgeLabelDraft(visibleEdgeLabelEditorState.edgeId, value);
+      }
+    },
+    [visibleEdgeLabelEditorState, setEdgeLabelDraft],
+  );
 
   return (
     <div
@@ -705,48 +752,17 @@ export function Canvas() {
         />
       ) : null}
 
-      {visibleNodeContextMenuState ? (
-        <NodeContextMenu
-          clientX={visibleNodeContextMenuState.clientX}
-          clientY={visibleNodeContextMenuState.clientY}
-          nodeId={visibleNodeContextMenuState.nodeId}
-          nodeType={visibleNodeContextMenuState.nodeType}
-          onClose={closeNodeContextMenu}
-        />
-      ) : null}
-
-      {visibleGroupContextMenuState ? (
-        <GroupContextMenu
-          groupId={visibleGroupContextMenuState.groupId}
-          clientX={visibleGroupContextMenuState.clientX}
-          clientY={visibleGroupContextMenuState.clientY}
-          onClose={closeNodeContextMenu}
-        />
-      ) : null}
-
-      {visibleEdgeContextMenuState ? (
-        <EdgeContextMenu
-          edgeId={visibleEdgeContextMenuState.edgeId}
-          clientX={visibleEdgeContextMenuState.clientX}
-          clientY={visibleEdgeContextMenuState.clientY}
-          onClose={closeEdgeContextMenu}
-        />
-      ) : null}
-
-      {visibleEdgeLabelEditorState && labelEditorContainerRect ? (
-        <EdgeLabelEditor
-          key={visibleEdgeLabelEditorState.edgeId}
-          edgeId={visibleEdgeLabelEditorState.edgeId}
-          canvasX={visibleEdgeLabelEditorState.canvasX}
-          canvasY={visibleEdgeLabelEditorState.canvasY}
-          viewport={viewport}
-          containerRect={labelEditorContainerRect}
-          onDraftChange={(value) =>
-            setEdgeLabelDraft(visibleEdgeLabelEditorState.edgeId, value)
-          }
-          onClose={closeEdgeLabelEditor}
-        />
-      ) : null}
+      <CanvasOverlays
+        nodeContextMenuState={visibleNodeContextMenuState}
+        groupContextMenuState={visibleGroupContextMenuState}
+        edgeContextMenuState={visibleEdgeContextMenuState}
+        edgeLabelEditorState={visibleEdgeLabelEditorState}
+        labelEditorContainerRect={labelEditorContainerRect}
+        onCloseNodeContextMenu={closeNodeContextMenu}
+        onCloseEdgeContextMenu={closeEdgeContextMenu}
+        onEdgeLabelDraftChange={handleEdgeLabelDraftChange}
+        onCloseEdgeLabelEditor={closeEdgeLabelEditor}
+      />
     </div>
   );
 }

@@ -43,6 +43,16 @@ export function useResizeDrag({
   const [dragState, setDragState] = useState<DragState | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const isDraggingRef = useRef(false);
+  const onMoveRef = useRef(onMove);
+  const onEndRef = useRef(onEnd);
+
+  useEffect(() => {
+    onMoveRef.current = onMove;
+  }, [onMove]);
+
+  useEffect(() => {
+    onEndRef.current = onEnd;
+  }, [onEnd]);
 
   const setCursor = useCallback((nextCursor: string) => {
     document.body.style.cursor = nextCursor;
@@ -62,8 +72,8 @@ export function useResizeDrag({
     isDraggingRef.current = false;
     clearCursor();
     dispatch(InteractionEvent.RESIZE_END);
-    onEnd?.();
-  }, [clearCursor, dispatch, onEnd]);
+    onEndRef.current?.();
+  }, [clearCursor, dispatch]);
 
   const onMouseEnter = useCallback(() => {
     if (isDraggingRef.current) {
@@ -113,7 +123,7 @@ export function useResizeDrag({
         return;
       }
 
-      onMove(
+      onMoveRef.current(
         {
           dx: (clientX - activeDrag.startX) / activeDrag.capturedZoom,
           dy: (clientY - activeDrag.startY) / activeDrag.capturedZoom,
@@ -121,7 +131,7 @@ export function useResizeDrag({
         activeDrag.capturedZoom,
       );
     },
-    [onMove],
+    [],
   );
 
   usePointerCapture(Boolean(dragState), {
@@ -155,9 +165,9 @@ export function useResizeDrag({
       isDraggingRef.current = false;
       clearCursor();
       dispatch(InteractionEvent.RESIZE_END);
-      onEnd?.();
+      onEndRef.current?.();
     };
-  }, [clearCursor, dispatch, onEnd]);
+  }, [clearCursor, dispatch]);
 
   return {
     onMouseDown,

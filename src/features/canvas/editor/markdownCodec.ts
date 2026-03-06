@@ -103,6 +103,206 @@ function isListBoundary(line: string): boolean {
   );
 }
 
+type BlockParseResult = {
+  block: TiptapJSONContent;
+  nextIndex: number;
+};
+
+function parseCodeBlock(
+  lines: string[],
+  startIndex: number,
+): BlockParseResult | null {
+  const codeFence = lines[startIndex].match(/^```(\w+)?\s*$/);
+  if (!codeFence) {
+    return null;
+  }
+
+  const codeLines: string[] = [];
+  let nextIndex = startIndex + 1;
+
+  while (nextIndex < lines.length && !/^```/.test(lines[nextIndex])) {
+    codeLines.push(lines[nextIndex]);
+    nextIndex += 1;
+  }
+
+  if (nextIndex < lines.length && /^```/.test(lines[nextIndex])) {
+    nextIndex += 1;
+  }
+
+  const codeText = codeLines.join("\n");
+  return {
+    block: {
+      type: "codeBlock",
+      attrs: codeFence[1] ? { language: codeFence[1] } : undefined,
+      content:
+        codeText.length > 0 ? [{ type: "text", text: codeText }] : undefined,
+    },
+    nextIndex,
+  };
+}
+
+function parseImageBlock(
+  line: string,
+  startIndex: number,
+): BlockParseResult | null {
+  const imageMatch = line.match(ASSET_IMAGE_LINE_PATTERN);
+  if (!imageMatch) {
+    return null;
+  }
+
+  return {
+    block: {
+      type: "imageBlock",
+      attrs: {
+        alt: imageMatch[1],
+        assetId: imageMatch[2],
+      },
+    },
+    nextIndex: startIndex + 1,
+  };
+}
+
+function parseHeadingBlock(
+  line: string,
+  startIndex: number,
+): BlockParseResult | null {
+  const headingMatch = line.match(/^(#{1,6})(?:\s+(.*))?$/);
+  if (!headingMatch) {
+    return null;
+  }
+
+  const content = parseInlineText(headingMatch[2] ?? "");
+  return {
+    block: {
+      type: "heading",
+      attrs: { level: headingMatch[1].length },
+      content: content.length > 0 ? content : undefined,
+    },
+    nextIndex: startIndex + 1,
+  };
+}
+
+function parseTaskListBlock(
+  lines: string[],
+  startIndex: number,
+): BlockParseResult | null {
+  if (!/^\s*[-*+]\s+\[[ x]\](?:\s+.*)?$/.test(lines[startIndex])) {
+    return null;
+  }
+
+  const items: TiptapJSONContent[] = [];
+  let nextIndex = startIndex;
+
+  while (nextIndex < lines.length) {
+    const taskMatch = lines[nextIndex].match(
+      /^\s*[-*+]\s+\[([ x])\](?:\s+(.*))?$/,
+    );
+    if (!taskMatch) {
+      break;
+    }
+
+    items.push({
+      type: "taskItem",
+      attrs: { checked: taskMatch[1] === "x" },
+      content: [paragraphFromText(taskMatch[2] ?? "")],
+    });
+    nextIndex += 1;
+  }
+
+  return {
+    block: { type: "taskList", content: items },
+    nextIndex,
+  };
+}
+
+function parseBulletListBlock(
+  lines: string[],
+  startIndex: number,
+): BlockParseResult | null {
+  if (!/^\s*[-*+](?:\s+.*)?$/.test(lines[startIndex])) {
+    return null;
+  }
+
+  const items: TiptapJSONContent[] = [];
+  let nextIndex = startIndex;
+
+  while (nextIndex < lines.length) {
+    const bulletMatch = lines[nextIndex].match(/^\s*[-*+](?:\s+(.*))?$/);
+    if (!bulletMatch) {
+      break;
+    }
+
+    items.push({
+      type: "listItem",
+      content: [paragraphFromText(bulletMatch[1] ?? "")],
+    });
+    nextIndex += 1;
+  }
+
+  return {
+    block: { type: "bulletList", content: items },
+    nextIndex,
+  };
+}
+
+function parseOrderedListBlock(
+  lines: string[],
+  startIndex: number,
+): BlockParseResult | null {
+  const orderedMatch = lines[startIndex].match(/^\s*(\d+)\.(?:\s+(.*))?$/);
+  if (!orderedMatch) {
+    return null;
+  }
+
+  const items: TiptapJSONContent[] = [];
+  let nextIndex = startIndex;
+
+  while (nextIndex < lines.length) {
+    const itemMatch = lines[nextIndex].match(/^\s*(\d+)\.(?:\s+(.*))?$/);
+    if (!itemMatch) {
+      break;
+    }
+
+    items.push({
+      type: "listItem",
+      content: [paragraphFromText(itemMatch[2] ?? "")],
+    });
+    nextIndex += 1;
+  }
+
+  const start = Number(orderedMatch[1]);
+  return {
+    block: {
+      type: "orderedList",
+      attrs: start !== 1 ? { start } : undefined,
+      content: items,
+    },
+    nextIndex,
+  };
+}
+
+function parseParagraphBlock(
+  lines: string[],
+  startIndex: number,
+): BlockParseResult {
+  const paragraphLines = [lines[startIndex]];
+  let nextIndex = startIndex + 1;
+
+  while (
+    nextIndex < lines.length &&
+    lines[nextIndex].trim().length > 0 &&
+    !isListBoundary(lines[nextIndex])
+  ) {
+    paragraphLines.push(lines[nextIndex]);
+    nextIndex += 1;
+  }
+
+  return {
+    block: paragraphFromText(paragraphLines.join("\n")),
+    nextIndex,
+  };
+}
+
 function parseBlocks(markdown: string): TiptapJSONContent[] {
   const lines = markdown.split("\n");
   const blocks: TiptapJSONContent[] = [];
@@ -116,140 +316,17 @@ function parseBlocks(markdown: string): TiptapJSONContent[] {
       continue;
     }
 
-    const codeFence = line.match(/^```(\w+)?\s*$/);
-    if (codeFence) {
-      const codeLines: string[] = [];
-      const language = codeFence[1];
-      index += 1;
+    const parsedBlock =
+      parseCodeBlock(lines, index) ??
+      parseImageBlock(line, index) ??
+      parseHeadingBlock(line, index) ??
+      parseTaskListBlock(lines, index) ??
+      parseBulletListBlock(lines, index) ??
+      parseOrderedListBlock(lines, index) ??
+      parseParagraphBlock(lines, index);
 
-      while (index < lines.length && !/^```/.test(lines[index])) {
-        codeLines.push(lines[index]);
-        index += 1;
-      }
-
-      if (index < lines.length && /^```/.test(lines[index])) {
-        index += 1;
-      }
-
-      const codeText = codeLines.join("\n");
-      blocks.push({
-        type: "codeBlock",
-        attrs: language ? { language } : undefined,
-        content:
-          codeText.length > 0 ? [{ type: "text", text: codeText }] : undefined,
-      });
-      continue;
-    }
-
-    const imageMatch = line.match(ASSET_IMAGE_LINE_PATTERN);
-    if (imageMatch) {
-      blocks.push({
-        type: "imageBlock",
-        attrs: {
-          alt: imageMatch[1],
-          assetId: imageMatch[2],
-        },
-      });
-      index += 1;
-      continue;
-    }
-
-    const headingMatch = line.match(/^(#{1,6})(?:\s+(.*))?$/);
-    if (headingMatch) {
-      const level = headingMatch[1].length;
-      const content = parseInlineText(headingMatch[2] ?? "");
-      blocks.push({
-        type: "heading",
-        attrs: { level },
-        content: content.length > 0 ? content : undefined,
-      });
-      index += 1;
-      continue;
-    }
-
-    if (/^\s*[-*+]\s+\[[ x]\](?:\s+.*)?$/.test(line)) {
-      const items: TiptapJSONContent[] = [];
-
-      while (index < lines.length) {
-        const taskMatch = lines[index].match(
-          /^\s*[-*+]\s+\[([ x])\](?:\s+(.*))?$/,
-        );
-        if (!taskMatch) {
-          break;
-        }
-
-        const checked = taskMatch[1] === "x";
-        items.push({
-          type: "taskItem",
-          attrs: { checked },
-          content: [paragraphFromText(taskMatch[2] ?? "")],
-        });
-        index += 1;
-      }
-
-      blocks.push({ type: "taskList", content: items });
-      continue;
-    }
-
-    if (/^\s*[-*+](?:\s+.*)?$/.test(line)) {
-      const items: TiptapJSONContent[] = [];
-
-      while (index < lines.length) {
-        const bulletMatch = lines[index].match(/^\s*[-*+](?:\s+(.*))?$/);
-        if (!bulletMatch) {
-          break;
-        }
-
-        items.push({
-          type: "listItem",
-          content: [paragraphFromText(bulletMatch[1] ?? "")],
-        });
-        index += 1;
-      }
-
-      blocks.push({ type: "bulletList", content: items });
-      continue;
-    }
-
-    const orderedMatch = line.match(/^\s*(\d+)\.(?:\s+(.*))?$/);
-    if (orderedMatch) {
-      const start = Number(orderedMatch[1]);
-      const items: TiptapJSONContent[] = [];
-
-      while (index < lines.length) {
-        const itemMatch = lines[index].match(/^\s*(\d+)\.(?:\s+(.*))?$/);
-        if (!itemMatch) {
-          break;
-        }
-
-        items.push({
-          type: "listItem",
-          content: [paragraphFromText(itemMatch[2] ?? "")],
-        });
-        index += 1;
-      }
-
-      blocks.push({
-        type: "orderedList",
-        attrs: start !== 1 ? { start } : undefined,
-        content: items,
-      });
-      continue;
-    }
-
-    const paragraphLines = [line];
-    index += 1;
-
-    while (
-      index < lines.length &&
-      lines[index].trim().length > 0 &&
-      !isListBoundary(lines[index])
-    ) {
-      paragraphLines.push(lines[index]);
-      index += 1;
-    }
-
-    blocks.push(paragraphFromText(paragraphLines.join("\n")));
+    blocks.push(parsedBlock.block);
+    index = parsedBlock.nextIndex;
   }
 
   return blocks;

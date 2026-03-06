@@ -13,7 +13,7 @@ import {
   getEdgeStrokeColor,
   type CanvasNodeColor,
 } from "../../../constants/colors";
-import { cn } from "../../../lib/utils";
+import { clamp, cn } from "../../../lib/utils";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { EdgeDirection, EdgeLineStyle } from "../../../types/canvas";
 
@@ -31,10 +31,6 @@ type MenuPosition = {
 
 const MENU_VIEWPORT_PADDING = 12;
 const MENU_Z_INDEX = 3000;
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
 
 const LINE_STYLE_OPTIONS: readonly {
   id: EdgeLineStyle;

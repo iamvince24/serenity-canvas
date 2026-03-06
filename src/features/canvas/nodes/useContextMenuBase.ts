@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type RefObject,
 } from "react";
+import { clamp } from "../../../lib/utils";
 
 type UseContextMenuBaseOptions = {
   clientX: number;
@@ -29,10 +30,6 @@ type UseContextMenuBaseResult = {
 
 const MENU_VIEWPORT_PADDING = 12;
 const MENU_Z_INDEX = 3000;
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
 
 export function useContextMenuBase({
   clientX,

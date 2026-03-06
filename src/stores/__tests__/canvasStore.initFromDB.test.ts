@@ -20,7 +20,6 @@ const {
   removeBoardSnapshot,
   cancelPersistWrites,
   flushPersistWrites,
-  setBoardNodeCount,
 } = vi.hoisted(() => ({
   boardGetById: vi.fn(),
   boardPut: vi.fn(),
@@ -37,7 +36,6 @@ const {
   removeBoardSnapshot: vi.fn(),
   cancelPersistWrites: vi.fn(),
   flushPersistWrites: vi.fn(),
-  setBoardNodeCount: vi.fn(),
 }));
 
 vi.mock("../../db/repositories", () => ({
@@ -74,14 +72,6 @@ vi.mock("../persistMiddleware", () => ({
     cancel: cancelPersistWrites,
     flush: flushPersistWrites,
   }),
-}));
-
-vi.mock("../dashboardStore", () => ({
-  useDashboardStore: {
-    getState: () => ({
-      setBoardNodeCount,
-    }),
-  },
 }));
 
 function createTextNode(id: string, contentMarkdown = id): CanvasNode {
@@ -138,7 +128,6 @@ describe("canvasStore initFromDB", () => {
     removeBoardSnapshot.mockReset();
     cancelPersistWrites.mockReset();
     flushPersistWrites.mockReset().mockResolvedValue(undefined);
-    setBoardNodeCount.mockReset();
   });
 
   it("從 IDB 恢復成功後會載入資料並清空 history/selection", async () => {
@@ -212,7 +201,6 @@ describe("canvasStore initFromDB", () => {
     expect(state.selectedGroupIds).toEqual([]);
     expect(state.canUndo).toBe(false);
     expect(state.canRedo).toBe(false);
-    expect(setBoardNodeCount).toHaveBeenCalledWith("board-1", 1);
   });
 
   it("IDB 無 Board 記錄且 localStorage 有舊 snapshot 時會 migration", async () => {
