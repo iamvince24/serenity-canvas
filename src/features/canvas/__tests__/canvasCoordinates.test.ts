@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { toCanvasPoint } from "../core/canvasCoordinates";
+import {
+  centerViewportOnNodes,
+  toCanvasPoint,
+} from "../core/canvasCoordinates";
+import type { CanvasNode } from "../../../types/canvas";
 
 function createRect(left: number, top: number): DOMRect {
   return {
@@ -56,5 +60,56 @@ describe("canvasCoordinates", () => {
         zoom: 1,
       }),
     ).toBeNull();
+  });
+});
+
+function makeNode(
+  id: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): CanvasNode {
+  return {
+    id,
+    type: "text",
+    x,
+    y,
+    width,
+    height,
+    heightMode: "fixed",
+    color: null,
+    contentMarkdown: "",
+  };
+}
+
+describe("centerViewportOnNodes", () => {
+  it("空 canvas 回傳預設 viewport", () => {
+    expect(centerViewportOnNodes({}, 1920, 1080)).toEqual({
+      x: 0,
+      y: 0,
+      zoom: 1,
+    });
+  });
+
+  it("單一 node 會將其中心對齊視窗中心", () => {
+    const nodes: Record<string, CanvasNode> = {
+      a: makeNode("a", 100, 200, 300, 100),
+    };
+    // node center: (100+300/2, 200+100/2) = (250, 250)
+    // viewport: (960-250, 540-250) = (710, 290)
+    const vp = centerViewportOnNodes(nodes, 1920, 1080);
+    expect(vp).toEqual({ x: 710, y: 290, zoom: 1 });
+  });
+
+  it("多個 node 會將 bounding box 中心對齊視窗中心", () => {
+    const nodes: Record<string, CanvasNode> = {
+      a: makeNode("a", 0, 0, 100, 100),
+      b: makeNode("b", 400, 400, 100, 100),
+    };
+    // bounding box: (0,0)-(500,500), center: (250, 250)
+    // viewport: (960-250, 540-250) = (710, 290)
+    const vp = centerViewportOnNodes(nodes, 1920, 1080);
+    expect(vp).toEqual({ x: 710, y: 290, zoom: 1 });
   });
 });

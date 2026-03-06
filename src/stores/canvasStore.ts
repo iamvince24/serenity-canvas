@@ -48,6 +48,7 @@ import {
   reorderToFrontInSubset,
 } from "../features/canvas/nodes/layerOrder";
 import { migrateLegacyNode } from "../features/canvas/nodes/nodePersistenceAdapter";
+import { centerViewportOnNodes } from "../features/canvas/core/canvasCoordinates";
 import { InteractionState } from "../features/canvas/core/stateMachine";
 import {
   type CanvasNode,
@@ -321,6 +322,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
           boardId,
           isLoading: false,
         });
+        const centeredViewport = centerViewportOnNodes(
+          data.nodes,
+          window.innerWidth,
+          window.innerHeight,
+        );
+        set({ viewport: centeredViewport });
       } catch (error) {
         console.error("Failed to initialize board from IndexedDB", error);
         releaseStaleImageEntries(get().nodes, EMPTY_BOARD_SNAPSHOT.nodes);
