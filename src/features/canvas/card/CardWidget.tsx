@@ -25,6 +25,7 @@ import {
   WidthResizeHandle,
 } from "./ResizeHandle";
 import { InteractionState } from "../core/stateMachine";
+import { useBatchDrag } from "../hooks/useBatchDrag";
 import { useDragHandle } from "./useDragHandle";
 
 type CardWidgetProps = {
@@ -61,11 +62,33 @@ function CardWidgetComponent({
   const previewNodeSize = useCanvasStore((state) => state.previewNodeSize);
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
   const dragHandleProps = useDragHandle({ nodeId: node.id, zoom });
+  const {
+    startBatchDrag: startContentDrag,
+    previewBatchDragFromPointer: previewContentDrag,
+    finishBatchDrag: finishContentDrag,
+    isBatchDragging: isContentDragging,
+  } = useBatchDrag({ nodeId: node.id, zoom });
+  const contentDragStateRef = useRef<{
+    pointerId: number | null;
+    isDragging: boolean;
+  }>({ pointerId: null, isDragging: false });
   const cardEditorRef = useRef<CardEditorHandle | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingRaw, setIsEditing] = useState(autoFocus);
   const [focusAtEndSignal, setFocusAtEndSignal] = useState(0);
 
+  // Enter edit mode when autoFocus transitions from false → true (Enter key, new node).
+  // This uses the React-recommended "store previous props" pattern to avoid useEffect.
+  const [prevAutoFocus, setPrevAutoFocus] = useState(autoFocus);
+  if (autoFocus !== prevAutoFocus) {
+    setPrevAutoFocus(autoFocus);
+    if (autoFocus) {
+      setIsEditing(true);
+    }
+  }
+
+  // Editing requires selection — deselecting implicitly exits edit mode.
+  const isEditing = isEditingRaw && isSelected;
   const isDragging = interactionState === InteractionState.Dragging;
   const isResizing = interactionState === InteractionState.Resizing;
   const shouldShowResizeHandles = !isEditing;
@@ -113,14 +136,123 @@ function CardWidgetComponent({
 
   const handleContentPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (event.shiftKey) {
-        toggleNodeSelection(node.id);
+      if (event.pointerType === "mouse" && event.button !== 0) {
         return;
       }
 
-      selectNode(node.id);
+      if (event.shiftKey) {
+        toggleNodeSelection(node.id);
+        event.preventDefault();
+        return;
+      }
+
+      // Already editing — let the editor handle clicks normally.
+      if (isEditing) {
+        return;
+      }
+
+      // Select (if not yet selected) and start drag from content area.
+      if (!isSelected) {
+        selectNode(node.id);
+      }
+
+      const target = event.currentTarget;
+      const didStart = startContentDrag({
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+      if (didStart) {
+        contentDragStateRef.current = {
+          pointerId: event.pointerId,
+          isDragging: true,
+        };
+        target.setPointerCapture(event.pointerId);
+      }
+
+      // Prevent editor from receiving focus.
+      event.preventDefault();
     },
-    [node.id, selectNode, toggleNodeSelection],
+    [
+      node.id,
+      isSelected,
+      isEditing,
+      selectNode,
+      toggleNodeSelection,
+      startContentDrag,
+    ],
+  );
+
+  const handleContentPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const dragState = contentDragStateRef.current;
+      if (!dragState.isDragging || dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      previewContentDrag(event.pointerId, event.clientX, event.clientY);
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [previewContentDrag],
+  );
+
+  const stopContentDragging = useCallback(() => {
+    if (!contentDragStateRef.current.isDragging) {
+      return;
+    }
+
+    finishContentDrag();
+    contentDragStateRef.current = { pointerId: null, isDragging: false };
+  }, [finishContentDrag]);
+
+  const handleContentPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (
+        isContentDragging(event.pointerId) &&
+        event.currentTarget.hasPointerCapture(event.pointerId)
+      ) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+
+      stopContentDragging();
+    },
+    [isContentDragging, stopContentDragging],
+  );
+
+  const handleContentPointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (
+        isContentDragging(event.pointerId) &&
+        event.currentTarget.hasPointerCapture(event.pointerId)
+      ) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+
+      stopContentDragging();
+    },
+    [isContentDragging, stopContentDragging],
+  );
+
+  const handleContentDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (isEditing) {
+        return;
+      }
+
+      event.stopPropagation();
+      setIsEditing(true);
+      // Focus the editor on the next frame after it becomes editable.
+      requestAnimationFrame(() => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.closest(".ProseMirror")) {
+          // Place caret at the clicked position by re-dispatching a click.
+          return;
+        }
+        setFocusAtEndSignal((current) => current + 1);
+      });
+    },
+    [isEditing],
   );
 
   const handleCardContextMenu = useCallback(
@@ -188,6 +320,10 @@ function CardWidgetComponent({
 
   const handleContentClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (!isEditing) {
+        return;
+      }
+
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -204,7 +340,7 @@ function CardWidgetComponent({
       // Clicking outside text content (card body blank area) moves caret to end.
       setFocusAtEndSignal((current) => current + 1);
     },
-    [],
+    [isEditing],
   );
 
   const handleCommit = useCallback(
@@ -325,6 +461,10 @@ function CardWidgetComponent({
         style={editorShellStyle}
         data-card-scroll-host="true"
         onPointerDown={handleContentPointerDown}
+        onPointerMove={handleContentPointerMove}
+        onPointerUp={handleContentPointerUp}
+        onPointerCancel={handleContentPointerCancel}
+        onDoubleClick={handleContentDoubleClick}
         onClick={handleContentClick}
         onFocusCapture={handleEditorFocusCapture}
         onBlurCapture={handleEditorBlurCapture}
@@ -336,6 +476,7 @@ function CardWidgetComponent({
           onCommit={handleCommit}
           autoFocus={autoFocus}
           focusAtEndSignal={focusAtEndSignal}
+          editable={isEditing}
         />
       </div>
 

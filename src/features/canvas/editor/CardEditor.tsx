@@ -46,6 +46,7 @@ type CardEditorProps = {
   onCommit?: (markdown: string) => void;
   autoFocus?: boolean;
   focusAtEndSignal?: number;
+  editable?: boolean;
 };
 
 export type CardEditorHandle = {
@@ -156,6 +157,7 @@ function CardEditorImpl(
     onCommit,
     autoFocus = false,
     focusAtEndSignal = 0,
+    editable: editableProp = true,
   }: CardEditorProps,
   ref: ForwardedRef<CardEditorHandle>,
 ) {
@@ -226,7 +228,7 @@ function CardEditorImpl(
       SlashCommands,
     ],
     content: initialContent,
-    editable: true,
+    editable: editableProp,
     autofocus: autoFocus ? "start" : false,
     editorProps: {
       attributes: {
@@ -373,6 +375,16 @@ function CardEditorImpl(
     }),
     [insertImageFiles],
   );
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) {
+      return;
+    }
+
+    if (editor.isEditable !== editableProp) {
+      editor.setEditable(editableProp);
+    }
+  }, [editor, editableProp]);
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || editor.isFocused) {
