@@ -10,12 +10,10 @@ import {
   type DragEvent as ReactDragEvent,
 } from "react";
 import type { Editor } from "@tiptap/core";
-import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TaskList from "@tiptap/extension-task-list";
 import i18n from "@/i18n";
-import { useCanvasStore } from "../../../stores/canvasStore";
 import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
 import { extractImageFilesFromTransfer } from "../images/editorImageTransfer";
 import { ImageBlockExtension } from "../images/imageBlockExtension";
@@ -26,7 +24,13 @@ import {
   tiptapDocToMarkdown,
   type TiptapJSONContent,
 } from "./markdownCodec";
-import { uploadImageFile } from "../images/useImageUpload";
+import {
+  fallbackMarkdownDoc,
+  handleEditorImageDrop,
+  handleEditorImagePaste,
+  insertImageAtPos,
+  toUploadErrorMessage,
+} from "./editorImageUtils";
 
 function getEditorNotReadyMessage() {
   return i18n.t("editor.notReady");
@@ -54,81 +58,8 @@ export type CardEditorHandle = {
   focusAtEnd: () => void;
 };
 
-function toUploadErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : i18n.t("editor.error.uploadFailed");
-}
-
 export const CardEditor = forwardRef(CardEditorImpl);
 CardEditor.displayName = "CardEditor";
-
-async function insertImageAtPos(
-  editor: Editor,
-  file: File,
-  pos?: number,
-): Promise<number> {
-  const { fileRecord } = await uploadImageFile(file);
-
-  const imageBlock = {
-    type: "imageBlock",
-    attrs: {
-      assetId: fileRecord.asset_id,
-      alt: file.name,
-    },
-  };
-  const insertionPos =
-    typeof pos === "number" ? pos : editor.state.selection.$to.pos;
-
-  let inserted = editor.commands.insertContentAt(insertionPos, imageBlock, {
-    updateSelection: true,
-  });
-
-  if (!inserted) {
-    inserted = editor.commands.insertContentAt(
-      editor.state.doc.content.size,
-      imageBlock,
-      { updateSelection: true },
-    );
-  }
-
-  if (!inserted) {
-    throw new Error(i18n.t("editor.error.insertFailed"));
-  }
-
-  useCanvasStore.getState().addFile(fileRecord);
-  editor.commands.focus();
-  return editor.state.selection.$to.pos;
-}
-
-async function handleEditorImageDrop(
-  editor: Editor,
-  view: EditorView,
-  event: DragEvent,
-  files: File[],
-): Promise<void> {
-  event.preventDefault();
-  event.stopPropagation();
-  let nextPos =
-    view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ??
-    view.state.selection.$to.pos;
-
-  for (const file of files) {
-    nextPos = await insertImageAtPos(editor, file, nextPos);
-  }
-}
-
-async function handleEditorImagePaste(
-  editor: Editor,
-  event: ClipboardEvent,
-  files: File[],
-): Promise<void> {
-  event.preventDefault();
-
-  for (const file of files) {
-    await insertImageAtPos(editor, file);
-  }
-}
 
 function getReadyEditor(editorRef: React.RefObject<Editor | null>): Editor {
   const editor = editorRef.current;
@@ -137,19 +68,6 @@ function getReadyEditor(editorRef: React.RefObject<Editor | null>): Editor {
   }
 
   throw new Error(getEditorNotReadyMessage());
-}
-
-function fallbackMarkdownDoc(markdown: string): TiptapJSONContent {
-  return {
-    type: "doc",
-    content: [
-      {
-        type: "paragraph",
-        content:
-          markdown.length > 0 ? [{ type: "text", text: markdown }] : undefined,
-      },
-    ],
-  };
 }
 
 function CardEditorImpl(

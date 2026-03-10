@@ -4,6 +4,22 @@ export function getEventTargetAsHTMLElement(
   return target instanceof HTMLElement ? target : null;
 }
 
+/**
+ * React Portal 的合成事件會沿 React 組件樹冒泡，而非 DOM 樹。
+ * 當 Portal 子元素（如 Dialog）觸發事件時，父元件的 handler 也會收到，
+ * 但事件的 DOM target 並不在 currentTarget 的 DOM 子樹內。
+ * 此函式用來偵測並跳過這類跨 Portal 的事件。
+ */
+export function isPortalEvent(
+  target: EventTarget | null,
+  currentTarget: EventTarget | null,
+): boolean {
+  if (!(target instanceof Node) || !(currentTarget instanceof Node)) {
+    return false;
+  }
+  return !currentTarget.contains(target);
+}
+
 export function isTextInputElement(target: HTMLElement | null): boolean {
   if (!target) {
     return false;
@@ -12,7 +28,8 @@ export function isTextInputElement(target: HTMLElement | null): boolean {
   return (
     target.tagName === "INPUT" ||
     target.tagName === "TEXTAREA" ||
-    target.isContentEditable
+    target.isContentEditable ||
+    target.closest("[role='dialog']") !== null
   );
 }
 

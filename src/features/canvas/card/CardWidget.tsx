@@ -11,12 +11,14 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { Maximize2 } from "lucide-react";
 import { useBatchDrag } from "../hooks/useBatchDrag";
 import { getCardColorStyle } from "../../../constants/colors";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
 import type { TextNode } from "../../../types/canvas";
 import { CardEditor, type CardEditorHandle } from "../editor/CardEditor";
+import { CardExpandModal } from "./CardExpandModal";
 import { DEFAULT_NODE_HEIGHT, HANDLE_BAR_HEIGHT } from "../core/constants";
 import { extractImageFilesFromTransfer } from "../images/editorImageTransfer";
 import {
@@ -25,6 +27,8 @@ import {
   LeftWidthResizeHandle,
   WidthResizeHandle,
 } from "./ResizeHandle";
+import { isPortalEvent } from "../core/domUtils";
+import { toUploadErrorMessage } from "../editor/editorImageUtils";
 import { InteractionState } from "../core/stateMachine";
 import { useDragHandle } from "./useDragHandle";
 
@@ -41,10 +45,6 @@ type CardWidgetProps = {
     clientY: number;
   }) => void;
 };
-
-function toUploadErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "圖片上傳失敗，請重試。";
-}
 
 function CardWidgetComponent({
   node,
@@ -73,6 +73,7 @@ function CardWidgetComponent({
     },
   );
   const [isEditing, setIsEditing] = useState(autoFocus);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [focusAtEndSignal, setFocusAtEndSignal] = useState(0);
 
   // Derive isEditing from autoFocus rising edge during render.
@@ -193,6 +194,8 @@ function CardWidgetComponent({
 
   const handleContentPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (isPortalEvent(event.target, event.currentTarget)) return;
+
       if (event.pointerType === "mouse" && event.button !== 0) return;
 
       if (event.shiftKey) {
@@ -260,6 +263,7 @@ function CardWidgetComponent({
 
   const handleCardDoubleClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (isPortalEvent(event.target, event.currentTarget)) return;
       if (isEditing) return;
       // Don't enter editing from handle bar double-click
       const target = event.target;
@@ -283,6 +287,7 @@ function CardWidgetComponent({
 
   const handleCardContextMenu = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (isPortalEvent(event.target, event.currentTarget)) return;
       event.preventDefault();
       event.stopPropagation();
       if (!isSelected) {
@@ -300,6 +305,8 @@ function CardWidgetComponent({
 
   const handleCardDragOverCapture = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
+      if (isPortalEvent(event.target, event.currentTarget)) return;
+
       const files = extractImageFilesFromTransfer(event.dataTransfer);
       if (files.length === 0) {
         return;
@@ -314,6 +321,8 @@ function CardWidgetComponent({
 
   const handleCardDropCapture = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
+      if (isPortalEvent(event.target, event.currentTarget)) return;
+
       const files = extractImageFilesFromTransfer(event.dataTransfer);
       if (files.length === 0) {
         return;
@@ -478,6 +487,22 @@ function CardWidgetComponent({
         <span className="card-widget__handle-grip text-xs tracking-[0.24em]">
           :::
         </span>
+        <div className="card-widget__settings">
+          <button
+            type="button"
+            className="card-widget__settings-button"
+            aria-label="Expand card"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsModalOpen(true);
+            }}
+          >
+            <Maximize2 size={14} />
+          </button>
+        </div>
       </div>
 
       <div
@@ -508,6 +533,14 @@ function CardWidgetComponent({
           <CornerResizeHandle node={node} zoom={zoom} corner="bottom-right" />
         </>
       ) : null}
+
+      {isModalOpen && (
+        <CardExpandModal
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          node={node}
+        />
+      )}
     </div>
   );
 }

@@ -445,6 +445,24 @@
     background: var(--divider);
   }
 
+  .card-expand-modal__editor {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--foreground);
+  }
+
+  .card-expand-modal__editor h1 {
+    font-size: 24px;
+  }
+
+  .card-expand-modal__editor h2 {
+    font-size: 20px;
+  }
+
+  .card-expand-modal__editor h3 {
+    font-size: 18px;
+  }
+
   .card-color-picker {
     min-width: 180px;
     padding: 0;
