@@ -103,6 +103,8 @@ function createEdge(id: string, fromNode: string, toNode: string): Edge {
     id,
     fromNode,
     toNode,
+    fromAnchor: "right",
+    toAnchor: "left",
     direction: "forward",
     label: id,
     lineStyle: "solid",

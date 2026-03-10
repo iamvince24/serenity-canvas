@@ -164,6 +164,8 @@ export function useConnectionDrag({
           id: edgeId,
           fromNode: current.source.nodeId,
           toNode: hoveredTarget.nodeId,
+          fromAnchor: current.source.anchor,
+          toAnchor: hoveredTarget.anchor,
           direction: "forward",
           label: "",
           lineStyle: "solid",

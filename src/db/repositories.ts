@@ -10,6 +10,7 @@ import type {
   EdgeLineStyle,
   FileRecord,
   Group,
+  NodeAnchor,
 } from "../types/canvas";
 import {
   serenityDB,
@@ -33,6 +34,8 @@ export type PersistenceEdge = {
   boardId: string;
   from_node: string;
   to_node: string;
+  from_anchor?: NodeAnchor;
+  to_anchor?: NodeAnchor;
   direction: EdgeDirection;
   label: string;
   line_style: EdgeLineStyle;
@@ -50,6 +53,8 @@ export function toPersistedEdge(boardId: string, edge: Edge): PersistenceEdge {
     boardId,
     from_node: edge.fromNode,
     to_node: edge.toNode,
+    from_anchor: edge.fromAnchor,
+    to_anchor: edge.toAnchor,
     direction: edge.direction,
     label: edge.label,
     line_style: edge.lineStyle,
@@ -65,6 +70,9 @@ export function fromPersistedEdge(
     id: edge.id,
     fromNode: edge.from_node,
     toNode: edge.to_node,
+    // 舊版邊可能缺少錨點欄位，預設為 right → left（與 fromDbEdge 一致）。
+    fromAnchor: edge.from_anchor ?? "right",
+    toAnchor: edge.to_anchor ?? "left",
     direction: edge.direction,
     label: edge.label,
     lineStyle: edge.line_style,

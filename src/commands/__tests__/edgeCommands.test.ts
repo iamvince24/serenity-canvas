@@ -17,6 +17,8 @@ function createEdge(
     id,
     fromNode,
     toNode,
+    fromAnchor: "right",
+    toAnchor: "left",
     direction: "forward",
     label: "",
     lineStyle: "solid",

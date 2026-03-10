@@ -214,6 +214,8 @@ describe("canvasStore initFromDB", () => {
           id: "edge-legacy",
           fromNode: "legacy-node",
           toNode: "legacy-node-2",
+          fromAnchor: "right",
+          toAnchor: "left",
           direction: "none",
           label: "",
           lineStyle: "solid",

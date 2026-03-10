@@ -141,6 +141,8 @@ function makeEdge(id: string, updatedAt: number): Edge {
     id,
     fromNode: "a",
     toNode: "b",
+    fromAnchor: "right",
+    toAnchor: "left",
     direction: "forward",
     label: "",
     lineStyle: "solid",

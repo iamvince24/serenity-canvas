@@ -1,6 +1,13 @@
-import type { CanvasNode, Edge, EdgeLineStyle } from "../../../types/canvas";
+import type {
+  CanvasNode,
+  Edge,
+  EdgeLineStyle,
+  NodeAnchor,
+} from "../../../types/canvas";
 import { EDGE_CURVATURE } from "../core/constants";
 import type { EdgeLabelLayout } from "./edgeLabelLayout";
+
+export type { NodeAnchor };
 
 export type Bounds = {
   x: number;
@@ -9,8 +16,12 @@ export type Bounds = {
   height: number;
 };
 
-export const NODE_ANCHORS = ["top", "right", "bottom", "left"] as const;
-export type NodeAnchor = (typeof NODE_ANCHORS)[number];
+export const NODE_ANCHORS: readonly NodeAnchor[] = [
+  "top",
+  "right",
+  "bottom",
+  "left",
+];
 
 export type Point = {
   x: number;
@@ -362,29 +373,6 @@ export function getNodeAnchorPoint(
   }
 }
 
-function getSmartAnchors(
-  source: CanvasNode,
-  target: CanvasNode,
-): {
-  fromAnchor: NodeAnchor;
-  toAnchor: NodeAnchor;
-} {
-  const sourceCenter = getNodeCenter(source);
-  const targetCenter = getNodeCenter(target);
-  const dx = targetCenter.x - sourceCenter.x;
-  const dy = targetCenter.y - sourceCenter.y;
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return dx >= 0
-      ? { fromAnchor: "right", toAnchor: "left" }
-      : { fromAnchor: "left", toAnchor: "right" };
-  }
-
-  return dy >= 0
-    ? { fromAnchor: "bottom", toAnchor: "top" }
-    : { fromAnchor: "top", toAnchor: "bottom" };
-}
-
 export function getEdgeRoute(
   edge: Edge,
   nodes: Record<string, CanvasNode>,
@@ -395,21 +383,20 @@ export function getEdgeRoute(
     return null;
   }
 
-  const { fromAnchor, toAnchor } = getSmartAnchors(source, target);
-  const start = getNodeAnchorPoint(source, fromAnchor);
-  const end = getNodeAnchorPoint(target, toAnchor);
+  const start = getNodeAnchorPoint(source, edge.fromAnchor);
+  const end = getNodeAnchorPoint(target, edge.toAnchor);
   const { cp1, cp2 } = calculateBezierControlPoints(
-    fromAnchor,
+    edge.fromAnchor,
     start,
-    toAnchor,
+    edge.toAnchor,
     end,
   );
 
   return {
     start,
     end,
-    fromAnchor,
-    toAnchor,
+    fromAnchor: edge.fromAnchor,
+    toAnchor: edge.toAnchor,
     cp1,
     cp2,
     midpoint: getBezierPoint(0.5, start, cp1, cp2, end),

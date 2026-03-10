@@ -5,6 +5,7 @@ import type {
   EdgeLineStyle,
   FileRecord,
   Group,
+  NodeAnchor,
 } from "../types/canvas";
 import type { PersistenceCanvasNode } from "../features/canvas/nodes/nodePersistenceAdapter";
 
@@ -27,6 +28,8 @@ export type EdgeRow = {
   boardId: string;
   from_node: string;
   to_node: string;
+  from_anchor?: NodeAnchor;
+  to_anchor?: NodeAnchor;
   direction: EdgeDirection;
   label: string;
   line_style: EdgeLineStyle;

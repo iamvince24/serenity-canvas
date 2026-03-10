@@ -39,6 +39,8 @@ function resetStore() {
         id: "edge-1",
         fromNode: "text-1",
         toNode: "text-2",
+        fromAnchor: "right",
+        toAnchor: "left",
         direction: "forward",
         label: "",
         lineStyle: "solid",

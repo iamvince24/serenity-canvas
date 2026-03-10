@@ -162,6 +162,8 @@ function makeEdge(overrides: Partial<Edge> = {}): Edge {
     id: "e1",
     fromNode: "t1",
     toNode: "i1",
+    fromAnchor: "right",
+    toAnchor: "left",
     direction: "forward",
     label: "",
     lineStyle: "solid",
@@ -493,8 +495,8 @@ describe("buildObsidianExport", () => {
     expect(logLines.some((l) => l.includes("略過連線"))).toBe(true);
   });
 
-  it("edge includes fromSide/toSide based on smart anchors", () => {
-    // t1 在 (0,0)，i1 在 (300,0) → 水平方向，從右到左
+  it("edge includes fromSide/toSide from stored anchors", () => {
+    // edge fixture 指定 fromAnchor: "right", toAnchor: "left"
     const input = makeInput({
       edges: { e1: makeEdge() },
     });
