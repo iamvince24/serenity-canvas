@@ -14,9 +14,10 @@ import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
 
 interface CanvasPageProps {
   boardId: string;
+  sidebarOpen?: boolean;
 }
 
-export function CanvasPage({ boardId }: CanvasPageProps) {
+export function CanvasPage({ boardId, sidebarOpen }: CanvasPageProps) {
   const { t } = useTranslation();
   const [showFpsOverlay, setShowFpsOverlay] = useState(false);
   const isLoading = useCanvasStore((state) => state.isLoading);
@@ -109,6 +110,7 @@ export function CanvasPage({ boardId }: CanvasPageProps) {
           <Toolbar
             showFpsOverlay={showFpsOverlay}
             onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
+            sidebarOpen={sidebarOpen}
           />
 
           {import.meta.env.DEV && showFpsOverlay ? (

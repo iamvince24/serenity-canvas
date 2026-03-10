@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { InteractionState } from "../core/stateMachine";
 import { Toolbar } from "../Toolbar";
@@ -47,7 +48,9 @@ describe("Toolbar canvas mode toggle", () => {
   it("aria-pressed 會反映目前 active mode", () => {
     render(
       <MemoryRouter>
-        <Toolbar />
+        <TooltipProvider>
+          <Toolbar />
+        </TooltipProvider>
       </MemoryRouter>,
     );
 

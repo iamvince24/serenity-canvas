@@ -73,7 +73,10 @@ export function DashboardPage() {
           </button>
         ) : null}
 
-        {activeBoardId ? <CanvasPage boardId={activeBoardId} /> : null}
+        {/* 傳遞 sidebarOpen 讓 Toolbar 能跟隨側邊欄位移 */}
+        {activeBoardId ? (
+          <CanvasPage boardId={activeBoardId} sidebarOpen={isOpen} />
+        ) : null}
       </div>
     </div>
   );
