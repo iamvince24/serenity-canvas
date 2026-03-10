@@ -11,6 +11,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useBatchDrag } from "../hooks/useBatchDrag";
 import { getCardColorStyle } from "../../../constants/colors";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
@@ -61,15 +62,65 @@ function CardWidgetComponent({
   const previewNodeSize = useCanvasStore((state) => state.previewNodeSize);
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
   const dragHandleProps = useDragHandle({ nodeId: node.id, zoom });
+  const { startBatchDrag, previewBatchDragFromPointer, finishBatchDrag } =
+    useBatchDrag({ nodeId: node.id, zoom });
   const cardEditorRef = useRef<CardEditorHandle | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const bodyDragRef = useRef<{ pointerId: number | null; isDragging: boolean }>(
+    {
+      pointerId: null,
+      isDragging: false,
+    },
+  );
+  const [isEditing, setIsEditing] = useState(autoFocus);
   const [focusAtEndSignal, setFocusAtEndSignal] = useState(0);
+
+  // Derive isEditing from autoFocus rising edge during render.
+  // React 19 allows setState during render for derived state as long as
+  // it converges (the condition won't be true on the re-render).
+  const [prevAutoFocus, setPrevAutoFocus] = useState(autoFocus);
+  if (autoFocus && !prevAutoFocus) {
+    setIsEditing(true);
+    setPrevAutoFocus(autoFocus);
+  } else if (autoFocus !== prevAutoFocus) {
+    setPrevAutoFocus(autoFocus);
+  }
 
   const isDragging = interactionState === InteractionState.Dragging;
   const isResizing = interactionState === InteractionState.Resizing;
   const shouldShowResizeHandles = !isEditing;
   const shouldElevateForInteraction = isSelected && (isDragging || isResizing);
+
+  // Sync isEditing → editor editable state
+  useEffect(() => {
+    cardEditorRef.current?.setEditable(isEditing);
+  }, [isEditing]);
+
+  // Block ProseMirror from handling mousedown when not editing.
+  // Native capture listener fires before ProseMirror's bubble-phase listener,
+  // preventing it from starting text selection or calling focus().
+  useEffect(() => {
+    if (isEditing) return;
+
+    const shell = editorShellRef.current;
+    if (!shell) return;
+
+    const blockProseMirrorMouseDown = (e: MouseEvent) => {
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest("input[type='checkbox'], a")
+      ) {
+        return;
+      }
+      e.stopPropagation();
+      e.preventDefault();
+    };
+
+    shell.addEventListener("mousedown", blockProseMirrorMouseDown, true);
+    return () =>
+      shell.removeEventListener("mousedown", blockProseMirrorMouseDown, true);
+  }, [isEditing]);
 
   const cardStyle = useMemo<CSSProperties>(() => {
     const colorStyle = getCardColorStyle(node.color);
@@ -107,20 +158,127 @@ function CardWidgetComponent({
       bottom: node.heightMode === "fixed" ? 0 : "auto",
       overflowX: "hidden",
       overflowY: node.heightMode === "fixed" ? "auto" : "visible",
+      cursor: isEditing ? "text" : "grab",
+      userSelect: isEditing ? "auto" : "none",
     }),
-    [node.heightMode],
+    [node.heightMode, isEditing],
   );
+
+  // Refs to hold window-level drag listeners so they can be cleaned up.
+  const windowDragListenersRef = useRef<{
+    move: ((e: PointerEvent) => void) | null;
+    up: ((e: PointerEvent) => void) | null;
+  }>({ move: null, up: null });
+
+  const teardownWindowDragListeners = useCallback(() => {
+    const { move, up } = windowDragListenersRef.current;
+    if (move) window.removeEventListener("pointermove", move);
+    if (up) window.removeEventListener("pointerup", up);
+    windowDragListenersRef.current = { move: null, up: null };
+  }, []);
+
+  const stopBodyDragging = useCallback(() => {
+    if (!bodyDragRef.current.isDragging) return;
+    finishBatchDrag();
+    bodyDragRef.current = { pointerId: null, isDragging: false };
+    teardownWindowDragListeners();
+  }, [finishBatchDrag, teardownWindowDragListeners]);
+
+  // Clean up window listeners on unmount
+  useEffect(() => {
+    return () => {
+      teardownWindowDragListeners();
+    };
+  }, [teardownWindowDragListeners]);
 
   const handleContentPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+
       if (event.shiftKey) {
         toggleNodeSelection(node.id);
+        event.preventDefault();
         return;
       }
 
       selectNode(node.id);
+
+      // When not editing: initiate body drag
+      if (!isEditing) {
+        // Allow checkbox / link interactions to work normally
+        const target = event.target;
+        if (
+          target instanceof HTMLElement &&
+          target.closest("input[type='checkbox'], a")
+        ) {
+          return;
+        }
+
+        const didStart = startBatchDrag({
+          pointerId: event.pointerId,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+        if (didStart) {
+          const activePointerId = event.pointerId;
+          bodyDragRef.current = {
+            pointerId: activePointerId,
+            isDragging: true,
+          };
+
+          // Use window-level listeners for move/up tracking.
+          // This avoids setPointerCapture issues inside ProseMirror's DOM.
+          const onMove = (e: PointerEvent) => {
+            if (e.pointerId !== activePointerId) return;
+            previewBatchDragFromPointer(e.pointerId, e.clientX, e.clientY);
+          };
+          const onUp = (e: PointerEvent) => {
+            if (e.pointerId !== activePointerId) return;
+            stopBodyDragging();
+          };
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onUp);
+          windowDragListenersRef.current = { move: onMove, up: onUp };
+
+          event.stopPropagation();
+          if (event.pointerType !== "mouse") {
+            event.preventDefault();
+          }
+        }
+      }
     },
-    [node.id, selectNode, toggleNodeSelection],
+    [
+      node.id,
+      selectNode,
+      toggleNodeSelection,
+      isEditing,
+      startBatchDrag,
+      previewBatchDragFromPointer,
+      stopBodyDragging,
+    ],
+  );
+
+  const handleCardDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (isEditing) return;
+      // Don't enter editing from handle bar double-click
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest(".card-widget__handle")
+      ) {
+        return;
+      }
+      setIsEditing(true);
+
+      // Delay focus to let setEditable(true) take effect first
+      requestAnimationFrame(() => {
+        cardEditorRef.current?.focusAtEnd();
+      });
+
+      event.preventDefault();
+    },
+    [isEditing],
   );
 
   const handleCardContextMenu = useCallback(
@@ -188,6 +346,9 @@ function CardWidgetComponent({
 
   const handleContentClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
+      // Only trigger focusAtEnd when already editing
+      if (!isEditing) return;
+
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -197,14 +358,12 @@ function CardWidgetComponent({
       }
 
       if (target instanceof HTMLElement && target.closest(".ProseMirror")) {
-        // Keep native caret placement when user clicks on editor text content.
         return;
       }
 
-      // Clicking outside text content (card body blank area) moves caret to end.
       setFocusAtEndSignal((current) => current + 1);
     },
-    [],
+    [isEditing],
   );
 
   const handleCommit = useCallback(
@@ -240,10 +399,6 @@ function CardWidgetComponent({
 
     previewNodeSize(node.id, currentNode.width, nextHeight);
   }, [node.id, previewNodeSize]);
-
-  const handleEditorFocusCapture = useCallback(() => {
-    setIsEditing(true);
-  }, []);
 
   const handleEditorBlurCapture = useCallback(
     (event: FocusEvent<HTMLDivElement>) => {
@@ -308,8 +463,13 @@ function CardWidgetComponent({
       className={`card-widget pointer-events-auto ${isSelected ? "card-widget--selected" : ""} ${isResizing ? "card-widget--resizing" : ""}`}
       data-card-node-id={node.id}
       onContextMenu={handleCardContextMenu}
+      onPointerDown={handleContentPointerDown}
+      onDoubleClick={handleCardDoubleClick}
       onDragOverCapture={handleCardDragOverCapture}
       onDropCapture={handleCardDropCapture}
+      onDragStart={(e) => {
+        if (!isEditing) e.preventDefault();
+      }}
     >
       <div
         className="card-widget__handle border-b border-[#ECEAE6]"
@@ -324,9 +484,7 @@ function CardWidgetComponent({
         ref={editorShellRef}
         style={editorShellStyle}
         data-card-scroll-host="true"
-        onPointerDown={handleContentPointerDown}
         onClick={handleContentClick}
-        onFocusCapture={handleEditorFocusCapture}
         onBlurCapture={handleEditorBlurCapture}
       >
         <CardEditor

@@ -50,6 +50,8 @@ type CardEditorProps = {
 
 export type CardEditorHandle = {
   insertImageFiles: (files: File[], dropEvent?: DragEvent) => Promise<void>;
+  setEditable: (editable: boolean) => void;
+  focusAtEnd: () => void;
 };
 
 function toUploadErrorMessage(error: unknown): string {
@@ -226,7 +228,7 @@ function CardEditorImpl(
       SlashCommands,
     ],
     content: initialContent,
-    editable: true,
+    editable: false,
     autofocus: autoFocus ? "start" : false,
     editorProps: {
       attributes: {
@@ -366,12 +368,28 @@ function CardEditorImpl(
     [],
   );
 
+  const setEditable = useCallback((editable: boolean) => {
+    const editorInstance = editorRef.current;
+    if (editorInstance && !editorInstance.isDestroyed) {
+      editorInstance.setEditable(editable);
+    }
+  }, []);
+
+  const focusAtEnd = useCallback(() => {
+    const editorInstance = editorRef.current;
+    if (editorInstance && !editorInstance.isDestroyed) {
+      editorInstance.commands.focus("end");
+    }
+  }, []);
+
   useImperativeHandle(
     ref,
     () => ({
       insertImageFiles,
+      setEditable,
+      focusAtEnd,
     }),
-    [insertImageFiles],
+    [insertImageFiles, setEditable, focusAtEnd],
   );
 
   useEffect(() => {
@@ -415,6 +433,7 @@ function CardEditorImpl(
       return;
     }
 
+    editor.setEditable(true);
     editor.commands.focus("end");
   }, [autoFocus, editor]);
 
@@ -429,6 +448,7 @@ function CardEditorImpl(
         return;
       }
 
+      editor.setEditable(true);
       editor.commands.focus("end");
     });
 

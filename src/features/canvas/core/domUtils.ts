@@ -30,5 +30,6 @@ export function isEditableElement(element: HTMLElement | null): boolean {
     return true;
   }
 
-  return Boolean(element.closest(".ProseMirror"));
+  const proseMirror = element.closest(".ProseMirror");
+  return proseMirror instanceof HTMLElement && proseMirror.isContentEditable;
 }
