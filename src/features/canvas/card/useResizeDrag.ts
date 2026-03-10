@@ -6,6 +6,7 @@ import {
   type MouseEventHandler,
 } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
+import { clearBodyCursor, setBodyCursor } from "../core/cursorUtils";
 import { InteractionEvent } from "../core/stateMachine";
 import { usePointerCapture } from "../hooks/usePointerCapture";
 
@@ -54,14 +55,6 @@ export function useResizeDrag({
     onEndRef.current = onEnd;
   }, [onEnd]);
 
-  const setCursor = useCallback((nextCursor: string) => {
-    document.body.style.cursor = nextCursor;
-  }, []);
-
-  const clearCursor = useCallback(() => {
-    document.body.style.cursor = "";
-  }, []);
-
   const finishDrag = useCallback(() => {
     if (!dragStateRef.current) {
       return;
@@ -70,26 +63,26 @@ export function useResizeDrag({
     dragStateRef.current = null;
     setDragState(null);
     isDraggingRef.current = false;
-    clearCursor();
+    clearBodyCursor();
     dispatch(InteractionEvent.RESIZE_END);
     onEndRef.current?.();
-  }, [clearCursor, dispatch]);
+  }, [dispatch]);
 
   const onMouseEnter = useCallback(() => {
     if (isDraggingRef.current) {
       return;
     }
 
-    setCursor(cursor);
-  }, [cursor, setCursor]);
+    setBodyCursor(cursor);
+  }, [cursor]);
 
   const onMouseLeave = useCallback(() => {
     if (isDraggingRef.current) {
       return;
     }
 
-    clearCursor();
-  }, [clearCursor]);
+    clearBodyCursor();
+  }, []);
 
   const onMouseDown = useCallback<MouseEventHandler<HTMLDivElement>>(
     (event) => {
@@ -110,10 +103,10 @@ export function useResizeDrag({
       dragStateRef.current = nextDragState;
       setDragState(nextDragState);
       isDraggingRef.current = true;
-      setCursor(cursor);
+      setBodyCursor(cursor);
       dispatch(InteractionEvent.RESIZE_START);
     },
-    [cursor, dispatch, nodeId, selectNode, setCursor, zoom],
+    [cursor, dispatch, nodeId, selectNode, zoom],
   );
 
   const handleCapturedPointerMove = useCallback(
@@ -138,36 +131,26 @@ export function useResizeDrag({
     onPointerMove: handleCapturedPointerMove,
     onPointerUp: finishDrag,
     onPointerCancel: finishDrag,
+    onBlur: finishDrag,
   });
-
-  useEffect(() => {
-    if (!dragState) {
-      return;
-    }
-
-    window.addEventListener("blur", finishDrag);
-    return () => {
-      window.removeEventListener("blur", finishDrag);
-    };
-  }, [dragState, finishDrag]);
 
   useEffect(() => {
     return () => {
       if (!dragStateRef.current) {
         if (isDraggingRef.current) {
           isDraggingRef.current = false;
-          clearCursor();
+          clearBodyCursor();
         }
         return;
       }
 
       dragStateRef.current = null;
       isDraggingRef.current = false;
-      clearCursor();
+      clearBodyCursor();
       dispatch(InteractionEvent.RESIZE_END);
       onEndRef.current?.();
     };
-  }, [clearCursor, dispatch]);
+  }, [dispatch]);
 
   return {
     onMouseDown,

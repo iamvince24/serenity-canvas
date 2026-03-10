@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { CanvasNode, ViewportState } from "../../../types/canvas";
+import { clearBodyCursor, setBodyCursor } from "../core/cursorUtils";
 import { InteractionEvent } from "../core/stateMachine";
 import { toCanvasPoint } from "../core/canvasCoordinates";
 import { usePointerCapture } from "../hooks/usePointerCapture";
@@ -111,10 +112,6 @@ export function useConnectionDrag({
     connectionRef.current = connection;
   }, [connection]);
 
-  const clearCursor = useCallback(() => {
-    document.body.style.cursor = "";
-  }, []);
-
   const getCanvasPointer = useCallback((clientX: number, clientY: number) => {
     const nextContainer = containerRef.current;
     if (!nextContainer) {
@@ -132,8 +129,8 @@ export function useConnectionDrag({
 
     setConnection(null);
     dispatch(InteractionEvent.CONNECT_END);
-    clearCursor();
-  }, [clearCursor, dispatch]);
+    clearBodyCursor();
+  }, [dispatch]);
 
   const completeConnection = useCallback(
     (clientX: number, clientY: number) => {
@@ -265,7 +262,7 @@ export function useConnectionDrag({
         hoveredTarget: null,
       });
       dispatch(InteractionEvent.CONNECT_START);
-      document.body.style.cursor = "crosshair";
+      setBodyCursor("crosshair");
     },
     [dispatch, getCanvasPointer],
   );

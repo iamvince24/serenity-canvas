@@ -9,6 +9,7 @@ type PointerCaptureCallbacks = {
   onPointerUp?: (clientX?: number, clientY?: number) => void;
   onPointerCancel?: () => void;
   onKeyDown?: (event: KeyboardEvent) => void;
+  onBlur?: () => void;
 };
 
 type UsePointerCaptureOptions = {
@@ -121,6 +122,14 @@ export function usePointerCapture(
       window.addEventListener("keydown", handleWindowKeyDown, true);
     }
 
+    const handleWindowBlur = () => {
+      callbacksRef.current.onBlur?.();
+    };
+
+    if (callbacks.onBlur) {
+      window.addEventListener("blur", handleWindowBlur);
+    }
+
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
@@ -133,6 +142,9 @@ export function usePointerCapture(
       if (callbacks.onKeyDown) {
         window.removeEventListener("keydown", handleWindowKeyDown, true);
       }
+      if (callbacks.onBlur) {
+        window.removeEventListener("blur", handleWindowBlur);
+      }
     };
-  }, [callbacks.onKeyDown, isActive, options?.captureKey]);
+  }, [callbacks.onBlur, callbacks.onKeyDown, isActive, options?.captureKey]);
 }

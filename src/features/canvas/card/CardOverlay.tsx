@@ -62,7 +62,6 @@ export function CardOverlay({
       inset: 0,
       transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
       transformOrigin: "top left",
-      willChange: "transform",
     }),
     [viewport.x, viewport.y, viewport.zoom],
   );
