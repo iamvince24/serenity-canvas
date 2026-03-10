@@ -112,7 +112,7 @@ export function EdgeLabelEditor({
         position: "fixed",
         left: `${position.screenX}px`,
         top: `${position.screenY}px`,
-        transform: "translate(-50%, -50%)",
+        transform: `translate(-50%, -50%) scale(${viewport.zoom})`,
         zIndex: 3100,
       }}
       onPointerDown={(event) => event.stopPropagation()}
