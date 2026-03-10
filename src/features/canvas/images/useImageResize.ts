@@ -16,6 +16,8 @@ import {
 } from "../core/constants";
 import { getClientPosition } from "../core/pointerUtils";
 import { InteractionEvent } from "../core/stateMachine";
+// 統一使用 usePointerCapture 管理 pointer 事件，與 useResizeDrag、useConnectionDrag 等一致
+import { usePointerCapture } from "../hooks/usePointerCapture";
 
 export type ResizeHandle =
   | "left"
@@ -36,6 +38,8 @@ type ResizeState = {
   startWidth: number;
   startImageHeight: number;
   aspectRatio: number;
+  /** 開始 resize 時凍結的 zoom 值，避免 resize 期間 viewport 縮放導致座標計算錯誤 */
+  capturedZoom: number;
 };
 
 type ResizeSnapshot = {
@@ -293,13 +297,17 @@ export function useImageResize({
   );
   const commitNodeResize = useCanvasStore((state) => state.commitNodeResize);
   const dispatch = useCanvasStore((state) => state.dispatch);
+
   const [isResizing, setIsResizing] = useState(false);
   const resizeStateRef = useRef<ResizeState | null>(null);
   const resizeStartGeometryRef = useRef<ReturnType<
     typeof toNodeGeometrySnapshot
   > | null>(null);
   const isResizingRef = useRef(false);
-  const stopResizeRef = useRef<(() => void) | null>(null);
+  /** usePointerCapture 的 onPointerMove 不傳 event，改用 ref 追蹤 Shift 狀態 */
+  const shiftHeldRef = useRef(false);
+  /** 滑鼠靜止時按 Shift 需主動重算：keyDown/keyUp 用最後已知座標觸發 applyResize */
+  const lastClientPosRef = useRef<{ x: number; y: number } | null>(null);
 
   const setResizeCursor = useCallback((cursor: string) => {
     document.body.style.cursor = cursor;
@@ -309,11 +317,145 @@ export function useImageResize({
     document.body.style.cursor = "";
   }, []);
 
-  const stopResize = useCallback(() => {
-    stopResizeRef.current?.();
+  /** 清空所有 resize 相關 ref，避免 stale closure 殘留 */
+  const resetRefs = useCallback(() => {
+    resizeStateRef.current = null;
+    resizeStartGeometryRef.current = null;
+    isResizingRef.current = false;
+    shiftHeldRef.current = false;
+    lastClientPosRef.current = null;
   }, []);
 
-  useEffect(() => stopResize, [stopResize]);
+  /** 依 client 座標與 Shift 狀態計算並預覽新尺寸；供 onPointerMove 與 keyDown/keyUp 共用 */
+  const applyResize = useCallback(
+    (clientX: number, clientY: number, shiftHeld: boolean) => {
+      const resizeState = resizeStateRef.current;
+      if (!resizeState) {
+        return;
+      }
+
+      const dx =
+        (clientX - resizeState.startClientX) / resizeState.capturedZoom;
+      const dy =
+        (clientY - resizeState.startClientY) / resizeState.capturedZoom;
+      const nextSnapshot = calculateNextResizeSnapshot(
+        resizeState,
+        dx,
+        dy,
+        shiftHeld,
+      );
+
+      previewNodeGeometry(node.id, {
+        x: nextSnapshot.x,
+        y: nextSnapshot.y,
+        width: nextSnapshot.width,
+        height: nextSnapshot.imageHeight + IMAGE_NODE_CAPTION_HEIGHT,
+        heightMode: node.heightMode,
+      });
+    },
+    [node.id, node.heightMode, previewNodeGeometry],
+  );
+
+  /** usePointerCapture 的 onPointerMove 回呼；每次移動更新 lastClientPosRef 供 keyDown 重算 */
+  const handleCapturedPointerMove = useCallback(
+    (clientX: number, clientY: number) => {
+      lastClientPosRef.current = { x: clientX, y: clientY };
+      applyResize(clientX, clientY, shiftHeldRef.current);
+    },
+    [applyResize],
+  );
+
+  /** 提交 resize 結果、清除游標與 ref、結束 Resize 狀態；供 onPointerUp / onPointerCancel / blur 共用 */
+  const finishResize = useCallback(() => {
+    if (!resizeStateRef.current) {
+      return;
+    }
+
+    const startGeometry = resizeStartGeometryRef.current;
+    const currentNode = useCanvasStore.getState().nodes[node.id];
+    if (startGeometry && currentNode) {
+      commitNodeResize(
+        node.id,
+        startGeometry,
+        toNodeGeometrySnapshot(currentNode),
+      );
+    }
+
+    clearResizeCursor();
+    resetRefs();
+    setIsResizing(false);
+    dispatch(InteractionEvent.RESIZE_END);
+  }, [clearResizeCursor, commitNodeResize, dispatch, node.id, resetRefs]);
+
+  /** 取代手動 addEventListener：pointer 事件由 usePointerCapture 統一擷取、釋放 */
+  usePointerCapture(isResizing, {
+    onPointerMove: handleCapturedPointerMove,
+    onPointerUp: finishResize,
+    onPointerCancel: finishResize,
+  });
+
+  /** Excalidraw 模式：resize 期間監聽 Shift 鍵，狀態改變時用 lastClientPos 主動重算（解決滑鼠靜止按 Shift 無反應） */
+  useEffect(() => {
+    if (!isResizing) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Shift") {
+        return;
+      }
+
+      shiftHeldRef.current = true;
+      const pos = lastClientPosRef.current;
+      if (pos) {
+        applyResize(pos.x, pos.y, true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key !== "Shift") {
+        return;
+      }
+
+      shiftHeldRef.current = false;
+      const pos = lastClientPosRef.current;
+      if (pos) {
+        applyResize(pos.x, pos.y, false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [isResizing, applyResize]);
+
+  /** 視窗失焦時結束 resize，避免視窗切換後 pointer 事件遺失 */
+  useEffect(() => {
+    if (!isResizing) {
+      return;
+    }
+
+    window.addEventListener("blur", finishResize);
+    return () => {
+      window.removeEventListener("blur", finishResize);
+    };
+  }, [isResizing, finishResize]);
+
+  /** unmount 時若仍在 resize，強制結束並清理（避免組件卸載後 listener 殘留） */
+  useEffect(() => {
+    return () => {
+      if (!resizeStateRef.current) {
+        return;
+      }
+
+      resetRefs();
+      clearResizeCursor();
+      dispatch(InteractionEvent.RESIZE_END);
+    };
+  }, [clearResizeCursor, dispatch, resetRefs]);
 
   const handleResizePointerDown = useCallback(
     (
@@ -335,7 +477,6 @@ export function useImageResize({
       dispatch(InteractionEvent.RESIZE_START);
       setResizeCursor(getResizeCursor(handle));
       isResizingRef.current = true;
-      setIsResizing(true);
 
       const startImageHeight = Math.max(
         MIN_IMAGE_CONTENT_HEIGHT,
@@ -356,90 +497,19 @@ export function useImageResize({
         startWidth: node.width,
         startImageHeight,
         aspectRatio: Math.max(0.01, aspectRatio),
+        capturedZoom: zoom > 0 ? zoom : 1,
       };
 
-      const handlePointerMove = (moveEvent: MouseEvent | TouchEvent) => {
-        const resizeState = resizeStateRef.current;
-        if (!resizeState) {
-          return;
-        }
-
-        const nextPointerPosition = getClientPosition(moveEvent);
-        if (!nextPointerPosition) {
-          return;
-        }
-
-        const zoomScale = zoom > 0 ? zoom : 1;
-        const dx =
-          (nextPointerPosition.x - resizeState.startClientX) / zoomScale;
-        const dy =
-          (nextPointerPosition.y - resizeState.startClientY) / zoomScale;
-        const isFreeformResize =
-          moveEvent instanceof MouseEvent && moveEvent.shiftKey;
-        const nextSnapshot = calculateNextResizeSnapshot(
-          resizeState,
-          dx,
-          dy,
-          isFreeformResize,
-        );
-
-        previewNodeGeometry(node.id, {
-          x: nextSnapshot.x,
-          y: nextSnapshot.y,
-          width: nextSnapshot.width,
-          height: nextSnapshot.imageHeight + IMAGE_NODE_CAPTION_HEIGHT,
-          heightMode: node.heightMode,
-        });
+      shiftHeldRef.current =
+        event.evt instanceof MouseEvent ? event.evt.shiftKey : false;
+      lastClientPosRef.current = {
+        x: pointerPosition.x,
+        y: pointerPosition.y,
       };
 
-      const handlePointerUp = () => {
-        const startGeometry = resizeStartGeometryRef.current;
-        const currentNode = useCanvasStore.getState().nodes[node.id];
-        if (startGeometry && currentNode) {
-          commitNodeResize(
-            node.id,
-            startGeometry,
-            toNodeGeometrySnapshot(currentNode),
-          );
-        }
-
-        clearResizeCursor();
-        resizeStateRef.current = null;
-        resizeStartGeometryRef.current = null;
-        isResizingRef.current = false;
-        setIsResizing(false);
-        window.removeEventListener("mousemove", handlePointerMove);
-        window.removeEventListener("touchmove", handleTouchMove);
-        window.removeEventListener("mouseup", handlePointerUp);
-        window.removeEventListener("touchend", handlePointerUp);
-        window.removeEventListener("touchcancel", handlePointerUp);
-        dispatch(InteractionEvent.RESIZE_END);
-        stopResizeRef.current = null;
-      };
-
-      const handleTouchMove = (moveEvent: TouchEvent) => {
-        moveEvent.preventDefault();
-        handlePointerMove(moveEvent);
-      };
-
-      stopResizeRef.current = handlePointerUp;
-      window.addEventListener("mousemove", handlePointerMove);
-      window.addEventListener("touchmove", handleTouchMove, { passive: false });
-      window.addEventListener("mouseup", handlePointerUp);
-      window.addEventListener("touchend", handlePointerUp);
-      window.addEventListener("touchcancel", handlePointerUp);
+      setIsResizing(true); // 觸發 usePointerCapture 開始擷取 pointer 事件
     },
-    [
-      clearResizeCursor,
-      commitNodeResize,
-      dispatch,
-      file,
-      node,
-      previewNodeGeometry,
-      selectNode,
-      setResizeCursor,
-      zoom,
-    ],
+    [dispatch, file, node, selectNode, setResizeCursor, zoom],
   );
 
   const handleResizeMouseEnter = useCallback(
