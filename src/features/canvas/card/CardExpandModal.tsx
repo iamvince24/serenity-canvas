@@ -16,6 +16,7 @@ import type { TextNode } from "../../../types/canvas";
 import { ImageBlockExtension } from "../images/imageBlockExtension";
 import { extractImageFilesFromTransfer } from "../images/editorImageTransfer";
 import { TaskItemWithBackspaceBehavior } from "../editor/taskItemExtension";
+import { SlashCommands } from "../editor/slashCommandExtension";
 import {
   tiptapDocToMarkdown,
   type TiptapJSONContent,
@@ -48,6 +49,7 @@ export function CardExpandModal({
       TaskList,
       TaskItemWithBackspaceBehavior,
       ImageBlockExtension,
+      SlashCommands,
     ],
     content: parseMarkdownSafe(node.contentMarkdown),
     editable: true,
@@ -157,7 +159,7 @@ export function CardExpandModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="card-expand-modal w-[900px] max-w-[calc(100vw-96px)] h-[70vh] flex flex-col overflow-hidden p-0 gap-0">
+      <DialogContent className="card-expand-modal sm:max-w-none w-[1000px] max-w-[calc(100vw-96px)] h-[70vh] flex flex-col overflow-hidden p-0 gap-0">
         <DialogTitle className="sr-only">Edit card</DialogTitle>
         <div
           className="flex-1 overflow-y-auto"
