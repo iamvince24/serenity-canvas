@@ -14,7 +14,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "db:types": "supabase gen types typescript --project-id nsxvydduqdpeedrfdyuz > src/types/supabase.ts"
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:push": "supabase db push",
+    "db:pull": "supabase db pull",
+    "db:migration:new": "supabase migration new",
+    "db:types": "supabase gen types typescript --local > src/types/supabase.ts",
+    "db:types:remote": "supabase gen types typescript --project-id nsxvydduqdpeedrfdyuz > src/types/supabase.ts"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

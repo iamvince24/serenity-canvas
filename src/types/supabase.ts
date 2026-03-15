@@ -7,10 +7,30 @@ export type Json =
   | Json[];
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.4";
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
   public: {
     Tables: {
@@ -19,61 +39,76 @@ export type Database = {
           created_at: string;
           id: string;
           node_order: Json;
-          owner_id: string;
           title: string;
           updated_at: string;
+          user_id: string;
         };
         Insert: {
           created_at?: string;
           id?: string;
           node_order?: Json;
-          owner_id: string;
           title?: string;
           updated_at?: string;
+          user_id: string;
         };
         Update: {
           created_at?: string;
           id?: string;
           node_order?: Json;
-          owner_id?: string;
           title?: string;
           updated_at?: string;
+          user_id?: string;
         };
         Relationships: [];
       };
       edges: {
         Row: {
           board_id: string;
+          color: string | null;
           created_at: string;
           deleted_at: string | null;
           direction: string;
+          from_anchor: string | null;
+          from_node: string;
           id: string;
           label: string | null;
           line_style: string;
-          source_id: string;
-          target_id: string;
+          to_anchor: string | null;
+          to_node: string;
+          updated_at: string;
+          user_id: string;
         };
         Insert: {
           board_id: string;
+          color?: string | null;
           created_at?: string;
           deleted_at?: string | null;
           direction?: string;
+          from_anchor?: string | null;
+          from_node: string;
           id?: string;
           label?: string | null;
           line_style?: string;
-          source_id: string;
-          target_id: string;
+          to_anchor?: string | null;
+          to_node: string;
+          updated_at?: string;
+          user_id: string;
         };
         Update: {
           board_id?: string;
+          color?: string | null;
           created_at?: string;
           deleted_at?: string | null;
           direction?: string;
+          from_anchor?: string | null;
+          from_node?: string;
           id?: string;
           label?: string | null;
           line_style?: string;
-          source_id?: string;
-          target_id?: string;
+          to_anchor?: string | null;
+          to_node?: string;
+          updated_at?: string;
+          user_id?: string;
         };
         Relationships: [
           {
@@ -209,6 +244,44 @@ export type Database = {
           },
         ];
       };
+      inbox_items: {
+        Row: {
+          content: string;
+          created_at: string;
+          id: string;
+          source_title: string | null;
+          source_url: string | null;
+          target_board_id: string | null;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          created_at?: string;
+          id?: string;
+          source_title?: string | null;
+          source_url?: string | null;
+          target_board_id?: string | null;
+          user_id: string;
+        };
+        Update: {
+          content?: string;
+          created_at?: string;
+          id?: string;
+          source_title?: string | null;
+          source_url?: string | null;
+          target_board_id?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "inbox_items_target_board_id_fkey";
+            columns: ["target_board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       nodes: {
         Row: {
           board_id: string;
@@ -218,8 +291,11 @@ export type Database = {
           deleted_at: string | null;
           height: number;
           id: string;
+          source_title: string | null;
+          source_url: string | null;
           type: string;
           updated_at: string;
+          user_id: string;
           width: number;
           x: number;
           y: number;
@@ -232,8 +308,11 @@ export type Database = {
           deleted_at?: string | null;
           height: number;
           id?: string;
+          source_title?: string | null;
+          source_url?: string | null;
           type: string;
           updated_at?: string;
+          user_id: string;
           width: number;
           x: number;
           y: number;
@@ -246,8 +325,11 @@ export type Database = {
           deleted_at?: string | null;
           height?: number;
           id?: string;
+          source_title?: string | null;
+          source_url?: string | null;
           type?: string;
           updated_at?: string;
+          user_id?: string;
           width?: number;
           x?: number;
           y?: number;
@@ -402,6 +484,9 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

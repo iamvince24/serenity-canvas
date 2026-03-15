@@ -80,11 +80,16 @@ function isMissingRelationError(error: unknown): boolean {
   );
 }
 
-function toDbNode(boardId: string, node: CanvasNode): Record<string, unknown> {
+function toDbNode(
+  boardId: string,
+  node: CanvasNode,
+  userId: string,
+): Record<string, unknown> {
   if (node.type === "text") {
     return {
       id: node.id,
       board_id: boardId,
+      user_id: userId,
       type: "text",
       x: node.x,
       y: node.y,
@@ -102,6 +107,7 @@ function toDbNode(boardId: string, node: CanvasNode): Record<string, unknown> {
   return {
     id: node.id,
     board_id: boardId,
+    user_id: userId,
     type: "image",
     x: node.x,
     y: node.y,
@@ -157,36 +163,24 @@ function fromDbNode(row: Record<string, unknown>): CanvasNode | null {
   };
 }
 
-function toDbEdge(boardId: string, edge: Edge): Record<string, unknown> {
-  const row: Record<string, unknown> = {
+function toDbEdge(
+  boardId: string,
+  edge: Edge,
+  userId: string,
+): Record<string, unknown> {
+  return {
     id: edge.id,
     board_id: boardId,
-    source_id: edge.fromNode,
-    target_id: edge.toNode,
-    source_anchor: edge.fromAnchor,
-    target_anchor: edge.toAnchor,
+    user_id: userId,
+    from_node: edge.fromNode,
+    to_node: edge.toNode,
+    from_anchor: edge.fromAnchor,
+    to_anchor: edge.toAnchor,
     direction: edge.direction,
     line_style: edge.lineStyle,
     label: edge.label,
+    color: edge.color,
   };
-
-  // Schema 相容：若 edges 有 color 欄位才會接受；沒有時 pushEdges 會 fallback 去除。
-  if (edge.color !== null) {
-    row.color = edge.color;
-  }
-
-  return row;
-}
-
-function stripColumn(
-  rows: Record<string, unknown>[],
-  column: string,
-): Record<string, unknown>[] {
-  return rows.map((row) => {
-    const rest = { ...row };
-    delete rest[column];
-    return rest;
-  });
 }
 
 function hasColumnError(error: unknown, column: string): boolean {
@@ -207,10 +201,10 @@ function hasSelectPolicyError(error: unknown): boolean {
 function fromDbEdge(row: Record<string, unknown>): Edge {
   return {
     id: String(row.id),
-    fromNode: String(row.source_id),
-    toNode: String(row.target_id),
-    fromAnchor: (row.source_anchor ?? "right") as Edge["fromAnchor"],
-    toAnchor: (row.target_anchor ?? "left") as Edge["toAnchor"],
+    fromNode: String(row.from_node),
+    toNode: String(row.to_node),
+    fromAnchor: (row.from_anchor ?? "right") as Edge["fromAnchor"],
+    toAnchor: (row.to_anchor ?? "left") as Edge["toAnchor"],
     direction: (row.direction ?? "forward") as Edge["direction"],
     label: String(row.label ?? ""),
     lineStyle: (row.line_style ?? "solid") as Edge["lineStyle"],
@@ -401,7 +395,7 @@ class SyncService {
     const { data, error } = await this.client
       .from("boards")
       .select("id, title, created_at, updated_at")
-      .eq("owner_id", this.userId)
+      .eq("user_id", this.userId)
       .order("updated_at", { ascending: false });
     if (error) {
       throw error;
@@ -419,7 +413,7 @@ class SyncService {
   async pushBoard(board: Board, nodeOrder: string[]): Promise<void> {
     const { error } = await this.client.from("boards").upsert({
       id: board.id,
-      owner_id: this.userId,
+      user_id: this.userId,
       title: board.title,
       node_order: nodeOrder,
       updated_at: toIsoTimestamp(board.updatedAt),
@@ -453,7 +447,7 @@ class SyncService {
   }
 
   async pushNodes(boardId: string, nodes: CanvasNode[]): Promise<void> {
-    const rows = nodes.map((node) => toDbNode(boardId, node));
+    const rows = nodes.map((node) => toDbNode(boardId, node, this.userId));
     const data = await this.batchUpsert("nodes", rows, "id");
     for (const row of data) {
       if (row.id && row.updated_at) {
@@ -466,33 +460,13 @@ class SyncService {
   }
 
   async pushEdges(boardId: string, edges: Edge[]): Promise<void> {
-    const rows = edges.map((edge) => toDbEdge(boardId, edge));
+    const rows = edges.map((edge) => toDbEdge(boardId, edge, this.userId));
 
     if (rows.length === 0) {
       return;
     }
 
-    try {
-      await this.batchUpsertWithoutSelect("edges", rows, "id");
-    } catch (error) {
-      if (hasColumnError(error, "color")) {
-        await this.batchUpsertWithoutSelect(
-          "edges",
-          stripColumn(rows, "color"),
-          "id",
-        );
-        return;
-      }
-      if (hasSelectPolicyError(error)) {
-        // 保底：若未來改回 select() 導致 policy 阻擋，這裡直接改成不 select 的重試。
-        await this.batchUpsertWithoutSelect("edges", rows, "id");
-        return;
-      }
-      if (!hasPermissionError(error)) {
-        throw error;
-      }
-      throw error;
-    }
+    await this.batchUpsertWithoutSelect("edges", rows, "id");
   }
 
   async pushGroups(boardId: string, groups: Group[]): Promise<void> {

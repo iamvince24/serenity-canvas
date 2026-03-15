@@ -4,18 +4,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Serenity Canvas is a web-based visual whiteboard (Obsidian Canvas alternative). Users create, connect, color, and edit text/image cards on an infinite canvas. Currently Phase 1: local-only web app with IndexedDB storage, no backend.
+Serenity Canvas is a web-based visual whiteboard (Obsidian Canvas alternative). Users create, connect, color, and edit text/image cards on an infinite canvas. Offline-first with IndexedDB for local storage, Supabase for cloud sync (auth, PostgreSQL, Storage).
+
+## Workflow Rules
+
+- Always run `pnpm typecheck` after making code changes to verify no compile errors before reporting completion.
+- **DB schema changes must go through migration files** — never modify schema directly in Supabase Studio/Dashboard.
+- DB change workflow: `pnpm db:migration:new <name>` → edit SQL → `pnpm db:reset` → `pnpm db:types` → `pnpm typecheck` → commit.
+- Deploy order: `pnpm db:push` (migration first) → deploy frontend code.
+- Local dev login: `test@example.com` / `password123` (seeded by `supabase/seed.sql`).
 
 ## Commands
 
 ```bash
-pnpm dev              # Vite dev server
+pnpm dev              # Vite dev server (auto-connects to local Supabase)
 pnpm build            # tsc -b && vite build
 pnpm lint             # eslint + typecheck
 pnpm typecheck        # tsc --noEmit on both tsconfigs
 pnpm test             # vitest run (single pass)
 pnpm test:watch       # vitest watch mode
 pnpm test:coverage    # vitest with v8 coverage
+pnpm db:start         # Start local Supabase (Docker)
+pnpm db:stop          # Stop local Supabase
+pnpm db:reset         # Reset local DB (re-run migrations + seed)
+pnpm db:push          # Push migrations to production
+pnpm db:pull          # Pull schema from production
+pnpm db:migration:new # Create new migration file
+pnpm db:types         # Generate TypeScript types from local DB
+pnpm db:types:remote  # Generate TypeScript types from production DB
 ```
 
 Run a single test file: `pnpm vitest run src/features/canvas/__tests__/layerOrder.test.ts`
@@ -25,6 +41,12 @@ Pre-commit hooks (Husky + lint-staged) run prettier, eslint --fix, and `vitest r
 ## Tech Stack
 
 React 19, TypeScript 5.9 (strict), Vite 7, Zustand 5, Tiptap 2 (rich text), Konva + react-konva (canvas rendering), Tailwind CSS 4, shadcn/ui (New York style), Vitest 4 + Testing Library.
+
+### React 19 Rules
+
+- Never write to refs during render — use `useEffect` or event handlers for ref assignments
+- Always pass an initial value to `useRef()` (e.g., `useRef<HTMLDivElement>(null)`)
+- Avoid `setState` inside `useEffect` where possible — prefer derived state or event handlers
 
 ## Architecture
 
