@@ -1,5 +1,6 @@
 import {
   Download,
+  Ellipsis,
   Gauge,
   ImagePlus,
   LogIn,
@@ -21,12 +22,21 @@ import { useTranslation } from "react-i18next";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/stores/authStore";
 import { useCanvasStore } from "../../stores/canvasStore";
+import { InteractionState } from "./core/stateMachine";
 import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import { createImageNodeCenteredAt } from "./nodes/nodeFactory";
 import { useImageUpload } from "./images/useImageUpload";
@@ -48,7 +58,12 @@ const MOD_KEY = IS_MAC ? "\u2318" : "Ctrl+";
 
 /** 按鈕群組之間的水平分隔線 */
 function Divider() {
-  return <div className="h-px w-5 bg-border" aria-hidden="true" />;
+  return (
+    <div
+      className="bg-border max-md:h-5 max-md:w-px md:h-px md:w-5"
+      aria-hidden="true"
+    />
+  );
 }
 
 /** 工具列按鈕的 Tooltip 包裝器，hover 時在右側顯示功能名稱與快捷鍵 */
@@ -87,13 +102,15 @@ export function Toolbar({
   onFpsOverlayToggle,
   sidebarOpen = false,
 }: ToolbarProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   const viewport = useCanvasStore((state) => state.viewport);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
+  const interactionState = useCanvasStore((state) => state.interactionState);
+  const isBusy = interactionState !== InteractionState.Idle;
   const addNode = useCanvasStore((state) => state.addNode);
   const addFile = useCanvasStore((state) => state.addFile);
   const selectNode = useCanvasStore((state) => state.selectNode);
@@ -169,14 +186,30 @@ export function Toolbar({
 
   return (
     <div
-      className="pointer-events-none fixed top-1/2 z-40 -translate-y-1/2 transition-[left] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
-      style={{
-        left: sidebarOpen
-          ? `${SIDEBAR_WIDTH + TOOLBAR_GAP}px`
-          : `${TOOLBAR_GAP}px`,
-      }}
+      className={cn(
+        "pointer-events-none fixed z-40",
+        // 手機：底部置中
+        "bottom-4 left-1/2 -translate-x-1/2 pb-[env(safe-area-inset-bottom)]",
+        // 桌面：左側垂直置中（覆蓋手機設定）
+        "md:bottom-auto md:top-1/2 md:left-[var(--toolbar-left)] md:-translate-x-0 md:-translate-y-1/2 md:pb-0",
+        "md:transition-[left] md:duration-500 md:ease-[cubic-bezier(0.16,1,0.3,1)]",
+      )}
+      style={
+        {
+          "--toolbar-left": sidebarOpen
+            ? `${SIDEBAR_WIDTH + TOOLBAR_GAP}px`
+            : `${TOOLBAR_GAP}px`,
+        } as React.CSSProperties
+      }
     >
-      <div className="pointer-events-auto flex flex-col items-center gap-1.5 rounded-lg border border-border bg-elevated/95 p-1.5 shadow-sm backdrop-blur-sm">
+      <div
+        className={cn(
+          "flex items-center gap-1.5 rounded-lg border border-border bg-elevated/95 p-1.5 shadow-sm backdrop-blur-sm",
+          isBusy ? "pointer-events-none" : "pointer-events-auto",
+          "max-md:flex-row",
+          "md:flex-col",
+        )}
+      >
         <ToolbarTooltip label={t("toolbar.mode.select")} shortcut="V">
           <button
             type="button"
@@ -228,85 +261,145 @@ export function Toolbar({
             <Redo2 size={16} />
           </button>
         </ToolbarTooltip>
-        <Divider />
-        <ToolbarTooltip label={t("toolbar.button.export")}>
-          <button
-            type="button"
-            className={iconBtn}
-            aria-label={t("toolbar.button.export")}
-            onClick={() => setIsExportDialogOpen(true)}
-          >
-            <Download size={16} />
-          </button>
-        </ToolbarTooltip>
-        {/* 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復 */}
-        {SHOW_IMAGE_UPLOAD_BUTTON && (
-          <ToolbarTooltip label={t("toolbar.button.uploadImage")}>
-            <button
-              type="button"
-              className={iconBtn}
-              aria-label={t("toolbar.button.uploadImage")}
-              onClick={handleOpenFileDialog}
-            >
-              <ImagePlus size={16} />
-            </button>
-          </ToolbarTooltip>
-        )}
-        {isDev && (
-          <>
-            <Divider />
-            <StressFixtureDialog
-              trigger={
-                <ToolbarTooltip label="插入壓力測試資料">
-                  <button
-                    type="button"
-                    className={iconBtn}
-                    aria-label="插入壓力測試資料"
-                  >
-                    <TestTube2 size={16} />
-                  </button>
-                </ToolbarTooltip>
-              }
-            />
-            {onFpsOverlayToggle ? (
-              <ToolbarTooltip label="FPS 顯示">
-                <button
-                  type="button"
-                  className={`${iconBtn} ${showFpsOverlay ? activeStyle : ""}`}
-                  aria-label="切換 FPS 顯示"
-                  aria-pressed={showFpsOverlay}
-                  onClick={onFpsOverlayToggle}
-                >
-                  <Gauge size={16} />
-                </button>
-              </ToolbarTooltip>
-            ) : null}
-            <ToolbarTooltip label="清除白板">
+
+        {/* --- 手機溢出選單 --- */}
+        <div className="flex items-center gap-1.5 md:hidden">
+          <Divider />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 className={iconBtn}
-                aria-label="清除白板"
-                onClick={handleClearCanvas}
+                aria-label={t("toolbar.button.more")}
               >
-                <Trash2 size={16} />
+                <Ellipsis size={16} />
               </button>
-            </ToolbarTooltip>
-          </>
-        )}
-        <Divider />
-        <LanguageToggle />
-        {!user && (
-          <ToolbarTooltip label={t("toolbar.button.signIn")}>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" sideOffset={8} align="end">
+              <DropdownMenuItem onSelect={() => setIsExportDialogOpen(true)}>
+                <Download size={14} className="mr-2" />
+                {t("toolbar.button.export")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  const isZh = i18n.language.startsWith("zh");
+                  void i18n.changeLanguage(isZh ? "en" : "zh-TW");
+                }}
+              >
+                <span className="mr-2 w-3.5 text-center text-xs font-medium">
+                  {i18n.language.startsWith("zh") ? "EN" : "繁"}
+                </span>
+                {i18n.language.startsWith("zh")
+                  ? "Switch to English"
+                  : "切換至繁體中文"}
+              </DropdownMenuItem>
+              {!user && (
+                <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
+                  <LogIn size={14} className="mr-2" />
+                  {t("toolbar.button.signIn")}
+                </DropdownMenuItem>
+              )}
+              {isDev && (
+                <>
+                  <DropdownMenuSeparator />
+                  {onFpsOverlayToggle && (
+                    <DropdownMenuItem onSelect={onFpsOverlayToggle}>
+                      <Gauge size={14} className="mr-2" />
+                      FPS {showFpsOverlay ? "ON" : "OFF"}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onSelect={handleClearCanvas}>
+                    <Trash2 size={14} className="mr-2" />
+                    清除白板
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* --- 桌面專屬區域 --- */}
+        <div className="hidden md:contents">
+          <Divider />
+          <ToolbarTooltip label={t("toolbar.button.export")}>
             <button
               type="button"
               className={iconBtn}
-              aria-label={t("toolbar.button.signIn")}
-              onClick={() => setIsAuthModalOpen(true)}
+              aria-label={t("toolbar.button.export")}
+              onClick={() => setIsExportDialogOpen(true)}
             >
-              <LogIn size={16} />
+              <Download size={16} />
             </button>
           </ToolbarTooltip>
-        )}
+          {/* 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復 */}
+          {SHOW_IMAGE_UPLOAD_BUTTON && (
+            <ToolbarTooltip label={t("toolbar.button.uploadImage")}>
+              <button
+                type="button"
+                className={iconBtn}
+                aria-label={t("toolbar.button.uploadImage")}
+                onClick={handleOpenFileDialog}
+              >
+                <ImagePlus size={16} />
+              </button>
+            </ToolbarTooltip>
+          )}
+          {isDev && (
+            <>
+              <Divider />
+              <StressFixtureDialog
+                trigger={
+                  <ToolbarTooltip label="插入壓力測試資料">
+                    <button
+                      type="button"
+                      className={iconBtn}
+                      aria-label="插入壓力測試資料"
+                    >
+                      <TestTube2 size={16} />
+                    </button>
+                  </ToolbarTooltip>
+                }
+              />
+              {onFpsOverlayToggle ? (
+                <ToolbarTooltip label="FPS 顯示">
+                  <button
+                    type="button"
+                    className={`${iconBtn} ${showFpsOverlay ? activeStyle : ""}`}
+                    aria-label="切換 FPS 顯示"
+                    aria-pressed={showFpsOverlay}
+                    onClick={onFpsOverlayToggle}
+                  >
+                    <Gauge size={16} />
+                  </button>
+                </ToolbarTooltip>
+              ) : null}
+              <ToolbarTooltip label="清除白板">
+                <button
+                  type="button"
+                  className={iconBtn}
+                  aria-label="清除白板"
+                  onClick={handleClearCanvas}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </ToolbarTooltip>
+            </>
+          )}
+          <Divider />
+          <LanguageToggle className="w-8 px-0" />
+          {!user && (
+            <ToolbarTooltip label={t("toolbar.button.signIn")}>
+              <button
+                type="button"
+                className={iconBtn}
+                aria-label={t("toolbar.button.signIn")}
+                onClick={() => setIsAuthModalOpen(true)}
+              >
+                <LogIn size={16} />
+              </button>
+            </ToolbarTooltip>
+          )}
+        </div>
       </div>
 
       <AuthModal open={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />

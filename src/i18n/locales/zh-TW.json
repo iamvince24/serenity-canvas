@@ -52,6 +52,7 @@
   "toolbar.button.exportTitle": "匯出 Obsidian 格式",
   "toolbar.button.uploadImage": "上傳圖片",
   "toolbar.button.signIn": "登入",
+  "toolbar.button.more": "更多操作",
   "toolbar.avatar.alt": "{{name}} 頭像",
   "toolbar.error.uploadFailed": "圖片上傳失敗，請重試。",
 

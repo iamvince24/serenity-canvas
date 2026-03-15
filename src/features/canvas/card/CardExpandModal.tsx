@@ -56,7 +56,8 @@ export function CardExpandModal({
     autofocus: "end",
     editorProps: {
       attributes: {
-        class: "card-expand-modal__editor outline-none min-h-[200px] px-6 py-4",
+        class:
+          "card-expand-modal__editor outline-none min-h-[200px] px-6 pt-12 pb-4",
       },
     },
     onUpdate: ({ editor: editorInstance }) => {

@@ -52,6 +52,7 @@
   "toolbar.button.exportTitle": "Export to Obsidian format",
   "toolbar.button.uploadImage": "Upload image",
   "toolbar.button.signIn": "Sign in",
+  "toolbar.button.more": "More actions",
   "toolbar.avatar.alt": "{{name}} avatar",
   "toolbar.error.uploadFailed": "Image upload failed. Please try again.",
 

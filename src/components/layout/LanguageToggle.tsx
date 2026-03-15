@@ -4,9 +4,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 /** 語言切換按鈕，hover 時顯示目標語言名稱 */
-export function LanguageToggle() {
+export function LanguageToggle({ className }: { className?: string }) {
   const { i18n } = useTranslation();
 
   const isZhTW = i18n.language.startsWith("zh");
@@ -22,7 +23,10 @@ export function LanguageToggle() {
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="btn-secondary flex h-9 w-9 items-center justify-center px-0 text-xs font-medium"
+          className={cn(
+            "btn-secondary flex h-8 items-center justify-center px-3 text-xs font-medium",
+            className,
+          )}
           onClick={toggle}
           aria-label={tooltipLabel}
         >
