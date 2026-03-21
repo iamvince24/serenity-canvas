@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { supabase } from "../supabaseClient.js";
+import { supabase, isServiceRoleMode } from "../supabaseClient.js";
 import { getChangesetId } from "../changeset.js";
 import { ok, fail } from "../helpers.js";
 
@@ -74,10 +74,9 @@ export function registerEdgeTools(server: McpServer) {
             "One or both nodes not found. Ensure both source_id and target_id exist on this board.",
           );
 
-        const { error: insertErr } = await supabase.from("edges").insert({
+        const insertData = {
           id: edgeId,
           board_id,
-          user_id: board.user_id,
           from_node: source_id,
           to_node: target_id,
           from_anchor: source_anchor,
@@ -90,7 +89,13 @@ export function registerEdgeTools(server: McpServer) {
           updated_at: now,
           changeset_id: changesetId,
           change_status: "pending",
-        });
+          ...(isServiceRoleMode() ? { user_id: board.user_id } : {}),
+        };
+
+        const { error: insertErr } = await supabase
+          .from("edges")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert(insertData as any);
         if (insertErr) return fail(insertErr.message);
 
         return ok({

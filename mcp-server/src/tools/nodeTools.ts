@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { supabase } from "../supabaseClient.js";
+import { supabase, isServiceRoleMode } from "../supabaseClient.js";
 import { fromDbNode } from "@/shared/serializers.js";
 import { getChangesetId } from "../changeset.js";
 import { ok, fail } from "../helpers.js";
@@ -52,11 +52,10 @@ export function registerNodeTools(server: McpServer) {
           .single();
         if (boardErr || !board) return fail("Board not found: " + board_id);
 
-        const { error: insertErr } = await supabase.from("nodes").insert({
+        const insertData = {
           id: nodeId,
           board_id,
-          user_id: board.user_id,
-          type: "text",
+          type: "text" as const,
           x,
           y,
           width,
@@ -70,7 +69,13 @@ export function registerNodeTools(server: McpServer) {
           updated_at: now,
           changeset_id: changesetId,
           change_status: "pending",
-        });
+          ...(isServiceRoleMode() ? { user_id: board.user_id } : {}),
+        };
+
+        const { error: insertErr } = await supabase
+          .from("nodes")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert(insertData as any);
         if (insertErr) return fail(insertErr.message);
 
         // Append to node_order (select-then-update with optimistic lock)

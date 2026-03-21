@@ -2,8 +2,10 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer } from "./server.js";
+import { initSupabase } from "./supabaseClient.js";
 
 async function main() {
+  await initSupabase();
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
