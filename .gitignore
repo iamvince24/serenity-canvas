@@ -31,3 +31,9 @@ dist-ssr
 .mcp.json
 supabase/.env
 mcp-server/build
+
+# Playwright
+e2e/.auth/
+playwright-report/
+test-results/
+blob-report/
