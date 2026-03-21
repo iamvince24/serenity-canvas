@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:mcp": "tsc -p mcp-server/tsconfig.json",
+    "mcp:dev": "tsx mcp-server/src/index.ts",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "lint": "eslint . && pnpm typecheck",
     "preview": "vite preview",
@@ -62,9 +64,13 @@
     "sanitize-filename": "^1.6.3",
     "tailwind-merge": "^3.4.1",
     "tailwindcss": "^4.1.18",
+    "zod": "^3.25.67",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "tsc-alias": "^1.8.15",
+    "tsx": "^4.19.4",
     "@eslint/js": "^9.39.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^24.10.1",

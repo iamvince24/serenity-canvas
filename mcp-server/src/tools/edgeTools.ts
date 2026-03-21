@@ -1,0 +1,212 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { randomUUID } from "crypto";
+import { supabase } from "../supabaseClient.js";
+import { getChangesetId } from "../changeset.js";
+import { ok, fail } from "../helpers.js";
+
+const anchorEnum = z
+  .enum(["top", "right", "bottom", "left"])
+  .describe("Anchor position on the node");
+
+export function registerEdgeTools(server: McpServer) {
+  server.tool(
+    "create_edge",
+    "Create a connection (edge) between two nodes on the same board.",
+    {
+      board_id: z.string().uuid().describe("The board containing both nodes"),
+      source_id: z.string().uuid().describe("The source node ID (from)"),
+      target_id: z.string().uuid().describe("The target node ID (to)"),
+      source_anchor: anchorEnum.default("right"),
+      target_anchor: anchorEnum.default("left"),
+      direction: z
+        .enum(["none", "forward", "both"])
+        .default("forward")
+        .describe("Arrow direction: none, forward (→), or both (↔)"),
+      label: z
+        .string()
+        .default("")
+        .describe("Optional label displayed on the edge"),
+      line_style: z
+        .enum(["solid", "dashed", "dotted"])
+        .default("solid")
+        .describe("Line style"),
+      color: z
+        .string()
+        .nullable()
+        .default(null)
+        .describe("Edge color (null=default)"),
+    },
+    async ({
+      board_id,
+      source_id,
+      target_id,
+      source_anchor,
+      target_anchor,
+      direction,
+      label,
+      line_style,
+      color,
+    }) => {
+      try {
+        const edgeId = randomUUID();
+        const now = new Date().toISOString();
+        const changesetId = getChangesetId();
+
+        // Get board owner
+        const { data: board, error: boardErr } = await supabase
+          .from("boards")
+          .select("user_id")
+          .eq("id", board_id)
+          .single();
+        if (boardErr || !board) return fail("Board not found: " + board_id);
+
+        // Verify both nodes exist
+        const { data: nodes, error: nodesErr } = await supabase
+          .from("nodes")
+          .select("id")
+          .eq("board_id", board_id)
+          .in("id", [source_id, target_id])
+          .is("deleted_at", null);
+        if (nodesErr) return fail(nodesErr.message);
+        if (!nodes || nodes.length < 2)
+          return fail(
+            "One or both nodes not found. Ensure both source_id and target_id exist on this board.",
+          );
+
+        const { error: insertErr } = await supabase.from("edges").insert({
+          id: edgeId,
+          board_id,
+          user_id: board.user_id,
+          from_node: source_id,
+          to_node: target_id,
+          from_anchor: source_anchor,
+          to_anchor: target_anchor,
+          direction,
+          label,
+          line_style,
+          color,
+          created_at: now,
+          updated_at: now,
+          changeset_id: changesetId,
+          change_status: "pending",
+        });
+        if (insertErr) return fail(insertErr.message);
+
+        return ok({
+          edge_id: edgeId,
+          changeset_id: changesetId,
+          change_status: "pending",
+        });
+      } catch (err) {
+        return fail(
+          err instanceof Error ? err.message : "Unknown error in create_edge",
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "update_edge",
+    "Update an existing edge. Only provided fields will be changed.",
+    {
+      edge_id: z.string().uuid().describe("The edge ID to update"),
+      board_id: z.string().uuid().describe("The board containing the edge"),
+      label: z.string().optional().describe("New label"),
+      direction: z
+        .enum(["none", "forward", "both"])
+        .optional()
+        .describe("New direction"),
+      line_style: z
+        .enum(["solid", "dashed", "dotted"])
+        .optional()
+        .describe("New line style"),
+      source_anchor: anchorEnum.optional().describe("New source anchor"),
+      target_anchor: anchorEnum.optional().describe("New target anchor"),
+      color: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("New color (null=default)"),
+    },
+    async ({
+      edge_id,
+      board_id,
+      label,
+      direction,
+      line_style,
+      source_anchor,
+      target_anchor,
+      color,
+    }) => {
+      try {
+        const now = new Date().toISOString();
+        const changesetId = getChangesetId();
+
+        const updates: Record<string, unknown> = {
+          updated_at: now,
+          changeset_id: changesetId,
+          change_status: "pending",
+        };
+
+        if (label !== undefined) updates.label = label;
+        if (direction !== undefined) updates.direction = direction;
+        if (line_style !== undefined) updates.line_style = line_style;
+        if (source_anchor !== undefined) updates.from_anchor = source_anchor;
+        if (target_anchor !== undefined) updates.to_anchor = target_anchor;
+        if (color !== undefined) updates.color = color;
+
+        const { error } = await supabase
+          .from("edges")
+          .update(updates)
+          .eq("id", edge_id)
+          .eq("board_id", board_id)
+          .is("deleted_at", null);
+        if (error) return fail(error.message);
+
+        return ok({
+          edge_id,
+          changeset_id: changesetId,
+          change_status: "pending",
+        });
+      } catch (err) {
+        return fail(
+          err instanceof Error ? err.message : "Unknown error in update_edge",
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "delete_edges",
+    "Soft-delete one or more edges.",
+    {
+      board_id: z.string().uuid().describe("The board containing the edges"),
+      edge_ids: z
+        .array(z.string().uuid())
+        .min(1)
+        .describe("Array of edge IDs to delete"),
+    },
+    async ({ board_id, edge_ids }) => {
+      try {
+        const now = new Date().toISOString();
+
+        const { error } = await supabase
+          .from("edges")
+          .update({ deleted_at: now, updated_at: now })
+          .eq("board_id", board_id)
+          .in("id", edge_ids);
+        if (error) return fail(error.message);
+
+        return ok({
+          deleted_edge_ids: edge_ids,
+          deleted_at: now,
+        });
+      } catch (err) {
+        return fail(
+          err instanceof Error ? err.message : "Unknown error in delete_edges",
+        );
+      }
+    },
+  );
+}

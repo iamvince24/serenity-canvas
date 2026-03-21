@@ -25,5 +25,9 @@ dist-ssr
 *.sw?
 
 
+.env
 .env.local
+.env*.local
+.mcp.json
 supabase/.env
+mcp-server/build

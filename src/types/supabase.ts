@@ -64,6 +64,8 @@ export type Database = {
       edges: {
         Row: {
           board_id: string;
+          change_status: string;
+          changeset_id: string | null;
           color: string | null;
           created_at: string;
           deleted_at: string | null;
@@ -80,6 +82,8 @@ export type Database = {
         };
         Insert: {
           board_id: string;
+          change_status?: string;
+          changeset_id?: string | null;
           color?: string | null;
           created_at?: string;
           deleted_at?: string | null;
@@ -96,6 +100,8 @@ export type Database = {
         };
         Update: {
           board_id?: string;
+          change_status?: string;
+          changeset_id?: string | null;
           color?: string | null;
           created_at?: string;
           deleted_at?: string | null;
@@ -285,6 +291,8 @@ export type Database = {
       nodes: {
         Row: {
           board_id: string;
+          change_status: string;
+          changeset_id: string | null;
           color: string | null;
           content: Json | null;
           created_at: string;
@@ -302,6 +310,8 @@ export type Database = {
         };
         Insert: {
           board_id: string;
+          change_status?: string;
+          changeset_id?: string | null;
           color?: string | null;
           content?: Json | null;
           created_at?: string;
@@ -319,6 +329,8 @@ export type Database = {
         };
         Update: {
           board_id?: string;
+          change_status?: string;
+          changeset_id?: string | null;
           color?: string | null;
           content?: Json | null;
           created_at?: string;

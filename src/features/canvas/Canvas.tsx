@@ -43,6 +43,8 @@ import { ConnectionPreviewLine } from "./edges/ConnectionPreviewLine";
 import { useImageUpload } from "./images/useImageUpload";
 import { type ContextMenuNodeType } from "./nodes/NodeContextMenu";
 import { resolveOrderedNodeIds } from "./nodes/orderUtils";
+import { ChangesetReviewPanel } from "./changeset/ChangesetReviewPanel";
+import { PendingNodeOverlay } from "./changeset/PendingNodeOverlay";
 
 type StageSize = {
   width: number;
@@ -121,6 +123,7 @@ export function Canvas() {
     selectedGroupIds,
     canvasMode,
   } = useCanvasData();
+  const currentBoardId = useCanvasStore((s) => s.currentBoardId);
   const { selectNode, selectEdge, selectGroup, addNode, addFile } =
     useCanvasActions();
   const { uploadImageFile } = useImageUpload();
@@ -763,6 +766,11 @@ export function Canvas() {
         onEdgeLabelDraftChange={handleEdgeLabelDraftChange}
         onCloseEdgeLabelEditor={closeEdgeLabelEditor}
       />
+
+      <PendingNodeOverlay viewport={viewport} />
+      {currentBoardId ? (
+        <ChangesetReviewPanel boardId={currentBoardId} />
+      ) : null}
     </div>
   );
 }
