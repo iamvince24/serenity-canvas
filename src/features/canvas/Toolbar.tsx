@@ -347,19 +347,21 @@ export function Toolbar({
           {isDev && (
             <>
               <Divider />
-              <StressFixtureDialog
-                trigger={
-                  <ToolbarTooltip label="插入壓力測試資料">
-                    <button
-                      type="button"
-                      className={iconBtn}
-                      aria-label="插入壓力測試資料"
-                    >
-                      <TestTube2 size={16} />
-                    </button>
-                  </ToolbarTooltip>
-                }
-              />
+              <ToolbarTooltip label="插入壓力測試資料">
+                <span>
+                  <StressFixtureDialog
+                    trigger={
+                      <button
+                        type="button"
+                        className={iconBtn}
+                        aria-label="插入壓力測試資料"
+                      >
+                        <TestTube2 size={16} />
+                      </button>
+                    }
+                  />
+                </span>
+              </ToolbarTooltip>
               {onFpsOverlayToggle ? (
                 <ToolbarTooltip label="FPS 顯示">
                   <button
