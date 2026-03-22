@@ -123,15 +123,8 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
           return !hasAnySelection(state) ? state : clearAllSelections();
         }
 
-        const selectedNode = state.nodes[nodeId];
-        // Selecting an image brings it to the front so overlapping images remain directly manipulable.
-        const nextNodeOrder =
-          selectedNode.type === "image"
-            ? reorderToFront(state.nodeOrder, nodeId)
-            : state.nodeOrder;
-
         return {
-          nodeOrder: nextNodeOrder,
+          nodeOrder: reorderToFront(state.nodeOrder, nodeId),
           selectedNodeIds: [nodeId],
           selectedEdgeIds: [],
           selectedGroupIds: [],
@@ -258,15 +251,10 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
           };
         }
 
-        const selectedNode = state.nodes[nodeId];
-        const nextNodeOrder =
-          selectedNode.type === "image"
-            ? reorderToFront(state.nodeOrder, nodeId)
-            : state.nodeOrder;
         const nextSelectedNodeIds = [...existingSelectedNodeIds, nodeId];
 
         return {
-          nodeOrder: nextNodeOrder,
+          nodeOrder: reorderToFront(state.nodeOrder, nodeId),
           selectedNodeIds: nextSelectedNodeIds,
           selectedEdgeIds: [],
           selectedGroupIds: [],

@@ -98,7 +98,7 @@ describe("canvasStore layer order", () => {
     expect(useCanvasStore.getState().selectedNodeIds).toEqual(["img-1"]);
   });
 
-  it("選取文字節點不改變圖層順序", () => {
+  it("選取文字節點也會改變圖層順序", () => {
     seedNodes(
       [
         createImageNode("img-1"),
@@ -112,8 +112,8 @@ describe("canvasStore layer order", () => {
 
     expect(useCanvasStore.getState().nodeOrder).toEqual([
       "img-1",
-      "text-1",
       "img-2",
+      "text-1",
     ]);
     expect(useCanvasStore.getState().selectedNodeIds).toEqual(["text-1"]);
   });
