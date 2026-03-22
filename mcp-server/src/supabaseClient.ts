@@ -5,14 +5,12 @@ import type { Database } from "../../src/types/supabase.js";
 export function createSupabaseForUser(
   accessToken: string,
 ): SupabaseClient<Database> {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    {
-      global: { headers: { Authorization: `Bearer ${accessToken}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    },
-  );
+  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+  if (!url) throw new Error("Missing SUPABASE_URL or VITE_SUPABASE_URL");
+  return createClient<Database>(url, process.env.SUPABASE_ANON_KEY!, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 let _client: SupabaseClient<Database> | null = null;
@@ -25,9 +23,11 @@ let _serviceRoleMode = false;
  * 3. Service Role (fallback): SUPABASE_SERVICE_ROLE_KEY
  */
 export async function initSupabase(): Promise<void> {
-  const url = process.env.SUPABASE_URL;
+  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
   if (!url) {
-    throw new Error("Missing SUPABASE_URL environment variable.");
+    throw new Error(
+      "Missing SUPABASE_URL or VITE_SUPABASE_URL environment variable.",
+    );
   }
 
   const anonKey = process.env.SUPABASE_ANON_KEY;
