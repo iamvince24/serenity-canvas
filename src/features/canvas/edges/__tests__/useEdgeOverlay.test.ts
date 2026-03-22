@@ -98,7 +98,7 @@ describe("useEdgeOverlay", () => {
       return useEdgeOverlay({
         container,
         containerRectRef,
-        viewport: { x: 0, y: 0, zoom: 1 },
+
         nodes: useCanvasStore.getState().nodes,
         edges: useCanvasStore.getState().edges,
         canvasMode: "select",
@@ -134,7 +134,7 @@ describe("useEdgeOverlay", () => {
       return useEdgeOverlay({
         container,
         containerRectRef,
-        viewport: { x: 0, y: 0, zoom: 1 },
+
         nodes: useCanvasStore.getState().nodes,
         edges: useCanvasStore.getState().edges,
         canvasMode: "select",

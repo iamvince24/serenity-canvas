@@ -1,12 +1,31 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasStore } from "../../../stores/canvasStore";
+import type { ViewportState } from "../../../types/viewport";
 import {
   getVisibleEdgeIdsDual,
   getVisibleGroupIdsDual,
   getVisibleNodeIdsDual,
 } from "../core/culling";
 import { resolveOrderedNodeIds } from "../nodes/orderUtils";
+
+const CULLING_PAN_THRESHOLD = 50;
+const CULLING_ZOOM_THRESHOLD = 0.01;
+
+function useThrottledCullingViewport(viewport: ViewportState): ViewportState {
+  const [cullingViewport, setCullingViewport] = useState(viewport);
+
+  const shouldUpdate =
+    Math.abs(viewport.x - cullingViewport.x) >= CULLING_PAN_THRESHOLD ||
+    Math.abs(viewport.y - cullingViewport.y) >= CULLING_PAN_THRESHOLD ||
+    Math.abs(viewport.zoom - cullingViewport.zoom) >= CULLING_ZOOM_THRESHOLD;
+
+  if (shouldUpdate) {
+    setCullingViewport(viewport);
+  }
+
+  return cullingViewport;
+}
 
 type HysteresisResult = {
   nextVisibleIds: string[];
@@ -134,6 +153,7 @@ export function useVisibleNodeIds(): string[] {
   const [nodes, nodeOrder, viewport] = useCanvasStore(
     useShallow((state) => [state.nodes, state.nodeOrder, state.viewport]),
   );
+  const cullingViewport = useThrottledCullingViewport(viewport);
   const nodeIdFingerprint = useMemo(() => {
     const keys = Object.keys(nodes);
     keys.sort();
@@ -146,8 +166,8 @@ export function useVisibleNodeIds(): string[] {
     [nodeOrder, nodeIdFingerprint],
   );
   const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
-    () => getVisibleNodeIdsDual(nodes, viewport, viewportSize),
-    [nodes, viewport, viewportSize],
+    () => getVisibleNodeIdsDual(nodes, cullingViewport, viewportSize),
+    [nodes, cullingViewport, viewportSize],
   );
 
   return useVisibleIdsWithHysteresis(
@@ -162,10 +182,11 @@ export function useVisibleEdgeIds(): string[] {
   const [edges, nodes, viewport] = useCanvasStore(
     useShallow((state) => [state.edges, state.nodes, state.viewport]),
   );
+  const cullingViewport = useThrottledCullingViewport(viewport);
   const orderedEdgeIds = useMemo(() => Object.keys(edges), [edges]);
   const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
-    () => getVisibleEdgeIdsDual(edges, nodes, viewport, viewportSize),
-    [edges, nodes, viewport, viewportSize],
+    () => getVisibleEdgeIdsDual(edges, nodes, cullingViewport, viewportSize),
+    [edges, nodes, cullingViewport, viewportSize],
   );
 
   return useVisibleIdsWithHysteresis(
@@ -180,10 +201,11 @@ export function useVisibleGroupIds(): string[] {
   const [groups, nodes, viewport] = useCanvasStore(
     useShallow((state) => [state.groups, state.nodes, state.viewport]),
   );
+  const cullingViewport = useThrottledCullingViewport(viewport);
   const orderedGroupIds = useMemo(() => Object.keys(groups), [groups]);
   const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
-    () => getVisibleGroupIdsDual(groups, nodes, viewport, viewportSize),
-    [groups, nodes, viewport, viewportSize],
+    () => getVisibleGroupIdsDual(groups, nodes, cullingViewport, viewportSize),
+    [groups, nodes, cullingViewport, viewportSize],
   );
 
   return useVisibleIdsWithHysteresis(

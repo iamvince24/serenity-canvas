@@ -6,12 +6,7 @@ import {
   type SetStateAction,
 } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import type {
-  CanvasMode,
-  CanvasNode,
-  Edge,
-  ViewportState,
-} from "../../../types/canvas";
+import type { CanvasMode, CanvasNode, Edge } from "../../../types/canvas";
 import type { EdgeEndpoint } from "./EdgeLine";
 import { toCanvasPoint } from "../core/canvasCoordinates";
 import {
@@ -47,7 +42,6 @@ type EdgePreview = {
 type UseEdgeOverlayOptions = {
   container?: HTMLElement | null;
   containerRectRef: React.RefObject<DOMRect | null>;
-  viewport: ViewportState;
   nodes: Record<string, CanvasNode>;
   edges: Record<string, Edge>;
   canvasMode: CanvasMode;
@@ -98,7 +92,6 @@ function isEdgeOverlaySlot(slot: OverlaySlot): boolean {
 
 export function useEdgeOverlay({
   containerRectRef,
-  viewport,
   nodes,
   edges,
   canvasMode,
@@ -136,9 +129,14 @@ export function useEdgeOverlay({
         return null;
       }
 
-      return toCanvasPoint(clientX, clientY, rect, viewport);
+      return toCanvasPoint(
+        clientX,
+        clientY,
+        rect,
+        useCanvasStore.getState().viewport,
+      );
     },
-    [containerRectRef, viewport],
+    [containerRectRef],
   );
 
   const getEdgeDragHoveredAnchor = useCallback(

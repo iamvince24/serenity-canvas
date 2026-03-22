@@ -107,7 +107,6 @@ export function Toolbar({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
-  const viewport = useCanvasStore((state) => state.viewport);
   const canvasMode = useCanvasStore((state) => state.canvasMode);
   const interactionState = useCanvasStore((state) => state.interactionState);
   const isBusy = interactionState !== InteractionState.Idle;
@@ -138,10 +137,9 @@ export function Toolbar({
 
       try {
         const { fileRecord, nodePayload } = await uploadImageFile(file);
-        const canvasCenterX =
-          (window.innerWidth / 2 - viewport.x) / viewport.zoom;
-        const canvasCenterY =
-          (window.innerHeight / 2 - viewport.y) / viewport.zoom;
+        const vp = useCanvasStore.getState().viewport;
+        const canvasCenterX = (window.innerWidth / 2 - vp.x) / vp.zoom;
+        const canvasCenterY = (window.innerHeight / 2 - vp.y) / vp.zoom;
         const imageNode = createImageNodeCenteredAt(
           canvasCenterX,
           canvasCenterY,
@@ -160,16 +158,7 @@ export function Toolbar({
         notifyImageUploadError(message);
       }
     },
-    [
-      addFile,
-      addNode,
-      selectNode,
-      t,
-      uploadImageFile,
-      viewport.x,
-      viewport.y,
-      viewport.zoom,
-    ],
+    [addFile, addNode, selectNode, t, uploadImageFile],
   );
 
   const handleClearCanvas = useCallback(() => {

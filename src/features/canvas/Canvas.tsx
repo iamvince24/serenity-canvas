@@ -2,11 +2,13 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Rect, Stage } from "react-konva";
 import { useCanvasStore } from "../../stores/canvasStore";
@@ -74,7 +76,7 @@ function getWindowSize(): StageSize {
 }
 
 function useCanvasData() {
-  const viewport = useCanvasStore((state) => state.viewport);
+  const zoom = useCanvasStore((state) => state.viewport.zoom);
   const nodes = useCanvasStore((state) => state.nodes);
   const nodeOrder = useCanvasStore((state) => state.nodeOrder);
   const edges = useCanvasStore((state) => state.edges);
@@ -85,7 +87,7 @@ function useCanvasData() {
   const canvasMode = useCanvasStore((state) => state.canvasMode);
 
   return {
-    viewport,
+    zoom,
     nodes,
     nodeOrder,
     edges,
@@ -115,7 +117,7 @@ function useCanvasActions() {
 
 export function Canvas() {
   const {
-    viewport,
+    zoom,
     nodes,
     nodeOrder,
     edges,
@@ -125,6 +127,7 @@ export function Canvas() {
     selectedGroupIds,
     canvasMode,
   } = useCanvasData();
+  const stageRef = useRef<Konva.Stage | null>(null);
   const currentBoardId = useCanvasStore((s) => s.currentBoardId);
   const { selectNode, selectEdge, selectGroup, addNode, addFile } =
     useCanvasActions();
@@ -220,7 +223,6 @@ export function Canvas() {
   } = useConnectionDrag({
     container: overlayContainer,
     containerRectRef,
-    viewport,
     nodes,
   });
 
@@ -247,7 +249,6 @@ export function Canvas() {
   } = useEdgeOverlay({
     container: overlayContainer,
     containerRectRef,
-    viewport,
     nodes,
     edges,
     canvasMode,
@@ -271,7 +272,6 @@ export function Canvas() {
   } = useMarqueeSelect({
     container: overlayContainer,
     containerRectRef,
-    viewport,
     nodes,
     canvasMode,
     isBlocked: edgeEndpointDragState !== null,
@@ -433,7 +433,7 @@ export function Canvas() {
         event.clientX,
         event.clientY,
         rect,
-        viewport,
+        useCanvasStore.getState().viewport,
       );
       if (!pointer) {
         return;
@@ -451,7 +451,6 @@ export function Canvas() {
       findTopNodeAtCanvasPoint,
       handleMarqueePointerMove,
       marqueeState,
-      viewport,
     ],
   );
 
@@ -520,6 +519,22 @@ export function Canvas() {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
+  }, []);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const vp = useCanvasStore.getState().viewport;
+    stage.position({ x: vp.x, y: vp.y });
+    stage.scale({ x: vp.zoom, y: vp.zoom });
+    stage.batchDraw();
+
+    return useCanvasStore.subscribe((state, prev) => {
+      if (state.viewport === prev.viewport) return;
+      stage.position({ x: state.viewport.x, y: state.viewport.y });
+      stage.scale({ x: state.viewport.zoom, y: state.viewport.zoom });
+      stage.batchDraw();
+    });
   }, []);
 
   useCanvasKeyboard({
@@ -663,12 +678,9 @@ export function Canvas() {
       onDrop={handleDrop}
     >
       <Stage
+        ref={stageRef}
         width={stageSize.width}
         height={stageSize.height}
-        x={viewport.x}
-        y={viewport.y}
-        scaleX={viewport.zoom}
-        scaleY={viewport.zoom}
         draggable={false}
         onMouseDown={handleStagePointerDown}
         onTouchStart={handleStagePointerDown}
@@ -733,7 +745,7 @@ export function Canvas() {
             <ShapeErrorBoundary key={node.id} shapeId={node.id}>
               <ImageCanvasNode
                 node={node}
-                zoom={viewport.zoom}
+                zoom={zoom}
                 isSelected={selectedNodeIdSet.has(node.id)}
                 onOpenContextMenu={openNodeContextMenu}
               />
@@ -761,7 +773,6 @@ export function Canvas() {
           container={overlayContainer}
           nodes={nodes}
           nodeOrder={visibleNodeIds}
-          viewport={viewport}
           selectedNodeIdSet={selectedNodeIdSet}
           hoveredNodeId={hoveredNodeId}
           connectingSource={connectingSource}
@@ -784,7 +795,7 @@ export function Canvas() {
         onCloseEdgeLabelEditor={closeEdgeLabelEditor}
       />
 
-      <PendingNodeOverlay viewport={viewport} />
+      <PendingNodeOverlay />
       {currentBoardId ? (
         <ChangesetReviewPanel boardId={currentBoardId} />
       ) : null}

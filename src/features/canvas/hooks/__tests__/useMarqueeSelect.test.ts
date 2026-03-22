@@ -75,7 +75,6 @@ describe("useMarqueeSelect", () => {
       useMarqueeSelect({
         container: createContainer(),
         containerRectRef,
-        viewport: { x: 0, y: 0, zoom: 1 },
         nodes: useCanvasStore.getState().nodes,
         canvasMode: "select",
         isBlocked: false,

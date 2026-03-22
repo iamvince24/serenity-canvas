@@ -1,4 +1,10 @@
-import { useMemo, type CSSProperties, type PointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type PointerEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import {
@@ -7,7 +13,6 @@ import {
   type CanvasNode,
   type ImageNode,
   type TextNode,
-  type ViewportState,
 } from "../../../types/canvas";
 import { CardWidget } from "./CardWidget";
 import { ImageCaptionWidget } from "../images/ImageCaptionWidget";
@@ -21,7 +26,6 @@ type CardOverlayProps = {
   container: HTMLElement;
   nodes: Record<string, CanvasNode>;
   nodeOrder: string[];
-  viewport: ViewportState;
   selectedNodeIdSet: Set<string>;
   hoveredNodeId: string | null;
   connectingSource: { nodeId: string; anchor: NodeAnchor } | null;
@@ -44,7 +48,6 @@ export function CardOverlay({
   container,
   nodes,
   nodeOrder,
-  viewport,
   selectedNodeIdSet,
   hoveredNodeId,
   connectingSource,
@@ -54,15 +57,28 @@ export function CardOverlay({
   autoFocusNodeId = null,
 }: CardOverlayProps) {
   const canvasMode = useCanvasStore((state) => state.canvasMode);
-  const overlayContentStyle = useMemo<CSSProperties>(
-    () => ({
+  const zoom = useCanvasStore((state) => state.viewport.zoom);
+  const overlayContentRef = useRef<HTMLDivElement>(null);
+
+  const overlayContentStyle = useMemo<CSSProperties>(() => {
+    const vp = useCanvasStore.getState().viewport;
+    return {
       position: "absolute",
       inset: 0,
-      transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+      transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})`,
       transformOrigin: "top left",
-    }),
-    [viewport.x, viewport.y, viewport.zoom],
-  );
+    };
+  }, []);
+
+  useEffect(() => {
+    return useCanvasStore.subscribe((state, prev) => {
+      if (state.viewport === prev.viewport) return;
+      const el = overlayContentRef.current;
+      if (!el) return;
+      const { x, y, zoom: z } = state.viewport;
+      el.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
+    });
+  }, []);
 
   const orderedNodeEntries = useMemo(
     () =>
@@ -76,7 +92,7 @@ export function CardOverlay({
       className="pointer-events-none absolute inset-0 z-20"
       role="presentation"
     >
-      <div style={overlayContentStyle}>
+      <div ref={overlayContentRef} style={overlayContentStyle}>
         {orderedNodeEntries
           .filter(
             (
@@ -90,7 +106,7 @@ export function CardOverlay({
             <ShapeErrorBoundary key={node.id} shapeId={node.id}>
               <CardWidget
                 node={node}
-                zoom={viewport.zoom}
+                zoom={zoom}
                 autoFocus={autoFocusNodeId === node.id}
                 layerIndex={layerIndex}
                 isSelected={selectedNodeIdSet.has(node.id)}

@@ -7,7 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import type { CanvasNode, ViewportState } from "../../../types/canvas";
+import type { CanvasNode } from "../../../types/canvas";
 import { clearBodyCursor, setBodyCursor } from "../core/cursorUtils";
 import { InteractionEvent } from "../core/stateMachine";
 import { toCanvasPoint } from "../core/canvasCoordinates";
@@ -34,7 +34,6 @@ type ActiveConnection = {
 type UseConnectionDragOptions = {
   container?: HTMLElement | null;
   containerRectRef: React.RefObject<DOMRect | null>;
-  viewport: ViewportState;
   nodes: Record<string, CanvasNode>;
 };
 
@@ -85,7 +84,6 @@ function toConnectionEndpoint(
 
 export function useConnectionDrag({
   containerRectRef,
-  viewport,
   nodes,
 }: UseConnectionDragOptions): UseConnectionDragResult {
   const addEdge = useCanvasStore((state) => state.addEdge);
@@ -94,14 +92,9 @@ export function useConnectionDrag({
   const [connection, setConnection] = useState<ActiveConnection | null>(null);
   const connectionRef = useRef<ActiveConnection | null>(null);
   const nodesRef = useRef(nodes);
-  const viewportRef = useRef(viewport);
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
-
-  useEffect(() => {
-    viewportRef.current = viewport;
-  }, [viewport]);
 
   useEffect(() => {
     connectionRef.current = connection;
@@ -114,8 +107,12 @@ export function useConnectionDrag({
         return null;
       }
 
-      const nextViewport = viewportRef.current;
-      return toCanvasPoint(clientX, clientY, rect, nextViewport);
+      return toCanvasPoint(
+        clientX,
+        clientY,
+        rect,
+        useCanvasStore.getState().viewport,
+      );
     },
     [containerRectRef],
   );

@@ -7,11 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import type {
-  CanvasMode,
-  CanvasNode,
-  ViewportState,
-} from "../../../types/canvas";
+import type { CanvasMode, CanvasNode } from "../../../types/canvas";
 import { toCanvasPoint } from "../core/canvasCoordinates";
 import {
   getMarqueeBounds,
@@ -42,7 +38,6 @@ type MarqueeRect = {
 type UseMarqueeSelectOptions = {
   container: HTMLElement | null;
   containerRectRef: React.RefObject<DOMRect | null>;
-  viewport: ViewportState;
   nodes: Record<string, CanvasNode>;
   canvasMode: CanvasMode;
   isBlocked: boolean;
@@ -71,7 +66,6 @@ function getShiftKey(event: MouseEvent | TouchEvent): boolean {
 export function useMarqueeSelect({
   container,
   containerRectRef,
-  viewport,
   nodes,
   canvasMode,
   isBlocked,
@@ -100,9 +94,14 @@ export function useMarqueeSelect({
         return null;
       }
 
-      return toCanvasPoint(clientX, clientY, rect, viewport);
+      return toCanvasPoint(
+        clientX,
+        clientY,
+        rect,
+        useCanvasStore.getState().viewport,
+      );
     },
-    [containerRectRef, viewport],
+    [containerRectRef],
   );
 
   const updateMarqueePointer = useCallback(
