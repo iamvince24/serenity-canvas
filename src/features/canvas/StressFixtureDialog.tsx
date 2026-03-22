@@ -15,12 +15,15 @@ import type { StressFixtureConfig } from "./core/stressFixture";
 const DEFAULT_NODE_COUNT = 100;
 const DEFAULT_EDGE_COUNT = 150;
 const DEFAULT_GROUP_COUNT = 12;
+const DEFAULT_SPACING = 20;
 const MIN_NODE_COUNT = 1;
 const MAX_NODE_COUNT = 500;
 const MIN_EDGE_COUNT = 0;
 const MAX_EDGE_COUNT = 1000;
 const MIN_GROUP_COUNT = 0;
 const MAX_GROUP_COUNT = 50;
+const MIN_SPACING = 0;
+const MAX_SPACING = 200;
 
 type StressFixtureDialogProps = {
   trigger: React.ReactNode;
@@ -31,6 +34,8 @@ export function StressFixtureDialog({ trigger }: StressFixtureDialogProps) {
   const [nodeCount, setNodeCount] = useState(DEFAULT_NODE_COUNT);
   const [edgeCount, setEdgeCount] = useState(DEFAULT_EDGE_COUNT);
   const [groupCount, setGroupCount] = useState(DEFAULT_GROUP_COUNT);
+  const [noOverlap, setNoOverlap] = useState(false);
+  const [spacing, setSpacing] = useState(DEFAULT_SPACING);
 
   const insertStressFixture = useCanvasStore(
     (state) => state.insertStressFixture,
@@ -49,12 +54,21 @@ export function StressFixtureDialog({ trigger }: StressFixtureDialogProps) {
         nodeCount,
         edgeCount: clampedEdgeCount,
         groupCount: clampedGroupCount,
+        noOverlap,
+        spacing: noOverlap ? spacing : undefined,
       };
 
       insertStressFixture(config);
       setOpen(false);
     },
-    [nodeCount, clampedEdgeCount, clampedGroupCount, insertStressFixture],
+    [
+      nodeCount,
+      clampedEdgeCount,
+      clampedGroupCount,
+      noOverlap,
+      spacing,
+      insertStressFixture,
+    ],
   );
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
@@ -163,6 +177,50 @@ export function StressFixtureDialog({ trigger }: StressFixtureDialogProps) {
                 每組 4 張卡片，上限 {maxValidGroupCount}
               </span>
             </div>
+            <div className="grid gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium leading-none">
+                <input
+                  type="checkbox"
+                  checked={noOverlap}
+                  onChange={(e) => setNoOverlap(e.target.checked)}
+                  className="h-4 w-4 rounded border border-input accent-sage"
+                />
+                卡片不重疊
+              </label>
+            </div>
+            {noOverlap && (
+              <div className="grid gap-2">
+                <label
+                  htmlFor="stress-spacing"
+                  className="text-sm font-medium leading-none"
+                >
+                  最小間距（px）
+                </label>
+                <input
+                  id="stress-spacing"
+                  type="number"
+                  min={MIN_SPACING}
+                  max={MAX_SPACING}
+                  value={spacing}
+                  onChange={(e) =>
+                    setSpacing(
+                      Math.min(
+                        MAX_SPACING,
+                        Math.max(MIN_SPACING, Number(e.target.value) || 0),
+                      ),
+                    )
+                  }
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-describedby="stress-spacing-desc"
+                />
+                <span
+                  id="stress-spacing-desc"
+                  className="text-xs text-muted-foreground"
+                >
+                  {MIN_SPACING}–{MAX_SPACING} px
+                </span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <DialogClose asChild>

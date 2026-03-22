@@ -6,6 +6,8 @@ export type StressFixtureConfig = {
   nodeCount: number;
   edgeCount: number;
   groupCount: number;
+  noOverlap?: boolean;
+  spacing?: number;
   canvasWidth?: number;
   canvasHeight?: number;
   seed?: number;
@@ -60,6 +62,78 @@ function createEdge(id: string, fromNode: string, toNode: string): Edge {
   };
 }
 
+const MAX_PLACEMENT_ATTEMPTS = 200;
+
+function placeNodesGrid(
+  nodeCount: number,
+  spacing: number,
+  random: () => number,
+): { x: number; y: number }[] {
+  const cellW = DEFAULT_NODE_WIDTH + spacing;
+  const cellH = DEFAULT_NODE_HEIGHT + spacing;
+  const cols = Math.ceil(Math.sqrt(nodeCount));
+
+  const positions: { x: number; y: number }[] = [];
+  for (let index = 0; index < nodeCount; index += 1) {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    positions.push({ x: col * cellW, y: row * cellH });
+  }
+
+  // Fisher–Yates shuffle so layout isn't a boring grid
+  for (let i = positions.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+
+  return positions;
+}
+
+function placeNodesRandom(
+  nodeCount: number,
+  spacing: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  random: () => number,
+): { x: number; y: number }[] {
+  const cellW = DEFAULT_NODE_WIDTH + spacing;
+  const cellH = DEFAULT_NODE_HEIGHT + spacing;
+  const maxX = Math.max(0, canvasWidth - DEFAULT_NODE_WIDTH);
+  const maxY = Math.max(0, canvasHeight - DEFAULT_NODE_HEIGHT);
+
+  const placed: { x: number; y: number }[] = [];
+
+  for (let index = 0; index < nodeCount; index += 1) {
+    let bestCandidate: { x: number; y: number } | null = null;
+
+    for (let attempt = 0; attempt < MAX_PLACEMENT_ATTEMPTS; attempt += 1) {
+      const x = Math.floor(random() * maxX);
+      const y = Math.floor(random() * maxY);
+
+      const overlaps = placed.some(
+        (p) => Math.abs(p.x - x) < cellW && Math.abs(p.y - y) < cellH,
+      );
+
+      if (!overlaps) {
+        bestCandidate = { x, y };
+        break;
+      }
+    }
+
+    if (!bestCandidate) {
+      // Fallback: grid placement for remaining nodes
+      const cols = Math.ceil(Math.sqrt(nodeCount));
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      bestCandidate = { x: col * cellW, y: row * cellH };
+    }
+
+    placed.push(bestCandidate);
+  }
+
+  return placed;
+}
+
 export function createStressFixture(
   config: StressFixtureConfig,
 ): StressFixture {
@@ -67,6 +141,8 @@ export function createStressFixture(
     nodeCount,
     edgeCount,
     groupCount,
+    noOverlap = false,
+    spacing = 0,
     canvasWidth = DEFAULT_CANVAS_WIDTH,
     canvasHeight = DEFAULT_CANVAS_HEIGHT,
     seed = DEFAULT_SEED,
@@ -81,10 +157,20 @@ export function createStressFixture(
   const maxX = Math.max(0, canvasWidth - DEFAULT_NODE_WIDTH);
   const maxY = Math.max(0, canvasHeight - DEFAULT_NODE_HEIGHT);
 
+  const positions = noOverlap
+    ? nodeCount <=
+      Math.floor(
+        ((maxX + spacing) / (DEFAULT_NODE_WIDTH + spacing)) *
+          ((maxY + spacing) / (DEFAULT_NODE_HEIGHT + spacing)),
+      )
+      ? placeNodesRandom(nodeCount, spacing, canvasWidth, canvasHeight, random)
+      : placeNodesGrid(nodeCount, spacing, random)
+    : null;
+
   for (let index = 0; index < nodeCount; index += 1) {
     const nodeId = createNodeId();
-    const x = Math.floor(random() * maxX);
-    const y = Math.floor(random() * maxY);
+    const x = positions ? positions[index].x : Math.floor(random() * maxX);
+    const y = positions ? positions[index].y : Math.floor(random() * maxY);
     nodes[nodeId] = createTextNode(nodeId, x, y);
     nodeIds.push(nodeId);
   }
