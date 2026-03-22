@@ -10,6 +10,7 @@ import {
   TestTube2,
   Trash2,
   Undo2,
+  Upload,
 } from "lucide-react";
 import {
   useCallback,
@@ -41,6 +42,7 @@ import { notifyImageUploadError } from "../../stores/uploadNoticeStore";
 import { createImageNodeCenteredAt } from "./nodes/nodeFactory";
 import { useImageUpload } from "./images/useImageUpload";
 import { ExportDialog } from "./export/ExportDialog";
+import { ImportDialog } from "./import/ImportDialog";
 import { StressFixtureDialog } from "./StressFixtureDialog";
 
 /** 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復。改為 true 即可顯示。 */
@@ -106,6 +108,7 @@ export function Toolbar({
   const user = useAuthStore((state) => state.user);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   const canvasMode = useCanvasStore((state) => state.canvasMode);
   const interactionState = useCanvasStore((state) => state.interactionState);
@@ -269,6 +272,10 @@ export function Toolbar({
                 <Download size={14} className="mr-2" />
                 {t("toolbar.button.export")}
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setIsImportDialogOpen(true)}>
+                <Upload size={14} className="mr-2" />
+                {t("toolbar.button.import")}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => {
                   const isZh = i18n.language.startsWith("zh");
@@ -318,6 +325,16 @@ export function Toolbar({
               onClick={() => setIsExportDialogOpen(true)}
             >
               <Download size={16} />
+            </button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label={t("toolbar.button.import")}>
+            <button
+              type="button"
+              className={iconBtn}
+              aria-label={t("toolbar.button.import")}
+              onClick={() => setIsImportDialogOpen(true)}
+            >
+              <Upload size={16} />
             </button>
           </ToolbarTooltip>
           {/* 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復 */}
@@ -397,6 +414,10 @@ export function Toolbar({
       <ExportDialog
         open={isExportDialogOpen}
         onOpenChange={setIsExportDialogOpen}
+      />
+      <ImportDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
       />
 
       {SHOW_IMAGE_UPLOAD_BUTTON && (

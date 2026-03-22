@@ -1,7 +1,10 @@
 import type { KonvaEventObject } from "konva/lib/Node";
 import { memo, useMemo } from "react";
 import { Rect, Text } from "react-konva";
-import { getCardColorStyle } from "../../../constants/colors";
+import {
+  getCardColorStyle,
+  getCardThemeTokens,
+} from "../../../constants/colors";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { CanvasNode, Group as CanvasGroup } from "../../../types/canvas";
 import { GROUP_LABEL_HEIGHT, getGroupBounds } from "../core/culling";
@@ -65,12 +68,17 @@ function GroupRectComponent({
     () => getCardColorStyle(group.color),
     [group.color],
   );
+  const themeTokens = useMemo(
+    () => getCardThemeTokens(group.color),
+    [group.color],
+  );
 
   if (!bounds) {
     return null;
   }
 
   const strokeColor = group.color ? colorStyle.border : "#8B9D83";
+  const labelColor = themeTokens.accent;
   const fillColor = group.color
     ? toRgba(colorStyle.background, isSelected ? 0.5 : 0.36)
     : isSelected
@@ -128,7 +136,7 @@ function GroupRectComponent({
         text={group.label || "未命名群組"}
         fontSize={13}
         fontStyle={isSelected ? "bold" : "normal"}
-        fill={strokeColor}
+        fill={labelColor}
         listening={false}
       />
     </>

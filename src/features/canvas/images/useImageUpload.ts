@@ -126,7 +126,7 @@ export async function computeAssetId(blob: Blob): Promise<string> {
     .join("");
 }
 
-function loadImageDimensions(blob: Blob): Promise<{
+export function loadImageDimensions(blob: Blob): Promise<{
   width: number;
   height: number;
 }> {

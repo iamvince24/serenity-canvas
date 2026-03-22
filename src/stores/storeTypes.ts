@@ -3,6 +3,7 @@ import type {
   NodePositionSnapshot,
 } from "../commands/nodeCommands";
 import type { StressFixtureConfig } from "../features/canvas/core/stressFixture";
+import type { ImportedData } from "../features/canvas/import/obsidianImportService";
 import {
   InteractionEvent,
   InteractionState,
@@ -85,6 +86,7 @@ export type CanvasActions = {
   redo: () => void;
   clearHistory: () => void;
   insertStressFixture: (config: StressFixtureConfig) => void;
+  importObsidianData: (data: ImportedData) => void;
   clearCanvas: () => void;
 };
 

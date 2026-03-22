@@ -852,6 +852,35 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
 
       executeCommand(new CompositeCommand(commands, "stress-fixture.insert"));
     },
+    importObsidianData: (data) => {
+      const commands: Command[] = [];
+
+      // Add files first (not undoable, but needed by image nodes)
+      for (const file of data.files) {
+        const state = get();
+        if (!state.files[file.id]) {
+          set({
+            files: { ...get().files, [file.id]: file },
+          });
+        }
+      }
+
+      for (const node of data.nodes) {
+        commands.push(new AddNodeCommand(commandContext, node));
+      }
+      for (const edge of data.edges) {
+        commands.push(new AddEdgeCommand(commandContext, edge));
+      }
+      for (const group of data.groups) {
+        commands.push(new CreateGroupCommand(commandContext, group, []));
+      }
+
+      if (commands.length === 0) {
+        return;
+      }
+
+      executeCommand(new CompositeCommand(commands, "import.obsidian"));
+    },
     clearCanvas: () => {
       const state = get();
       releaseStaleImageEntries(state.nodes, EMPTY_BOARD_SNAPSHOT.nodes);
