@@ -11,9 +11,11 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { Maximize2 } from "lucide-react";
 import { useBatchDrag } from "../hooks/useBatchDrag";
-import { getCardColorStyle } from "../../../constants/colors";
+import {
+  getCardColorStyle,
+  getCardThemeTokens,
+} from "../../../constants/colors";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
 import type { TextNode } from "../../../types/canvas";
@@ -123,6 +125,8 @@ function CardWidgetComponent({
       shell.removeEventListener("mousedown", blockProseMirrorMouseDown, true);
   }, [isEditing]);
 
+  const tokens = useMemo(() => getCardThemeTokens(node.color), [node.color]);
+
   const cardStyle = useMemo<CSSProperties>(() => {
     const colorStyle = getCardColorStyle(node.color);
     return {
@@ -133,15 +137,15 @@ function CardWidgetComponent({
       height: `${node.height}px`,
       backgroundColor: colorStyle.background,
       border: `1px solid ${colorStyle.border}`,
-      boxShadow: isSelected ? "0 0 0 2px var(--sage)" : "none",
-      borderRadius: "10px",
+      borderRadius: "12px",
       boxSizing: "border-box",
       overflow: "hidden",
       zIndex: shouldElevateForInteraction ? layerIndex + 1000 : layerIndex,
       isolation: "isolate",
+      color: tokens.text,
+      transition: "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1)",
     };
   }, [
-    isSelected,
     layerIndex,
     node.color,
     node.height,
@@ -149,6 +153,7 @@ function CardWidgetComponent({
     node.x,
     node.y,
     shouldElevateForInteraction,
+    tokens.text,
   ]);
 
   const editorShellStyle = useMemo<CSSProperties>(
@@ -487,23 +492,40 @@ function CardWidgetComponent({
         <span className="card-widget__handle-grip text-xs tracking-[0.24em]">
           :::
         </span>
-        <div className="card-widget__settings">
-          <button
-            type="button"
-            className="card-widget__settings-button"
-            aria-label="Expand card"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsModalOpen(true);
-            }}
-          >
-            <Maximize2 size={14} />
-          </button>
-        </div>
       </div>
+
+      <button
+        type="button"
+        className="card-widget__expand"
+        aria-label="Expand card"
+        style={{
+          backgroundColor: tokens.bgIcon,
+          color: tokens.accent,
+        }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsModalOpen(true);
+        }}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M8.5 1.5H12.5V5.5M5.5 12.5H1.5V8.5M12.5 1.5L8 6M1.5 12.5L6 8"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
 
       <div
         ref={editorShellRef}

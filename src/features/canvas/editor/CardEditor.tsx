@@ -151,7 +151,7 @@ function CardEditorImpl(
     editorProps: {
       attributes: {
         class:
-          "card-editor__content w-full text-[16px] leading-[1.4] text-[#1C1C1A] outline-none",
+          "card-editor__content w-full text-[13px] leading-[1.6] outline-none",
       },
       handleDrop(view, event) {
         const files = extractImageFilesFromTransfer(event.dataTransfer);

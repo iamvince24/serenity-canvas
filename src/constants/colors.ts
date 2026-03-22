@@ -13,8 +13,13 @@ export type CanvasNodeColor = CanvasColorId | null;
 export type CanvasColorPreset = {
   id: CanvasColorId;
   label: string;
-  border: string;
   background: string;
+  border: string;
+  accent: string;
+  text: string;
+  muted: string;
+  bgIcon: string;
+  hl: [string, string, string];
   obsidianValue: `${1 | 2 | 3 | 4 | 5 | 6}`;
 };
 
@@ -22,6 +27,16 @@ export const DEFAULT_NODE_COLOR: CanvasNodeColor = null;
 
 export const DEFAULT_CARD_BACKGROUND = "#FFFFFF";
 export const DEFAULT_CARD_BORDER = "#E5E3DF";
+
+export const DEFAULT_THEME_TOKENS = {
+  background: "#FFFFFF",
+  border: "#E5E3DF",
+  accent: "#8B9D83",
+  text: "#1C1C1A",
+  muted: "#6B6B66",
+  bgIcon: "#ECEAE6",
+  hl: ["#D6E0CE", "#F2E4D4", "#DAE6ED"] as [string, string, string],
+};
 export const DEFAULT_EDGE_STROKE = "#6B6B66";
 export const SELECTED_EDGE_STROKE = "#8B9D83";
 
@@ -29,43 +44,73 @@ export const CANVAS_COLOR_PRESETS: readonly CanvasColorPreset[] = [
   {
     id: "red",
     label: "Red",
-    border: "#D96578",
-    background: "#FDECEE",
+    background: "#FDF8F7",
+    border: "#E5CACA",
+    accent: "#B8635A",
+    text: "#2C1A19",
+    muted: "#7A5B5A",
+    bgIcon: "#F5E6E5",
+    hl: ["#F0D0CE", "#F5DCD4", "#EDCED6"],
     obsidianValue: "1",
   },
   {
     id: "orange",
     label: "Orange",
-    border: "#DB8A39",
-    background: "#FFF3E5",
+    background: "#FDF9F4",
+    border: "#E5D3C5",
+    accent: "#C48D4E",
+    text: "#2C2219",
+    muted: "#7A685A",
+    bgIcon: "#F5EBE1",
+    hl: ["#F0DCCE", "#F5E4D0", "#EDD8CE"],
     obsidianValue: "2",
   },
   {
     id: "yellow",
     label: "Yellow",
-    border: "#CFB14B",
-    background: "#FFF9DD",
+    background: "#FCFBF4",
+    border: "#E5E0C5",
+    accent: "#C4B44E",
+    text: "#2C2A19",
+    muted: "#7A765A",
+    bgIcon: "#F3F0D8",
+    hl: ["#EDE8CE", "#F5ECD0", "#E8E0CE"],
     obsidianValue: "3",
   },
   {
     id: "green",
     label: "Green",
-    border: "#6FAF77",
-    background: "#ECF7EC",
+    background: "#F4F7F3",
+    border: "#D4DDD0",
+    accent: "#8B9D83",
+    text: "#1A2219",
+    muted: "#5B685A",
+    bgIcon: "#EBF0E9",
+    hl: ["#D6E0CE", "#E4F0D4", "#CEE0D8"],
     obsidianValue: "4",
   },
   {
     id: "cyan",
-    label: "Cyan",
-    border: "#48A6B5",
-    background: "#E8F7F8",
+    label: "Blue",
+    background: "#F4F8F9",
+    border: "#CDE0E5",
+    accent: "#6B8E9B",
+    text: "#1A242C",
+    muted: "#5A6B7A",
+    bgIcon: "#E3ECF0",
+    hl: ["#CEE0E6", "#D4E8F0", "#CEDED8"],
     obsidianValue: "5",
   },
   {
     id: "purple",
     label: "Purple",
-    border: "#9A78D7",
-    background: "#F2EDFC",
+    background: "#F9F6F9",
+    border: "#DCD0DC",
+    accent: "#9B7E9B",
+    text: "#2A1A2C",
+    muted: "#765A7A",
+    bgIcon: "#EFE5EF",
+    hl: ["#E0CEE0", "#E8D4F0", "#D8CEE6"],
     obsidianValue: "6",
   },
 ] as const;
@@ -137,6 +182,33 @@ export function getColorPresetByObsidianValue(
     PRESET_BY_OBSIDIAN_VALUE[value as CanvasColorPreset["obsidianValue"]] ??
     null
   );
+}
+
+export type CardThemeTokens = {
+  background: string;
+  border: string;
+  accent: string;
+  text: string;
+  muted: string;
+  bgIcon: string;
+  hl: [string, string, string];
+};
+
+export function getCardThemeTokens(color: CanvasNodeColor): CardThemeTokens {
+  const preset = getCanvasColorPreset(color);
+  if (!preset) {
+    return { ...DEFAULT_THEME_TOKENS };
+  }
+
+  return {
+    background: preset.background,
+    border: preset.border,
+    accent: preset.accent,
+    text: preset.text,
+    muted: preset.muted,
+    bgIcon: preset.bgIcon,
+    hl: preset.hl,
+  };
 }
 
 export function normalizeNodeColor(value: unknown): CanvasNodeColor {

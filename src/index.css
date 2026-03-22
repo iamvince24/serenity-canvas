@@ -56,8 +56,8 @@
 }
 
 :root {
-  --font-sans: "Inter", sans-serif;
-  --font-serif: "Lora", serif;
+  --font-sans: "Inter", "Noto Sans TC", sans-serif;
+  --font-serif: "Lora", "Noto Serif TC", serif;
   --font-mono: "IBM Plex Mono", monospace;
   --radius: 10px;
 
@@ -328,6 +328,42 @@
     font-weight: 400;
     line-height: 1.35;
     animation: tooltip-in 200ms ease-out both;
+  }
+
+  .card-widget {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-widget:hover:not(.card-widget--selected) {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  .card-widget--selected {
+    box-shadow:
+      0 0 0 2px var(--sage),
+      0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  .card-widget__expand {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 20;
+    border: none;
+  }
+
+  .card-widget:hover .card-widget__expand {
+    opacity: 1;
   }
 
   .card-editor {
@@ -619,7 +655,7 @@
   }
 
   .card-editor__content {
-    min-height: 1.4em;
+    min-height: 1.6em;
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: break-word;
@@ -640,14 +676,14 @@
     margin: 0;
     padding: 0;
     font: inherit;
-    line-height: 1.4;
+    line-height: 1.6;
     color: inherit;
     background: transparent;
     border: 0;
   }
 
   .card-editor__content > * + * {
-    margin-top: 1.4em;
+    margin-top: 0.75em;
   }
 
   .card-editor__content ul,
@@ -714,8 +750,9 @@
   }
 
   .card-editor__content h1 {
+    font-family: var(--font-serif);
     font-size: 1.45em;
-    font-weight: 700;
+    font-weight: 600;
   }
 
   .card-editor__content h2 {
