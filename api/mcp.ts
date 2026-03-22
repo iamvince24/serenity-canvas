@@ -1,84 +1,87 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
-import { createClient } from "@supabase/supabase-js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import "./helpers/loadEnv.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createServer } from "../mcp-server/src/server.js";
-import type { Database } from "../src/types/supabase.js";
+import { createSupabaseForUser } from "../mcp-server/src/supabaseClient.js";
+import { adminClient } from "./helpers/supabaseAdmin.js";
+import { oauthError } from "./helpers/oauthError.js";
+import { getClientIp, checkRateLimit } from "./helpers/rateLimit.js";
 
-// vercel dev doesn't forward .env.local to serverless functions
-if (!process.env.SUPABASE_URL) {
-  try {
-    process.loadEnvFile(".env.local");
-  } catch {
-    // In production, env vars are set via Vercel dashboard
-  }
-}
+const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "";
 
-export default async function handler(
-  req: IncomingMessage,
-  res: ServerResponse,
-): Promise<void> {
+export default async function handler(req: Request): Promise<Response> {
   try {
     // OPTIONS preflight
     if (req.method === "OPTIONS") {
-      res.writeHead(204).end();
-      return;
+      return new Response(null, { status: 204 });
     }
 
-    // Phase 1 runtime guard — no auth protection yet
-    if (process.env.VERCEL_ENV === "production") {
-      res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({ error: "OAuth required. Phase 1 is dev-only." }),
-      );
-      return;
+    // Extract Bearer token
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
+
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "WWW-Authenticate": `Bearer resource_metadata="${MCP_SERVER_URL}/.well-known/oauth-protected-resource"`,
+        },
+      });
     }
 
-    // Phase 1: service role client (Phase 2 will replace with per-request user client)
-    const client = createClient<Database>(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    // Validate token with Supabase
+    const {
+      data: { user },
+      error: authError,
+    } = await adminClient.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "WWW-Authenticate": `Bearer error="invalid_token", resource_metadata="${MCP_SERVER_URL}/.well-known/oauth-protected-resource"`,
+        },
+      });
+    }
+
+    // Rate limit: 60/min per user
+    const ip = getClientIp(req);
+    const allowed = await checkRateLimit(
+      adminClient,
+      `${user.id}:${ip}`,
+      "mcp",
+      60,
+      60,
     );
+    if (!allowed) {
+      return oauthError("invalid_request", "Rate limit exceeded", 429);
+    }
+
+    // Create per-request user client (respects RLS)
+    const userClient = createSupabaseForUser(token);
 
     const server = createServer(() => ({
-      client,
-      isServiceRole: true,
+      client: userClient,
+      isServiceRole: false,
     }));
 
-    const transport = new StreamableHTTPServerTransport({
+    const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless mode
     });
 
     await server.connect(transport);
 
-    // Vercel's @vercel/node consumes the request body before calling the handler.
-    // Pass the pre-parsed body so the transport doesn't try to re-read the stream.
-    const body = await new Promise<string>((resolve) => {
-      // If Vercel already parsed the body, it's on (req as any).body
-      const vercelBody = (req as unknown as Record<string, unknown>).body;
-      if (vercelBody !== undefined) {
-        resolve(
-          typeof vercelBody === "string"
-            ? vercelBody
-            : JSON.stringify(vercelBody),
-        );
-        return;
-      }
-      // Fallback: read raw body from stream
-      let raw = "";
-      req.on("data", (chunk: Buffer) => (raw += chunk.toString()));
-      req.on("end", () => resolve(raw));
-    });
-
-    await transport.handleRequest(req, res, JSON.parse(body));
+    return await transport.handleRequest(req);
   } catch (err) {
     console.error("[api/mcp] Unhandled error:", err);
-    if (!res.headersSent) {
-      res.writeHead(500, { "Content-Type": "application/json" });
-    }
-    res.end(
+    return new Response(
       JSON.stringify({
         error: err instanceof Error ? err.message : "Unknown error",
       }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }

@@ -1,6 +1,20 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../../src/types/supabase.js";
 
+/** Create a per-request Supabase client authenticated via Bearer token. */
+export function createSupabaseForUser(
+  accessToken: string,
+): SupabaseClient<Database> {
+  return createClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_ANON_KEY!,
+    {
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  );
+}
+
 let _client: SupabaseClient<Database> | null = null;
 let _serviceRoleMode = false;
 

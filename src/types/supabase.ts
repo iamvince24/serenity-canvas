@@ -49,7 +49,7 @@ export type Database = {
           node_order?: Json;
           title?: string;
           updated_at?: string;
-          user_id: string;
+          user_id?: string;
         };
         Update: {
           created_at?: string;
@@ -64,7 +64,7 @@ export type Database = {
       edges: {
         Row: {
           board_id: string;
-          change_status: string;
+          change_status: string | null;
           changeset_id: string | null;
           color: string | null;
           created_at: string;
@@ -82,7 +82,7 @@ export type Database = {
         };
         Insert: {
           board_id: string;
-          change_status?: string;
+          change_status?: string | null;
           changeset_id?: string | null;
           color?: string | null;
           created_at?: string;
@@ -96,11 +96,11 @@ export type Database = {
           to_anchor?: string | null;
           to_node: string;
           updated_at?: string;
-          user_id: string;
+          user_id?: string;
         };
         Update: {
           board_id?: string;
-          change_status?: string;
+          change_status?: string | null;
           changeset_id?: string | null;
           color?: string | null;
           created_at?: string;
@@ -228,7 +228,7 @@ export type Database = {
           id?: string;
           label?: string | null;
           updated_at?: string;
-          user_id: string;
+          user_id?: string;
         };
         Update: {
           board_id?: string;
@@ -291,7 +291,7 @@ export type Database = {
       nodes: {
         Row: {
           board_id: string;
-          change_status: string;
+          change_status: string | null;
           changeset_id: string | null;
           color: string | null;
           content: Json | null;
@@ -310,7 +310,7 @@ export type Database = {
         };
         Insert: {
           board_id: string;
-          change_status?: string;
+          change_status?: string | null;
           changeset_id?: string | null;
           color?: string | null;
           content?: Json | null;
@@ -322,14 +322,14 @@ export type Database = {
           source_url?: string | null;
           type: string;
           updated_at?: string;
-          user_id: string;
+          user_id?: string;
           width: number;
           x: number;
           y: number;
         };
         Update: {
           board_id?: string;
-          change_status?: string;
+          change_status?: string | null;
           changeset_id?: string | null;
           color?: string | null;
           content?: Json | null;
@@ -356,11 +356,150 @@ export type Database = {
           },
         ];
       };
+      oauth_authorization_codes: {
+        Row: {
+          client_id: string;
+          code: string;
+          code_challenge: string;
+          code_challenge_method: string;
+          created_at: string | null;
+          encrypted_supabase_token: string;
+          expires_at: string;
+          redirect_uri: string;
+          user_id: string;
+        };
+        Insert: {
+          client_id: string;
+          code: string;
+          code_challenge: string;
+          code_challenge_method?: string;
+          created_at?: string | null;
+          encrypted_supabase_token: string;
+          expires_at: string;
+          redirect_uri: string;
+          user_id: string;
+        };
+        Update: {
+          client_id?: string;
+          code?: string;
+          code_challenge?: string;
+          code_challenge_method?: string;
+          created_at?: string | null;
+          encrypted_supabase_token?: string;
+          expires_at?: string;
+          redirect_uri?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "oauth_authorization_codes_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "oauth_clients";
+            referencedColumns: ["client_id"];
+          },
+        ];
+      };
+      oauth_clients: {
+        Row: {
+          client_id: string;
+          client_name: string | null;
+          created_at: string | null;
+          last_used_at: string | null;
+          redirect_uris: string[];
+        };
+        Insert: {
+          client_id?: string;
+          client_name?: string | null;
+          created_at?: string | null;
+          last_used_at?: string | null;
+          redirect_uris: string[];
+        };
+        Update: {
+          client_id?: string;
+          client_name?: string | null;
+          created_at?: string | null;
+          last_used_at?: string | null;
+          redirect_uris?: string[];
+        };
+        Relationships: [];
+      };
+      oauth_sessions: {
+        Row: {
+          client_id: string;
+          code_challenge: string;
+          code_challenge_method: string;
+          created_at: string | null;
+          expires_at: string;
+          redirect_uri: string;
+          session_key: string;
+          state: string | null;
+        };
+        Insert: {
+          client_id: string;
+          code_challenge: string;
+          code_challenge_method?: string;
+          created_at?: string | null;
+          expires_at: string;
+          redirect_uri: string;
+          session_key: string;
+          state?: string | null;
+        };
+        Update: {
+          client_id?: string;
+          code_challenge?: string;
+          code_challenge_method?: string;
+          created_at?: string | null;
+          expires_at?: string;
+          redirect_uri?: string;
+          session_key?: string;
+          state?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "oauth_sessions_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "oauth_clients";
+            referencedColumns: ["client_id"];
+          },
+        ];
+      };
+      rate_limits: {
+        Row: {
+          created_at: string | null;
+          endpoint: string;
+          id: number;
+          key: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          endpoint: string;
+          id?: number;
+          key: string;
+        };
+        Update: {
+          created_at?: string | null;
+          endpoint?: string;
+          id?: number;
+          key?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
+      check_rate_limit: {
+        Args: {
+          p_endpoint: string;
+          p_key: string;
+          p_max_requests: number;
+          p_window_seconds: number;
+        };
+        Returns: boolean;
+      };
       sync_group_members: {
         Args: { p_group_ids: string[]; p_members: Json };
         Returns: undefined;
