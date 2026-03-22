@@ -33,5 +33,5 @@
       ]
     }
   ],
-  "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 * * * *" }]
+  "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 0 * * *" }]
 }
