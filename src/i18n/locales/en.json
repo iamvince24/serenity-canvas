@@ -107,6 +107,11 @@
   "canvas.uploadError.dismiss": "Dismiss",
   "canvas.uploadError.dismissLabel": "Dismiss upload error",
 
+  "canvas.mobileWarning.title": "Desktop recommended",
+  "canvas.mobileWarning.description": "The canvas is designed for desktop use. For the best experience, please switch to a desktop browser.",
+  "canvas.mobileWarning.dontShowAgain": "Don't show again",
+  "canvas.mobileWarning.confirm": "Got it",
+
   "nodeContext.createGroup": "Create group",
   "nodeContext.deleteSelected": "Delete selected",
   "nodeContext.fitContent": "Fit to content",

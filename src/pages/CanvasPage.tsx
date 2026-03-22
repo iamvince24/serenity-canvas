@@ -11,6 +11,7 @@ import { flushCanvasPersistence, useCanvasStore } from "../stores/canvasStore";
 import "../stores/canvasStoreSideEffects";
 import { useAuthStore } from "../stores/authStore";
 import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
+import { MobileWarningDialog } from "../components/MobileWarningDialog";
 
 interface CanvasPageProps {
   boardId: string;
@@ -144,6 +145,8 @@ export function CanvasPage({ boardId, sidebarOpen }: CanvasPageProps) {
           </div>
         </div>
       ) : null}
+
+      <MobileWarningDialog />
     </main>
   );
 }

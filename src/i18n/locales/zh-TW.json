@@ -107,6 +107,11 @@
   "canvas.uploadError.dismiss": "關閉",
   "canvas.uploadError.dismissLabel": "關閉上傳錯誤",
 
+  "canvas.mobileWarning.title": "建議使用桌面裝置",
+  "canvas.mobileWarning.description": "白板功能針對桌面環境設計，在手機上操作體驗較受限。建議使用電腦瀏覽器以獲得最佳體驗。",
+  "canvas.mobileWarning.dontShowAgain": "不再顯示",
+  "canvas.mobileWarning.confirm": "知道了",
+
   "nodeContext.createGroup": "建立群組",
   "nodeContext.deleteSelected": "刪除已選取",
   "nodeContext.fitContent": "自動調整大小",
