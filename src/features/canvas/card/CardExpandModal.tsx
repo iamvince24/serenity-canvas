@@ -165,7 +165,7 @@ export function CardExpandModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="card-expand-modal sm:max-w-none w-[1000px] max-w-[calc(100vw-96px)] h-[70vh] flex flex-col overflow-hidden p-0 gap-0">
+      <DialogContent className="card-expand-modal w-[1000px] max-w-[calc(100vw-2rem)] sm:max-w-[calc(100vw-4rem)] h-[70vh] flex flex-col overflow-hidden p-0 gap-0">
         <DialogTitle className="sr-only">Edit card</DialogTitle>
         <div
           className="flex-1 overflow-y-auto"
