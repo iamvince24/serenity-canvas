@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
-import "../helpers/loadEnv.js";
-import { adminClient } from "../helpers/supabaseAdmin.js";
+import "../_helpers/loadEnv.js";
+import { adminClient } from "../_helpers/supabaseAdmin.js";
 
 function verifySecret(req: Request): boolean {
   const secret = process.env.CRON_SECRET;

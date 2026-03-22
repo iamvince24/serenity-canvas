@@ -1,4 +1,4 @@
-import "../helpers/loadEnv.js";
+import "../_helpers/loadEnv.js";
 
 /** RFC 8414 — OAuth Authorization Server Metadata */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

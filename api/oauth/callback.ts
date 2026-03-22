@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import "../helpers/loadEnv.js";
-import { adminClient } from "../helpers/supabaseAdmin.js";
-import { oauthError } from "../helpers/oauthError.js";
-import { encrypt } from "../helpers/encryption.js";
+import "../_helpers/loadEnv.js";
+import { adminClient } from "../_helpers/supabaseAdmin.js";
+import { oauthError } from "../_helpers/oauthError.js";
+import { encrypt } from "../_helpers/encryption.js";
 
 /** OAuth Callback — exchanges Supabase auth code for session, issues MCP auth code */
 export default async function handler(req: Request): Promise<Response> {

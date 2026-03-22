@@ -1,7 +1,7 @@
-import "../helpers/loadEnv.js";
-import { adminClient } from "../helpers/supabaseAdmin.js";
-import { oauthError } from "../helpers/oauthError.js";
-import { getClientIp, checkRateLimit } from "../helpers/rateLimit.js";
+import "../_helpers/loadEnv.js";
+import { adminClient } from "../_helpers/supabaseAdmin.js";
+import { oauthError } from "../_helpers/oauthError.js";
+import { getClientIp, checkRateLimit } from "../_helpers/rateLimit.js";
 
 /** RFC 7591 — Dynamic Client Registration */
 export default async function handler(req: Request): Promise<Response> {

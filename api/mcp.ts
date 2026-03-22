@@ -1,10 +1,10 @@
-import "./helpers/loadEnv.js";
+import "./_helpers/loadEnv.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createServer } from "../mcp-server/src/server.js";
 import { createSupabaseForUser } from "../mcp-server/src/supabaseClient.js";
-import { adminClient } from "./helpers/supabaseAdmin.js";
-import { oauthError } from "./helpers/oauthError.js";
-import { getClientIp, checkRateLimit } from "./helpers/rateLimit.js";
+import { adminClient } from "./_helpers/supabaseAdmin.js";
+import { oauthError } from "./_helpers/oauthError.js";
+import { getClientIp, checkRateLimit } from "./_helpers/rateLimit.js";
 
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "";
 

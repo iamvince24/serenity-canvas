@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import "../helpers/loadEnv.js";
-import { adminClient } from "../helpers/supabaseAdmin.js";
-import { oauthError } from "../helpers/oauthError.js";
-import { getClientIp, checkRateLimit } from "../helpers/rateLimit.js";
-import { decrypt } from "../helpers/encryption.js";
+import "../_helpers/loadEnv.js";
+import { adminClient } from "../_helpers/supabaseAdmin.js";
+import { oauthError } from "../_helpers/oauthError.js";
+import { getClientIp, checkRateLimit } from "../_helpers/rateLimit.js";
+import { decrypt } from "../_helpers/encryption.js";
 
 /** Parse request body from either application/x-www-form-urlencoded or application/json */
 async function parseBody(req: Request): Promise<Record<string, string>> {

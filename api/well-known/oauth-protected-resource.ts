@@ -1,4 +1,4 @@
-import "../helpers/loadEnv.js";
+import "../_helpers/loadEnv.js";
 
 /** RFC 9728 — OAuth Protected Resource Metadata */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
