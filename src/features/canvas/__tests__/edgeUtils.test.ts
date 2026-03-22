@@ -1,53 +1,23 @@
 import { describe, expect, it } from "vitest";
-import type { CanvasNode, Edge, TextNode } from "../../../types/canvas";
+import type { CanvasNode } from "../../../types/canvas";
+import { createEdge, createTextNode } from "../../../test/factories";
 import {
   findClosestNodeAnchor,
   getEdgeBounds,
   getEdgeRoute,
 } from "../edges/edgeUtils";
 
-function createTextNode(id: string, x: number, y: number): TextNode {
-  return {
-    id,
-    type: "text",
-    x,
-    y,
-    width: 200,
-    height: 100,
-    heightMode: "auto",
-    color: null,
-    contentMarkdown: id,
-  };
-}
-
-function createEdge(
-  id: string,
-  fromNode: string,
-  toNode: string,
-  overrides: Partial<Edge> = {},
-): Edge {
-  return {
-    id,
-    fromNode,
-    toNode,
-    fromAnchor: "right",
-    toAnchor: "left",
-    direction: "forward",
-    label: "",
-    lineStyle: "solid",
-    color: null,
-    ...overrides,
-  };
-}
-
 describe("edgeUtils", () => {
   it("getEdgeBounds 使用貝茲曲線極值計算外接矩形", () => {
     const nodes: Record<string, CanvasNode> = {
-      a: createTextNode("a", 10, 20),
-      b: createTextNode("b", 410, 220),
+      a: createTextNode({ id: "a", x: 10, y: 20 }),
+      b: createTextNode({ id: "b", x: 410, y: 220 }),
     };
 
-    const bounds = getEdgeBounds(createEdge("edge-1", "a", "b"), nodes);
+    const bounds = getEdgeBounds(
+      createEdge({ id: "edge-1", fromNode: "a", toNode: "b" }),
+      nodes,
+    );
     expect(bounds).toEqual({
       x: 210,
       y: 70,
@@ -58,12 +28,15 @@ describe("edgeUtils", () => {
 
   it("getEdgeRoute 使用 edge 上儲存的錨點", () => {
     const nodes: Record<string, CanvasNode> = {
-      a: createTextNode("a", 0, 0),
-      b: createTextNode("b", 500, 40),
+      a: createTextNode({ id: "a", x: 0, y: 0 }),
+      b: createTextNode({ id: "b", x: 500, y: 40 }),
     };
 
     const route = getEdgeRoute(
-      createEdge("edge-1", "a", "b", {
+      createEdge({
+        id: "edge-1",
+        fromNode: "a",
+        toNode: "b",
         fromAnchor: "bottom",
         toAnchor: "top",
       }),
@@ -77,19 +50,22 @@ describe("edgeUtils", () => {
     // b 在 a 的正下方，smart anchors 會選 bottom→top
     // 但 edge 儲存了 right→left，應直接使用儲存值
     const nodes: Record<string, CanvasNode> = {
-      a: createTextNode("a", 0, 0),
-      b: createTextNode("b", 0, 300),
+      a: createTextNode({ id: "a", x: 0, y: 0 }),
+      b: createTextNode({ id: "b", x: 0, y: 300 }),
     };
 
-    const route = getEdgeRoute(createEdge("edge-1", "a", "b"), nodes);
+    const route = getEdgeRoute(
+      createEdge({ id: "edge-1", fromNode: "a", toNode: "b" }),
+      nodes,
+    );
     expect(route?.fromAnchor).toBe("right");
     expect(route?.toAnchor).toBe("left");
   });
 
   it("findClosestNodeAnchor 可找到最近可連線錨點", () => {
     const nodes: Record<string, CanvasNode> = {
-      a: createTextNode("a", 0, 0),
-      b: createTextNode("b", 300, 0),
+      a: createTextNode({ id: "a", x: 0, y: 0 }),
+      b: createTextNode({ id: "b", x: 300, y: 0 }),
     };
 
     const candidate = findClosestNodeAnchor(

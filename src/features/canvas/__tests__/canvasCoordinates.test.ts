@@ -21,10 +21,9 @@ function createRect(left: number, top: number): DOMRect {
 
 describe("canvasCoordinates", () => {
   it("toCanvasPoint 會依容器偏移與 viewport 轉換座標", () => {
-    const container = document.createElement("div");
-    container.getBoundingClientRect = () => createRect(100, 50);
+    const rect = createRect(100, 50);
 
-    const point = toCanvasPoint(260, 170, container, {
+    const point = toCanvasPoint(260, 170, rect, {
       x: 20,
       y: 10,
       zoom: 2,
@@ -34,10 +33,9 @@ describe("canvasCoordinates", () => {
   });
 
   it("zoom 非正值時會回退為 1", () => {
-    const container = document.createElement("div");
-    container.getBoundingClientRect = () => createRect(10, 20);
+    const rect = createRect(10, 20);
 
-    const point = toCanvasPoint(110, 220, container, {
+    const point = toCanvasPoint(110, 220, rect, {
       x: 30,
       y: 40,
       zoom: 0,
@@ -47,14 +45,13 @@ describe("canvasCoordinates", () => {
   });
 
   it("client 座標非有限數值時回傳 null", () => {
-    const container = document.createElement("div");
-    container.getBoundingClientRect = () => createRect(0, 0);
+    const rect = createRect(0, 0);
 
     expect(
-      toCanvasPoint(Number.NaN, 120, container, { x: 0, y: 0, zoom: 1 }),
+      toCanvasPoint(Number.NaN, 120, rect, { x: 0, y: 0, zoom: 1 }),
     ).toBeNull();
     expect(
-      toCanvasPoint(120, Number.POSITIVE_INFINITY, container, {
+      toCanvasPoint(120, Number.POSITIVE_INFINITY, rect, {
         x: 0,
         y: 0,
         zoom: 1,

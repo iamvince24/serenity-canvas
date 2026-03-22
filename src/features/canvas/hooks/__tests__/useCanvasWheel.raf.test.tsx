@@ -4,12 +4,26 @@ import { useCanvasStore } from "../../../../stores/canvasStore";
 import type { ViewportState } from "../../../../types/canvas";
 import { useCanvasWheel } from "../useCanvasWheel";
 
+const mockContainerRect = {
+  x: 0,
+  y: 0,
+  left: 0,
+  top: 0,
+  right: 1200,
+  bottom: 800,
+  width: 1200,
+  height: 800,
+  toJSON: () => ({}),
+} as DOMRect;
+
+const containerRectRef = { current: mockContainerRect };
+
 function WheelHookHarness({
   overlayContainer,
 }: {
   overlayContainer: HTMLDivElement | null;
 }) {
-  useCanvasWheel({ overlayContainer });
+  useCanvasWheel({ overlayContainer, containerRectRef });
   return null;
 }
 

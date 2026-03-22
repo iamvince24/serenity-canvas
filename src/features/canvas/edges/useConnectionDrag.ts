@@ -32,7 +32,8 @@ type ActiveConnection = {
 };
 
 type UseConnectionDragOptions = {
-  container: HTMLElement | null;
+  container?: HTMLElement | null;
+  containerRectRef: React.RefObject<DOMRect | null>;
   viewport: ViewportState;
   nodes: Record<string, CanvasNode>;
 };
@@ -83,7 +84,7 @@ function toConnectionEndpoint(
 }
 
 export function useConnectionDrag({
-  container,
+  containerRectRef,
   viewport,
   nodes,
 }: UseConnectionDragOptions): UseConnectionDragResult {
@@ -94,8 +95,6 @@ export function useConnectionDrag({
   const connectionRef = useRef<ActiveConnection | null>(null);
   const nodesRef = useRef(nodes);
   const viewportRef = useRef(viewport);
-  const containerRef = useRef(container);
-
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
@@ -105,22 +104,21 @@ export function useConnectionDrag({
   }, [viewport]);
 
   useEffect(() => {
-    containerRef.current = container;
-  }, [container]);
-
-  useEffect(() => {
     connectionRef.current = connection;
   }, [connection]);
 
-  const getCanvasPointer = useCallback((clientX: number, clientY: number) => {
-    const nextContainer = containerRef.current;
-    if (!nextContainer) {
-      return null;
-    }
+  const getCanvasPointer = useCallback(
+    (clientX: number, clientY: number) => {
+      const rect = containerRectRef.current;
+      if (!rect) {
+        return null;
+      }
 
-    const nextViewport = viewportRef.current;
-    return toCanvasPoint(clientX, clientY, nextContainer, nextViewport);
-  }, []);
+      const nextViewport = viewportRef.current;
+      return toCanvasPoint(clientX, clientY, rect, nextViewport);
+    },
+    [containerRectRef],
+  );
 
   const cancelConnection = useCallback(() => {
     if (!connectionRef.current) {

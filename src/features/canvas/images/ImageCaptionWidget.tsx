@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useMemo,
   useState,
@@ -29,7 +30,7 @@ type ImageCaptionWidgetProps = {
   }) => void;
 };
 
-export function ImageCaptionWidget({
+function ImageCaptionWidgetComponent({
   node,
   layerIndex,
   isSelected,
@@ -140,3 +141,5 @@ export function ImageCaptionWidget({
     </div>
   );
 }
+
+export const ImageCaptionWidget = memo(ImageCaptionWidgetComponent);

@@ -41,6 +41,7 @@ type MarqueeRect = {
 
 type UseMarqueeSelectOptions = {
   container: HTMLElement | null;
+  containerRectRef: React.RefObject<DOMRect | null>;
   viewport: ViewportState;
   nodes: Record<string, CanvasNode>;
   canvasMode: CanvasMode;
@@ -69,6 +70,7 @@ function getShiftKey(event: MouseEvent | TouchEvent): boolean {
 
 export function useMarqueeSelect({
   container,
+  containerRectRef,
   viewport,
   nodes,
   canvasMode,
@@ -93,13 +95,14 @@ export function useMarqueeSelect({
 
   const resolveCanvasPoint = useCallback(
     (clientX: number, clientY: number): Point | null => {
-      if (!container) {
+      const rect = containerRectRef.current;
+      if (!rect) {
         return null;
       }
 
-      return toCanvasPoint(clientX, clientY, container, viewport);
+      return toCanvasPoint(clientX, clientY, rect, viewport);
     },
-    [container, viewport],
+    [containerRectRef, viewport],
   );
 
   const updateMarqueePointer = useCallback(

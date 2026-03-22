@@ -1,6 +1,19 @@
 import "fake-indexeddb/auto";
 import type { ReactNode } from "react";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
+import { resetIdCounter } from "./factories";
+
+beforeEach(() => {
+  resetIdCounter();
+});
+
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof globalThis.ResizeObserver;
+}
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({

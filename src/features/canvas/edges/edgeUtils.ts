@@ -421,6 +421,15 @@ export function findClosestNodeAnchor(
       continue;
     }
 
+    if (
+      pointer.x < node.x - maxDistance ||
+      pointer.x > node.x + node.width + maxDistance ||
+      pointer.y < node.y - maxDistance ||
+      pointer.y > node.y + node.height + maxDistance
+    ) {
+      continue;
+    }
+
     for (const anchor of NODE_ANCHORS) {
       const point = getNodeAnchorPoint(node, anchor);
       const dx = point.x - pointer.x;

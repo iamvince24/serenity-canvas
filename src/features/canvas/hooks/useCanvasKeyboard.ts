@@ -15,6 +15,7 @@ import {
 
 type UseCanvasKeyboardOptions = {
   overlayContainer: HTMLElement | null;
+  containerRectRef: React.RefObject<DOMRect | null>;
   isMarqueeActive: boolean;
   isEdgeEndpointDragging: boolean;
   hasEdgeContextMenu: boolean;
@@ -274,6 +275,7 @@ function handleDeleteKey({ event, target }: KeyboardHandlerContext): boolean {
 
 export function useCanvasKeyboard({
   overlayContainer,
+  containerRectRef,
   isMarqueeActive,
   isEdgeEndpointDragging,
   hasEdgeContextMenu,
@@ -294,7 +296,8 @@ export function useCanvasKeyboard({
         return;
       }
 
-      const rect = overlayContainer.getBoundingClientRect();
+      const rect =
+        containerRectRef.current ?? overlayContainer.getBoundingClientRect();
       const nextViewport = ensureNodeVisible({
         node: targetNode,
         viewport: state.viewport,
@@ -339,6 +342,7 @@ export function useCanvasKeyboard({
       const target = getEventTargetAsHTMLElement(event.target);
       const context: KeyboardHandlerContext = {
         overlayContainer,
+        containerRectRef,
         isMarqueeActive,
         isEdgeEndpointDragging,
         hasEdgeContextMenu,
@@ -386,6 +390,7 @@ export function useCanvasKeyboard({
     cancelMarquee,
     closeEdgeContextMenu,
     closeEdgeLabelEditor,
+    containerRectRef,
     hasEdgeContextMenu,
     hasEdgeLabelEditor,
     isEdgeEndpointDragging,

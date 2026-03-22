@@ -1,34 +1,24 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { InteractionState } from "../../features/canvas/core/stateMachine";
-import type { Edge, TextNode } from "../../types/canvas";
+import {
+  createEdge as baseCreateEdge,
+  createTextNode as baseCreateTextNode,
+} from "../../test/factories";
 import { useCanvasStore } from "../canvasStore";
 
-function createTextNode(id: string, x = 0, y = 0): TextNode {
-  return {
+function createTextNode(id: string, x = 0, y = 0) {
+  return baseCreateTextNode({
     id,
-    type: "text",
     x,
     y,
     width: 280,
     height: 240,
-    heightMode: "auto",
-    color: null,
     contentMarkdown: id,
-  };
+  });
 }
 
-function createEdge(id: string, fromNode: string, toNode: string): Edge {
-  return {
-    id,
-    fromNode,
-    toNode,
-    fromAnchor: "right",
-    toAnchor: "left",
-    direction: "forward",
-    label: "",
-    lineStyle: "solid",
-    color: null,
-  };
+function createEdge(id: string, fromNode: string, toNode: string) {
+  return baseCreateEdge({ id, fromNode, toNode });
 }
 
 function resetStore() {

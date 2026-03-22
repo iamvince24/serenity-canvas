@@ -39,10 +39,12 @@ import {
   useVisibleNodeIds,
 } from "./hooks/useVisibleElements";
 import { useConnectionDrag } from "./edges/useConnectionDrag";
+import { useCachedContainerRect } from "./hooks/useCachedContainerRect";
 import { ConnectionPreviewLine } from "./edges/ConnectionPreviewLine";
 import { useImageUpload } from "./images/useImageUpload";
 import { type ContextMenuNodeType } from "./nodes/NodeContextMenu";
 import { resolveOrderedNodeIds } from "./nodes/orderUtils";
+import { buildSpatialGrid, queryTopNodeAt } from "./core/spatialIndex";
 import { ChangesetReviewPanel } from "./changeset/ChangesetReviewPanel";
 import { PendingNodeOverlay } from "./changeset/PendingNodeOverlay";
 
@@ -134,15 +136,23 @@ export function Canvas() {
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
   const [overlayContainer, setOverlayContainer] =
     useState<HTMLDivElement | null>(null);
+  const containerRectRef = useCachedContainerRect(overlayContainer);
   const [autoFocusNodeId, setAutoFocusNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [overlaySlot, setOverlaySlot] = useState<OverlaySlot>({
     type: "idle",
   });
 
+  const nodeIdFingerprint = useMemo(() => {
+    const keys = Object.keys(nodes);
+    keys.sort();
+    return keys.join("\0");
+  }, [nodes]);
+
   const orderedNodeIds = useMemo(
     () => resolveOrderedNodeIds(nodeOrder, nodes),
-    [nodeOrder, nodes],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodeOrder, nodeIdFingerprint],
   );
 
   const selectedNodeIdSet = useMemo(
@@ -187,25 +197,19 @@ export function Canvas() {
     [groups, visibleGroupIds],
   );
 
+  const spatialGrid = useMemo(() => buildSpatialGrid(nodes), [nodes]);
+
   const findTopNodeAtCanvasPoint = useCallback(
     (canvasX: number, canvasY: number): CanvasNode | null => {
-      for (let index = orderedNodeIds.length - 1; index >= 0; index -= 1) {
-        const nodeId = orderedNodeIds[index];
-        const node = nodes[nodeId];
-        if (!node) {
-          continue;
-        }
-
-        const withinX = canvasX >= node.x && canvasX <= node.x + node.width;
-        const withinY = canvasY >= node.y && canvasY <= node.y + node.height;
-        if (withinX && withinY) {
-          return node;
-        }
-      }
-
-      return null;
+      return queryTopNodeAt(
+        canvasX,
+        canvasY,
+        spatialGrid,
+        nodes,
+        orderedNodeIds,
+      );
     },
-    [nodes, orderedNodeIds],
+    [nodes, orderedNodeIds, spatialGrid],
   );
 
   const {
@@ -215,6 +219,7 @@ export function Canvas() {
     handleAnchorPointerDown,
   } = useConnectionDrag({
     container: overlayContainer,
+    containerRectRef,
     viewport,
     nodes,
   });
@@ -241,6 +246,7 @@ export function Canvas() {
     canShowEdgeEndpointHandles,
   } = useEdgeOverlay({
     container: overlayContainer,
+    containerRectRef,
     viewport,
     nodes,
     edges,
@@ -264,6 +270,7 @@ export function Canvas() {
     cancelMarquee,
   } = useMarqueeSelect({
     container: overlayContainer,
+    containerRectRef,
     viewport,
     nodes,
     canvasMode,
@@ -310,8 +317,9 @@ export function Canvas() {
 
   const createImageNodeFromFile = useCallback(
     async (file: File, clientX: number, clientY: number) => {
-      const container = overlayContainer;
-      if (!container) {
+      const rect =
+        containerRectRef.current ?? overlayContainer?.getBoundingClientRect();
+      if (!rect) {
         return;
       }
 
@@ -321,7 +329,7 @@ export function Canvas() {
         const canvasPoint = toCanvasPoint(
           clientX,
           clientY,
-          container,
+          rect,
           state.viewport,
         );
         if (!canvasPoint) {
@@ -343,7 +351,14 @@ export function Canvas() {
         notifyImageUploadError(message);
       }
     },
-    [addFile, addNode, overlayContainer, selectNode, uploadImageFile],
+    [
+      addFile,
+      addNode,
+      containerRectRef,
+      overlayContainer,
+      selectNode,
+      uploadImageFile,
+    ],
   );
 
   const handleRootPointerDownCapture = useCallback(
@@ -401,7 +416,8 @@ export function Canvas() {
         return;
       }
 
-      if (!overlayContainer) {
+      const rect = containerRectRef.current;
+      if (!rect) {
         return;
       }
 
@@ -416,7 +432,7 @@ export function Canvas() {
       const pointer = toCanvasPoint(
         event.clientX,
         event.clientY,
-        overlayContainer,
+        rect,
         viewport,
       );
       if (!pointer) {
@@ -430,11 +446,11 @@ export function Canvas() {
       );
     },
     [
+      containerRectRef,
       edgeEndpointDragState,
       findTopNodeAtCanvasPoint,
       handleMarqueePointerMove,
       marqueeState,
-      overlayContainer,
       viewport,
     ],
   );
@@ -508,6 +524,7 @@ export function Canvas() {
 
   useCanvasKeyboard({
     overlayContainer,
+    containerRectRef,
     isMarqueeActive: marqueeState !== null,
     isEdgeEndpointDragging: edgeEndpointDragState !== null,
     hasEdgeContextMenu: edgeContextMenuState !== null,
@@ -521,6 +538,7 @@ export function Canvas() {
 
   useCanvasWheel({
     overlayContainer,
+    containerRectRef,
   });
 
   useEffect(() => {
@@ -743,7 +761,6 @@ export function Canvas() {
           container={overlayContainer}
           nodes={nodes}
           nodeOrder={visibleNodeIds}
-          fullNodeOrder={orderedNodeIds}
           viewport={viewport}
           selectedNodeIdSet={selectedNodeIdSet}
           hoveredNodeId={hoveredNodeId}

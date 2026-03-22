@@ -134,9 +134,16 @@ export function useVisibleNodeIds(): string[] {
   const [nodes, nodeOrder, viewport] = useCanvasStore(
     useShallow((state) => [state.nodes, state.nodeOrder, state.viewport]),
   );
+  const nodeIdFingerprint = useMemo(() => {
+    const keys = Object.keys(nodes);
+    keys.sort();
+    return keys.join("\0");
+  }, [nodes]);
+
   const orderedNodeIds = useMemo(
     () => resolveOrderedNodeIds(nodeOrder, nodes),
-    [nodeOrder, nodes],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodeOrder, nodeIdFingerprint],
   );
   const { enterIds: enterVisibleIds, leaveIds: leaveVisibleIds } = useMemo(
     () => getVisibleNodeIdsDual(nodes, viewport, viewportSize),

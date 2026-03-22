@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Group, Text } from "react-konva";
 import {
   getEdgeStrokeColor,
@@ -21,7 +22,7 @@ type EdgeLabelProps = {
   onContextMenu: (clientX: number, clientY: number) => void;
 };
 
-export function EdgeLabel({
+function EdgeLabelComponent({
   x,
   y,
   label,
@@ -81,3 +82,5 @@ export function EdgeLabel({
     </Group>
   );
 }
+
+export const EdgeLabel = memo(EdgeLabelComponent);

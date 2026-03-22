@@ -1,4 +1,4 @@
-import { useCallback, useRef, type MouseEventHandler } from "react";
+import { memo, useCallback, useRef, type MouseEventHandler } from "react";
 import { toNodeGeometrySnapshot } from "../../../commands/nodeCommands";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { TextNode } from "../../../types/canvas";
@@ -22,7 +22,7 @@ function getCornerCursor(
     : "nesw-resize";
 }
 
-export function WidthResizeHandle({ node, zoom }: ResizeHandleProps) {
+function WidthResizeHandleComponent({ node, zoom }: ResizeHandleProps) {
   const previewNodeGeometry = useCanvasStore(
     (state) => state.previewNodeGeometry,
   );
@@ -87,7 +87,7 @@ export function WidthResizeHandle({ node, zoom }: ResizeHandleProps) {
   );
 }
 
-export function LeftWidthResizeHandle({ node, zoom }: ResizeHandleProps) {
+function LeftWidthResizeHandleComponent({ node, zoom }: ResizeHandleProps) {
   const previewNodeGeometry = useCanvasStore(
     (state) => state.previewNodeGeometry,
   );
@@ -154,7 +154,7 @@ export function LeftWidthResizeHandle({ node, zoom }: ResizeHandleProps) {
   );
 }
 
-export function HeightResizeHandle({ node, zoom }: ResizeHandleProps) {
+function HeightResizeHandleComponent({ node, zoom }: ResizeHandleProps) {
   const previewNodeGeometry = useCanvasStore(
     (state) => state.previewNodeGeometry,
   );
@@ -220,7 +220,7 @@ export function HeightResizeHandle({ node, zoom }: ResizeHandleProps) {
   );
 }
 
-export function CornerResizeHandle({
+function CornerResizeHandleComponent({
   node,
   zoom,
   corner,
@@ -326,3 +326,8 @@ export function CornerResizeHandle({
     />
   );
 }
+
+export const WidthResizeHandle = memo(WidthResizeHandleComponent);
+export const LeftWidthResizeHandle = memo(LeftWidthResizeHandleComponent);
+export const HeightResizeHandle = memo(HeightResizeHandleComponent);
+export const CornerResizeHandle = memo(CornerResizeHandleComponent);

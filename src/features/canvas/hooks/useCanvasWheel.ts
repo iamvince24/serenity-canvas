@@ -9,6 +9,7 @@ import {
 
 type UseCanvasWheelOptions = {
   overlayContainer: HTMLElement | null;
+  containerRectRef: React.RefObject<DOMRect | null>;
 };
 
 type PendingWheelState = {
@@ -61,6 +62,7 @@ function canScrollVertically(element: HTMLElement, deltaY: number): boolean {
 
 export function useCanvasWheel({
   overlayContainer,
+  containerRectRef,
 }: UseCanvasWheelOptions): void {
   const setViewport = useCanvasStore((state) => state.setViewport);
   const pendingRef = useRef<PendingWheelState>({
@@ -185,7 +187,10 @@ export function useCanvasWheel({
         return;
       }
 
-      const rect = overlayContainer.getBoundingClientRect();
+      const rect = containerRectRef.current;
+      if (!rect) {
+        return;
+      }
       pending.pinchDeltaY += event.deltaY;
       pending.pinchPointer = {
         x: event.clientX - rect.left,
@@ -209,5 +214,5 @@ export function useCanvasWheel({
       pending.pinchPointer = null;
       overlayContainer.removeEventListener("wheel", handleWheel);
     };
-  }, [overlayContainer, setViewport]);
+  }, [containerRectRef, overlayContainer, setViewport]);
 }

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FileRecord, Group, TextNode } from "../../types/canvas";
+import {
+  createFileRecord,
+  createGroup,
+  createTextNode as baseCreateTextNode,
+} from "../../test/factories";
 import {
   AddNodeCommand,
   DeleteNodeCommand,
@@ -13,39 +17,8 @@ import {
 } from "../nodeCommands";
 import type { NodeCommandContext } from "../nodeCommands";
 
-function createTextNode(id: string, x: number, y: number): TextNode {
-  return {
-    id,
-    type: "text",
-    x,
-    y,
-    width: 200,
-    height: 100,
-    heightMode: "auto",
-    color: null,
-    contentMarkdown: "content",
-  };
-}
-
-function createGroup(id: string, nodeIds: string[]): Group {
-  return {
-    id,
-    label: "Group",
-    color: null,
-    nodeIds,
-  };
-}
-
-function createFileRecord(): FileRecord {
-  return {
-    id: "file-1",
-    asset_id: "sha1-test-hash",
-    mime_type: "image/webp",
-    original_width: 100,
-    original_height: 100,
-    byte_size: 1024,
-    created_at: 0,
-  };
+function createTextNode(id: string, x: number, y: number) {
+  return baseCreateTextNode({ id, x, y, contentMarkdown: "content" });
 }
 
 function createMockContext(): NodeCommandContext {
@@ -130,7 +103,7 @@ describe("DeleteNodeCommand", () => {
 
   it("undo 呼叫 addNode + restoreGroups + setNodeOrder", () => {
     const node = createTextNode("n1", 10, 20);
-    const groups = [createGroup("g1", ["n1"])];
+    const groups = [createGroup({ id: "g1", nodeIds: ["n1"] })];
     const cmd = new DeleteNodeCommand(ctx, {
       node,
       previousNodeOrder: ["n1", "n2"],
@@ -154,7 +127,7 @@ describe("DeleteNodeCommand", () => {
 
   it("undo 傳遞 affectedGroupSnapshots 正確", () => {
     const node = createTextNode("n1", 10, 20);
-    const groups = [createGroup("g1", ["n1", "n2"])];
+    const groups = [createGroup({ id: "g1", nodeIds: ["n1", "n2"] })];
     const cmd = new DeleteNodeCommand(ctx, {
       node,
       previousNodeOrder: ["n1"],

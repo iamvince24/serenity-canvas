@@ -44,6 +44,20 @@ function resetStore(): void {
   });
 }
 
+const mockContainerRect = {
+  x: 0,
+  y: 0,
+  left: 0,
+  top: 0,
+  right: 1200,
+  bottom: 800,
+  width: 1200,
+  height: 800,
+  toJSON: () => ({}),
+} as DOMRect;
+
+const containerRectRef = { current: mockContainerRect };
+
 function createContainer(): HTMLDivElement {
   const element = document.createElement("div");
   element.getBoundingClientRect = () => new DOMRect(0, 0, 1200, 800);
@@ -60,6 +74,7 @@ describe("useConnectionDrag", () => {
     const { result } = renderHook(() =>
       useConnectionDrag({
         container: createContainer(),
+        containerRectRef,
         viewport: { x: 0, y: 0, zoom: 1 },
         nodes: useCanvasStore.getState().nodes,
       }),

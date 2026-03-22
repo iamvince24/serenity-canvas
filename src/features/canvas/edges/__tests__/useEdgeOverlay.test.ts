@@ -35,6 +35,20 @@ function createEdge(id: string, fromNode: string, toNode: string): Edge {
   };
 }
 
+const mockContainerRect = {
+  x: 0,
+  y: 0,
+  left: 0,
+  top: 0,
+  right: 1200,
+  bottom: 800,
+  width: 1200,
+  height: 800,
+  toJSON: () => ({}),
+} as DOMRect;
+
+const containerRectRef = { current: mockContainerRect };
+
 function createContainer(): HTMLDivElement {
   const element = document.createElement("div");
   element.getBoundingClientRect = () => new DOMRect(0, 0, 1200, 800);
@@ -83,6 +97,7 @@ describe("useEdgeOverlay", () => {
       });
       return useEdgeOverlay({
         container,
+        containerRectRef,
         viewport: { x: 0, y: 0, zoom: 1 },
         nodes: useCanvasStore.getState().nodes,
         edges: useCanvasStore.getState().edges,
@@ -118,6 +133,7 @@ describe("useEdgeOverlay", () => {
       });
       return useEdgeOverlay({
         container,
+        containerRectRef,
         viewport: { x: 0, y: 0, zoom: 1 },
         nodes: useCanvasStore.getState().nodes,
         edges: useCanvasStore.getState().edges,

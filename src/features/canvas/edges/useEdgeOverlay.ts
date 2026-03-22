@@ -45,7 +45,8 @@ type EdgePreview = {
 };
 
 type UseEdgeOverlayOptions = {
-  container: HTMLElement | null;
+  container?: HTMLElement | null;
+  containerRectRef: React.RefObject<DOMRect | null>;
   viewport: ViewportState;
   nodes: Record<string, CanvasNode>;
   edges: Record<string, Edge>;
@@ -96,7 +97,7 @@ function isEdgeOverlaySlot(slot: OverlaySlot): boolean {
 }
 
 export function useEdgeOverlay({
-  container,
+  containerRectRef,
   viewport,
   nodes,
   edges,
@@ -130,13 +131,14 @@ export function useEdgeOverlay({
 
   const toCanvasPointer = useCallback(
     (clientX: number, clientY: number): Point | null => {
-      if (!container) {
+      const rect = containerRectRef.current;
+      if (!rect) {
         return null;
       }
 
-      return toCanvasPoint(clientX, clientY, container, viewport);
+      return toCanvasPoint(clientX, clientY, rect, viewport);
     },
-    [container, viewport],
+    [containerRectRef, viewport],
   );
 
   const getEdgeDragHoveredAnchor = useCallback(

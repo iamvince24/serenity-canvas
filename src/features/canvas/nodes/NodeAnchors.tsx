@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties, type PointerEvent } from "react";
+import { memo, useMemo, type CSSProperties, type PointerEvent } from "react";
 import type { CanvasNode } from "../../../types/canvas";
 import { NODE_ANCHORS, type NodeAnchor } from "../edges/edgeUtils";
 
@@ -36,7 +36,7 @@ const ANCHOR_STYLE_BY_SIDE: Record<NodeAnchor, CSSProperties> = {
   },
 };
 
-export function NodeAnchors({
+function NodeAnchorsComponent({
   node,
   visible,
   highlightedAnchor = null,
@@ -81,3 +81,5 @@ export function NodeAnchors({
     </div>
   );
 }
+
+export const NodeAnchors = memo(NodeAnchorsComponent);

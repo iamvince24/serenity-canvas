@@ -49,6 +49,20 @@ function resetStore(): void {
   });
 }
 
+const mockContainerRect = {
+  x: 0,
+  y: 0,
+  left: 0,
+  top: 0,
+  right: 1200,
+  bottom: 800,
+  width: 1200,
+  height: 800,
+  toJSON: () => ({}),
+} as DOMRect;
+
+const containerRectRef = { current: mockContainerRect };
+
 function createOverlayContainer(): HTMLDivElement {
   const element = document.createElement("div");
   element.getBoundingClientRect = () => new DOMRect(0, 0, 1200, 800);
@@ -78,6 +92,7 @@ describe("useCanvasKeyboard", () => {
     renderHook(() =>
       useCanvasKeyboard({
         overlayContainer,
+        containerRectRef,
         isMarqueeActive: false,
         isEdgeEndpointDragging: false,
         hasEdgeContextMenu: false,
@@ -103,6 +118,7 @@ describe("useCanvasKeyboard", () => {
     renderHook(() =>
       useCanvasKeyboard({
         overlayContainer,
+        containerRectRef,
         isMarqueeActive: false,
         isEdgeEndpointDragging: false,
         hasEdgeContextMenu: false,
@@ -133,6 +149,7 @@ describe("useCanvasKeyboard", () => {
     renderHook(() =>
       useCanvasKeyboard({
         overlayContainer: createOverlayContainer(),
+        containerRectRef,
         isMarqueeActive: false,
         isEdgeEndpointDragging: false,
         hasEdgeContextMenu: false,
@@ -159,6 +176,7 @@ describe("useCanvasKeyboard", () => {
     renderHook(() =>
       useCanvasKeyboard({
         overlayContainer: createOverlayContainer(),
+        containerRectRef,
         isMarqueeActive: false,
         isEdgeEndpointDragging: false,
         hasEdgeContextMenu: false,

@@ -21,7 +21,6 @@ type CardOverlayProps = {
   container: HTMLElement;
   nodes: Record<string, CanvasNode>;
   nodeOrder: string[];
-  fullNodeOrder: string[];
   viewport: ViewportState;
   selectedNodeIdSet: Set<string>;
   hoveredNodeId: string | null;
@@ -45,7 +44,6 @@ export function CardOverlay({
   container,
   nodes,
   nodeOrder,
-  fullNodeOrder,
   viewport,
   selectedNodeIdSet,
   hoveredNodeId,
@@ -73,11 +71,6 @@ export function CardOverlay({
       }),
     [nodeOrder, nodes],
   );
-  const fullOrderedNodeEntries = useMemo(
-    () => buildOrderedNodeEntries(fullNodeOrder, nodes),
-    [fullNodeOrder, nodes],
-  );
-
   return createPortal(
     <div
       className="pointer-events-none absolute inset-0 z-20"
@@ -126,27 +119,27 @@ export function CardOverlay({
             </ShapeErrorBoundary>
           ))}
 
-        {fullOrderedNodeEntries.map(({ node }) => (
-          <NodeAnchors
-            key={`anchors-${node.id}`}
-            node={node}
-            visible={
-              canvasMode === "connect" &&
-              (selectedNodeIdSet.has(node.id) ||
+        {canvasMode === "connect" &&
+          orderedNodeEntries.map(({ node }) => (
+            <NodeAnchors
+              key={`anchors-${node.id}`}
+              node={node}
+              visible={
+                selectedNodeIdSet.has(node.id) ||
                 hoveredNodeId === node.id ||
                 connectingSource?.nodeId === node.id ||
-                hoveredTarget?.nodeId === node.id)
-            }
-            highlightedAnchor={
-              connectingSource?.nodeId === node.id
-                ? connectingSource.anchor
-                : hoveredTarget?.nodeId === node.id
-                  ? hoveredTarget.anchor
-                  : null
-            }
-            onAnchorPointerDown={onAnchorPointerDown}
-          />
-        ))}
+                hoveredTarget?.nodeId === node.id
+              }
+              highlightedAnchor={
+                connectingSource?.nodeId === node.id
+                  ? connectingSource.anchor
+                  : hoveredTarget?.nodeId === node.id
+                    ? hoveredTarget.anchor
+                    : null
+              }
+              onAnchorPointerDown={onAnchorPointerDown}
+            />
+          ))}
       </div>
     </div>,
     container,
