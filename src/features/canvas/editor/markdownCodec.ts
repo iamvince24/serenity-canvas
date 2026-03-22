@@ -15,6 +15,8 @@ const INLINE_TOKEN_PATTERN =
   /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|_([^_]+)_|\*([^*]+)\*|`([^`]+)`)/g;
 const ASSET_IMAGE_LINE_PATTERN = /^!\[([^\]]*)\]\(asset:([a-f0-9]+)\)$/;
 const ASSET_IMAGE_PATTERN = /!\[[^\]]*\]\(asset:([a-f0-9]+)\)/g;
+const HIGHLIGHT_TOKEN_PATTERN =
+  /==((?:[^=]|=[^=])+)==(?:\{(#[0-9a-fA-F]{6})\})?/g;
 
 function pushPlainTextNodes(
   target: TiptapJSONContent[],
@@ -35,7 +37,7 @@ function pushPlainTextNodes(
   });
 }
 
-function parseInlineText(
+function parseInlineTokens(
   text: string,
   activeMarks: TiptapMark[] = [],
 ): TiptapJSONContent[] {
@@ -53,18 +55,18 @@ function parseInlineText(
     if (match[2] && match[3]) {
       const href = match[3].trim();
       nodes.push(
-        ...parseInlineText(match[2], [
+        ...parseInlineTokens(match[2], [
           ...activeMarks,
           { type: "link", attrs: { href } },
         ]),
       );
     } else if (match[4]) {
       nodes.push(
-        ...parseInlineText(match[4], [...activeMarks, { type: "bold" }]),
+        ...parseInlineTokens(match[4], [...activeMarks, { type: "bold" }]),
       );
     } else if (match[5] || match[6]) {
       nodes.push(
-        ...parseInlineText(match[5] ?? match[6] ?? "", [
+        ...parseInlineTokens(match[5] ?? match[6] ?? "", [
           ...activeMarks,
           { type: "italic" },
         ]),
@@ -80,6 +82,45 @@ function parseInlineText(
 
   if (cursor < text.length) {
     pushPlainTextNodes(nodes, text.slice(cursor), activeMarks);
+  }
+
+  return nodes;
+}
+
+function parseInlineText(
+  text: string,
+  activeMarks: TiptapMark[] = [],
+): TiptapJSONContent[] {
+  const nodes: TiptapJSONContent[] = [];
+  let cursor = 0;
+
+  for (const match of text.matchAll(HIGHLIGHT_TOKEN_PATTERN)) {
+    const fullMatch = match[0];
+    const start = match.index ?? 0;
+
+    if (start > cursor) {
+      nodes.push(...parseInlineTokens(text.slice(cursor, start), activeMarks));
+    }
+
+    const innerText = match[1];
+    const color = match[2] ?? null;
+    const highlightMark: TiptapMark = color
+      ? { type: "highlight", attrs: { color } }
+      : { type: "highlight" };
+
+    nodes.push(
+      ...parseInlineTokens(innerText, [...activeMarks, highlightMark]),
+    );
+
+    cursor = start + fullMatch.length;
+  }
+
+  if (cursor === 0) {
+    return parseInlineTokens(text, activeMarks);
+  }
+
+  if (cursor < text.length) {
+    nodes.push(...parseInlineTokens(text.slice(cursor), activeMarks));
   }
 
   return nodes;
@@ -349,6 +390,10 @@ function markSortWeight(type: string): number {
     return 4;
   }
 
+  if (type === "highlight") {
+    return 5;
+  }
+
   return 10;
 }
 
@@ -377,6 +422,12 @@ function applyMarks(text: string, marks: TiptapMark[] | undefined): string {
     if (mark.type === "link") {
       const href = typeof mark.attrs?.href === "string" ? mark.attrs.href : "";
       return href.length > 0 ? `[${result}](${href})` : result;
+    }
+
+    if (mark.type === "highlight") {
+      const color =
+        typeof mark.attrs?.color === "string" ? mark.attrs.color : "";
+      return color ? `==${result}=={${color}}` : `==${result}==`;
     }
 
     return result;
@@ -556,6 +607,7 @@ export function markdownToPlainText(markdown: string): string {
     .replace(/^\s*[-*+]\s+/gm, "- ")
     .replace(/^\s*\d+\.\s+/gm, "")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/==((?:[^=]|=[^=])+)==(?:\{#[0-9a-fA-F]{6}\})?/g, "$1")
     .replace(/[*_`~]/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

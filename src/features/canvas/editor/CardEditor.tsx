@@ -19,6 +19,8 @@ import { extractImageFilesFromTransfer } from "../images/editorImageTransfer";
 import { ImageBlockExtension } from "../images/imageBlockExtension";
 import { SlashCommands } from "./slashCommandExtension";
 import { TaskItemWithBackspaceBehavior } from "./taskItemExtension";
+import { HighlightMark } from "./highlightExtension";
+import { HighlightToolbar } from "./HighlightToolbar";
 import {
   markdownToTiptapDoc,
   tiptapDocToMarkdown,
@@ -50,6 +52,8 @@ type CardEditorProps = {
   onCommit?: (markdown: string) => void;
   autoFocus?: boolean;
   focusAtEndSignal?: number;
+  hlColors?: [string, string, string];
+  borderColor?: string;
 };
 
 export type CardEditorHandle = {
@@ -76,6 +80,8 @@ function CardEditorImpl(
     onCommit,
     autoFocus = false,
     focusAtEndSignal = 0,
+    hlColors,
+    borderColor,
   }: CardEditorProps,
   ref: ForwardedRef<CardEditorHandle>,
 ) {
@@ -144,6 +150,7 @@ function CardEditorImpl(
       TaskItemWithBackspaceBehavior,
       ImageBlockExtension,
       SlashCommands,
+      HighlightMark.configure({ defaultColor: hlColors?.[0] ?? null }),
     ],
     content: initialContent,
     editable: false,
@@ -388,6 +395,13 @@ function CardEditorImpl(
       onDropCapture={handleWrapperDropCapture}
     >
       <EditorContent editor={editor} className="w-full" />
+      {editor && hlColors && borderColor && (
+        <HighlightToolbar
+          editor={editor}
+          hlColors={hlColors}
+          borderColor={borderColor}
+        />
+      )}
     </div>
   );
 }

@@ -13,10 +13,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
 import type { TextNode } from "../../../types/canvas";
+import { getCardThemeTokens } from "../../../constants/colors";
 import { ImageBlockExtension } from "../images/imageBlockExtension";
 import { extractImageFilesFromTransfer } from "../images/editorImageTransfer";
 import { TaskItemWithBackspaceBehavior } from "../editor/taskItemExtension";
 import { SlashCommands } from "../editor/slashCommandExtension";
+import { HighlightMark } from "../editor/highlightExtension";
+import { HighlightToolbar } from "../editor/HighlightToolbar";
 import {
   tiptapDocToMarkdown,
   type TiptapJSONContent,
@@ -42,6 +45,7 @@ export function CardExpandModal({
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
   const lastCommittedRef = useRef(node.contentMarkdown);
   const editorRef = useRef<Editor | null>(null);
+  const tokens = getCardThemeTokens(node.color);
 
   const editor = useEditor({
     extensions: [
@@ -50,6 +54,7 @@ export function CardExpandModal({
       TaskItemWithBackspaceBehavior,
       ImageBlockExtension,
       SlashCommands,
+      HighlightMark.configure({ defaultColor: tokens.hl[0] }),
     ],
     content: parseMarkdownSafe(node.contentMarkdown),
     editable: true,
@@ -168,6 +173,13 @@ export function CardExpandModal({
           onDropCapture={handleDropCapture}
         >
           <EditorContent editor={editor} className="w-full" />
+          {editor && (
+            <HighlightToolbar
+              editor={editor}
+              hlColors={tokens.hl}
+              borderColor={tokens.border}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>

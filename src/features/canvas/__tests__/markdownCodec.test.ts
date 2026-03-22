@@ -63,3 +63,102 @@ describe("markdownCodec imageBlock", () => {
     expect(plainText).toContain("連結");
   });
 });
+
+describe("markdownCodec highlight", () => {
+  it("highlight with color can round-trip", () => {
+    const markdown = "==重要文字=={#D6E0CE}";
+
+    const doc = markdownToTiptapDoc(markdown);
+    expect(doc).toMatchObject({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "重要文字",
+              marks: [{ type: "highlight", attrs: { color: "#D6E0CE" } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(tiptapDocToMarkdown(doc)).toBe(markdown);
+  });
+
+  it("highlight without color can round-trip", () => {
+    const markdown = "==plain highlight==";
+
+    const doc = markdownToTiptapDoc(markdown);
+    expect(doc).toMatchObject({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "plain highlight",
+              marks: [{ type: "highlight" }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(tiptapDocToMarkdown(doc)).toBe(markdown);
+  });
+
+  it("highlight wrapping bold/italic text", () => {
+    const markdown = "==**bold text**=={#F0D0CE}";
+
+    const doc = markdownToTiptapDoc(markdown);
+    const textNode = doc.content?.[0]?.content?.[0];
+    expect(textNode?.text).toBe("bold text");
+    expect(textNode?.marks).toEqual(
+      expect.arrayContaining([
+        { type: "bold" },
+        { type: "highlight", attrs: { color: "#F0D0CE" } },
+      ]),
+    );
+
+    expect(tiptapDocToMarkdown(doc)).toBe(markdown);
+  });
+
+  it("highlight in heading", () => {
+    const markdown = "## ==title=={#D6E0CE}";
+
+    const doc = markdownToTiptapDoc(markdown);
+    expect(doc.content?.[0]?.type).toBe("heading");
+    expect(doc.content?.[0]?.content?.[0]?.marks).toEqual(
+      expect.arrayContaining([
+        { type: "highlight", attrs: { color: "#D6E0CE" } },
+      ]),
+    );
+
+    expect(tiptapDocToMarkdown(doc)).toBe(markdown);
+  });
+
+  it("markdownToPlainText removes highlight syntax", () => {
+    const markdown = "前文 ==highlighted=={#D6E0CE} 後文";
+    const plainText = markdownToPlainText(markdown);
+    expect(plainText).toBe("前文 highlighted 後文");
+    expect(plainText).not.toContain("==");
+    expect(plainText).not.toContain("{#");
+  });
+
+  it("multiple highlights in same paragraph", () => {
+    const markdown = "==first=={#D6E0CE} normal ==second=={#F2E4D4}";
+
+    const doc = markdownToTiptapDoc(markdown);
+    const content = doc.content?.[0]?.content;
+    expect(content).toHaveLength(3);
+    expect(content?.[0]?.marks?.[0]?.type).toBe("highlight");
+    expect(content?.[1]?.marks).toBeUndefined();
+    expect(content?.[2]?.marks?.[0]?.type).toBe("highlight");
+
+    expect(tiptapDocToMarkdown(doc)).toBe(markdown);
+  });
+});

@@ -521,6 +521,8 @@ function CardWidgetComponent({
           onCommit={handleCommit}
           autoFocus={autoFocus}
           focusAtEndSignal={focusAtEndSignal}
+          hlColors={tokens.hl}
+          borderColor={tokens.border}
         />
       </div>
 
