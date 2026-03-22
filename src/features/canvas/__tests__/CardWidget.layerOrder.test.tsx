@@ -27,10 +27,6 @@ vi.mock("../card/ResizeHandle", () => ({
   CornerResizeHandle: () => null,
 }));
 
-vi.mock("../card/useDragHandle", () => ({
-  useDragHandle: () => ({}),
-}));
-
 describe("CardWidget context menu behavior", () => {
   beforeEach(() => {
     useCanvasStore.getState().clearHistory();

@@ -35,10 +35,6 @@ vi.mock("../card/ResizeHandle", () => ({
   CornerResizeHandle: () => null,
 }));
 
-vi.mock("../card/useDragHandle", () => ({
-  useDragHandle: () => ({}),
-}));
-
 vi.mock("../edges/useConnectionDrag", () => ({
   useConnectionDrag: () => ({
     connectingSource: null,

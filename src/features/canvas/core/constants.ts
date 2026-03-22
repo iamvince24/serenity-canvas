@@ -19,7 +19,6 @@ export const DEFAULT_NODE_HEIGHT = 240;
 export const DEFAULT_NODE_CONTENT = "Start writing your thoughts...";
 export { DEFAULT_NODE_COLOR };
 
-export const HANDLE_BAR_HEIGHT = 28;
 export const IMAGE_NODE_CAPTION_HEIGHT = 56;
 export const IMAGE_NODE_CAPTION_PADDING = 10;
 export const EDGE_CURVATURE = 0.25;

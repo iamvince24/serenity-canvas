@@ -21,7 +21,7 @@ import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
 import type { TextNode } from "../../../types/canvas";
 import { CardEditor, type CardEditorHandle } from "../editor/CardEditor";
 import { CardExpandModal } from "./CardExpandModal";
-import { DEFAULT_NODE_HEIGHT, HANDLE_BAR_HEIGHT } from "../core/constants";
+import { DEFAULT_NODE_HEIGHT } from "../core/constants";
 import { extractImageFilesFromTransfer } from "../images/editorImageTransfer";
 import {
   CornerResizeHandle,
@@ -32,7 +32,6 @@ import {
 import { isPortalEvent } from "../core/domUtils";
 import { toUploadErrorMessage } from "../editor/editorImageUtils";
 import { InteractionState } from "../core/stateMachine";
-import { useDragHandle } from "./useDragHandle";
 
 type CardWidgetProps = {
   node: TextNode;
@@ -63,7 +62,6 @@ function CardWidgetComponent({
   );
   const previewNodeSize = useCanvasStore((state) => state.previewNodeSize);
   const updateNodeContent = useCanvasStore((state) => state.updateNodeContent);
-  const dragHandleProps = useDragHandle({ nodeId: node.id, zoom });
   const { startBatchDrag, previewBatchDragFromPointer, finishBatchDrag } =
     useBatchDrag({ nodeId: node.id, zoom });
   const cardEditorRef = useRef<CardEditorHandle | null>(null);
@@ -143,6 +141,7 @@ function CardWidgetComponent({
       zIndex: shouldElevateForInteraction ? layerIndex + 1000 : layerIndex,
       isolation: "isolate",
       color: tokens.text,
+      cursor: isEditing ? "auto" : "grab",
       transition: "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1)",
     };
   }, [
@@ -154,13 +153,14 @@ function CardWidgetComponent({
     node.y,
     shouldElevateForInteraction,
     tokens.text,
+    isEditing,
   ]);
 
   const editorShellStyle = useMemo<CSSProperties>(
     () => ({
       position: "absolute",
       insetInline: 0,
-      top: `${HANDLE_BAR_HEIGHT}px`,
+      top: 0,
       bottom: node.heightMode === "fixed" ? 0 : "auto",
       overflowX: "hidden",
       overflowY: node.heightMode === "fixed" ? "auto" : "visible",
@@ -270,14 +270,6 @@ function CardWidgetComponent({
     (event: ReactMouseEvent<HTMLDivElement>) => {
       if (isPortalEvent(event.target, event.currentTarget)) return;
       if (isEditing) return;
-      // Don't enter editing from handle bar double-click
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        target.closest(".card-widget__handle")
-      ) {
-        return;
-      }
       setIsEditing(true);
 
       // Delay focus to let setEditable(true) take effect first
@@ -403,10 +395,7 @@ function CardWidgetComponent({
       return;
     }
 
-    const nextHeight = Math.max(
-      DEFAULT_NODE_HEIGHT,
-      HANDLE_BAR_HEIGHT + measuredContentHeight,
-    );
+    const nextHeight = Math.max(DEFAULT_NODE_HEIGHT, measuredContentHeight);
     if (Math.abs(nextHeight - currentNode.height) < 2) {
       return;
     }
@@ -485,15 +474,6 @@ function CardWidgetComponent({
         if (!isEditing) e.preventDefault();
       }}
     >
-      <div
-        className="card-widget__handle border-b border-[#ECEAE6]"
-        {...dragHandleProps}
-      >
-        <span className="card-widget__handle-grip text-xs tracking-[0.24em]">
-          :::
-        </span>
-      </div>
-
       <button
         type="button"
         className="card-widget__expand"

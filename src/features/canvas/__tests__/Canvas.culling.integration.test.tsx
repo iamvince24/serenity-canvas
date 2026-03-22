@@ -187,32 +187,38 @@ describe("Canvas culling integration", () => {
       root.querySelector('[data-card-node-id="text-offscreen"]'),
     ).toBeNull();
 
-    const handle = root.querySelector(
-      '[data-card-node-id="text-visible"] .card-widget__handle',
+    const card = root.querySelector(
+      '[data-card-node-id="text-visible"]',
     ) as HTMLDivElement | null;
-    if (!handle) {
-      throw new Error("visible drag handle not found");
+    if (!card) {
+      throw new Error("visible card not found");
     }
 
-    fireEvent.pointerDown(handle, {
+    fireEvent.pointerDown(card, {
       pointerType: "mouse",
       button: 0,
       pointerId: 1,
       clientX: 200,
       clientY: 180,
     });
-    fireEvent.pointerMove(handle, {
-      pointerType: "mouse",
-      pointerId: 1,
-      clientX: 260,
-      clientY: 230,
-    });
-    fireEvent.pointerUp(handle, {
-      pointerType: "mouse",
-      pointerId: 1,
-      clientX: 260,
-      clientY: 230,
-    });
+
+    // Body drag uses window-level listeners
+    fireEvent(
+      window,
+      new PointerEvent("pointermove", {
+        pointerId: 1,
+        clientX: 260,
+        clientY: 230,
+      }),
+    );
+    fireEvent(
+      window,
+      new PointerEvent("pointerup", {
+        pointerId: 1,
+        clientX: 260,
+        clientY: 230,
+      }),
+    );
 
     const movedNode = useCanvasStore.getState().nodes["text-visible"];
     expect(movedNode?.x).toBe(180);

@@ -83,7 +83,6 @@
   --border: #e5e3df;
   --border-strong: #d1cfc9;
   --divider: #f0eeea;
-  --card-handle-height: 28px;
   --resize-edge-hit: 16px;
   --resize-corner-hit: 20px;
   --editor-blockquote-border: #cfd6ca;
@@ -368,45 +367,6 @@
 
   .card-editor {
     background: transparent;
-  }
-
-  .card-widget__handle {
-    position: absolute;
-    inset-inline: 0;
-    top: 0;
-    z-index: 10;
-    height: var(--card-handle-height);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 0 10px;
-    cursor: grab;
-    user-select: none;
-    touch-action: none;
-    color: var(--foreground-subtle);
-    background: color-mix(in srgb, var(--elevated) 92%, transparent);
-    opacity: 0;
-    transition: opacity 120ms ease;
-  }
-
-  .card-widget:hover .card-widget__handle,
-  .card-widget--selected .card-widget__handle,
-  .card-widget:focus-within .card-widget__handle {
-    opacity: 1;
-  }
-
-  .card-widget__handle:active {
-    cursor: grabbing;
-  }
-
-  .card-widget__handle-grip {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    letter-spacing: 0.24em;
-    pointer-events: none;
-    white-space: nowrap;
   }
 
   .card-widget__settings {

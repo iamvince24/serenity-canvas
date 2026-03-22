@@ -9,7 +9,6 @@ import type {
 } from "@/types/canvas";
 import { extractAssetIdsFromMarkdown } from "../editor/markdownCodec";
 import { getEdgeRoute } from "../edges/edgeUtils";
-import { HANDLE_BAR_HEIGHT } from "../core/constants";
 import {
   canvasFileName,
   imageFileName,
@@ -26,8 +25,8 @@ import type {
 const GROUP_PADDING = 20;
 
 /**
- * Serenity 文字卡片：28px 把手 + 16px×2 內距 + 2px 邊框 = 62px 裝飾區域。
- * 內容高度 = height − 62。
+ * Serenity 文字卡片：16px×2 內距 + 2px 邊框 = 34px 裝飾區域。
+ * 內容高度 = height − 34。
  *
  * Obsidian 文字節點以「閱讀模式」渲染 markdown：
  *  - ~20px×2 內距 ≈ 40px 裝飾區域
@@ -35,7 +34,7 @@ const GROUP_PADDING = 20;
  *  - 段落 <p> 的 margin 增加額外的垂直空間（每段間距約 0.75em）
  * 綜合影響需要 ~1.3× 的內容高度縮放。
  */
-const SERENITY_CHROME = HANDLE_BAR_HEIGHT + 16 * 2 + 2; // 62px
+const SERENITY_CHROME = 16 * 2 + 2; // 34px
 const OBSIDIAN_CHROME = 40;
 const LINE_HEIGHT_SCALE = 1.3;
 
