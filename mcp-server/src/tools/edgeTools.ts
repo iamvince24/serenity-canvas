@@ -1,15 +1,18 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { supabase, isServiceRoleMode } from "../supabaseClient.js";
-import { getChangesetId } from "../changeset.js";
+import { resolveChangesetId } from "../changeset.js";
 import { ok, fail } from "../helpers.js";
+import type { McpContext } from "../types.js";
 
 const anchorEnum = z
   .enum(["top", "right", "bottom", "left"])
   .describe("Anchor position on the node");
 
-export function registerEdgeTools(server: McpServer) {
+export function registerEdgeTools(
+  server: McpServer,
+  getContext: () => McpContext,
+) {
   server.tool(
     "create_edge",
     "Create a connection (edge) between two nodes on the same board.",
@@ -36,6 +39,13 @@ export function registerEdgeTools(server: McpServer) {
         .nullable()
         .default(null)
         .describe("Edge color (null=default)"),
+      changeset_id: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          "Optional changeset ID (for remote mode). Auto-generated if omitted.",
+        ),
     },
     async ({
       board_id,
@@ -47,14 +57,16 @@ export function registerEdgeTools(server: McpServer) {
       label,
       line_style,
       color,
+      changeset_id,
     }) => {
       try {
+        const { client, isServiceRole } = getContext();
         const edgeId = randomUUID();
         const now = new Date().toISOString();
-        const changesetId = getChangesetId();
+        const changesetId = resolveChangesetId(changeset_id);
 
         // Get board owner
-        const { data: board, error: boardErr } = await supabase
+        const { data: board, error: boardErr } = await client
           .from("boards")
           .select("user_id")
           .eq("id", board_id)
@@ -62,7 +74,7 @@ export function registerEdgeTools(server: McpServer) {
         if (boardErr || !board) return fail("Board not found: " + board_id);
 
         // Verify both nodes exist
-        const { data: nodes, error: nodesErr } = await supabase
+        const { data: nodes, error: nodesErr } = await client
           .from("nodes")
           .select("id")
           .eq("board_id", board_id)
@@ -89,10 +101,10 @@ export function registerEdgeTools(server: McpServer) {
           updated_at: now,
           changeset_id: changesetId,
           change_status: "pending",
-          ...(isServiceRoleMode() ? { user_id: board.user_id } : {}),
+          ...(isServiceRole ? { user_id: board.user_id } : {}),
         };
 
-        const { error: insertErr } = await supabase
+        const { error: insertErr } = await client
           .from("edges")
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .insert(insertData as any);
@@ -133,6 +145,13 @@ export function registerEdgeTools(server: McpServer) {
         .nullable()
         .optional()
         .describe("New color (null=default)"),
+      changeset_id: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          "Optional changeset ID (for remote mode). Auto-generated if omitted.",
+        ),
     },
     async ({
       edge_id,
@@ -143,10 +162,12 @@ export function registerEdgeTools(server: McpServer) {
       source_anchor,
       target_anchor,
       color,
+      changeset_id,
     }) => {
       try {
+        const { client } = getContext();
         const now = new Date().toISOString();
-        const changesetId = getChangesetId();
+        const changesetId = resolveChangesetId(changeset_id);
 
         const updates: Record<string, unknown> = {
           updated_at: now,
@@ -161,7 +182,7 @@ export function registerEdgeTools(server: McpServer) {
         if (target_anchor !== undefined) updates.to_anchor = target_anchor;
         if (color !== undefined) updates.color = color;
 
-        const { error } = await supabase
+        const { error } = await client
           .from("edges")
           .update(updates)
           .eq("id", edge_id)
@@ -191,12 +212,20 @@ export function registerEdgeTools(server: McpServer) {
         .array(z.string().uuid())
         .min(1)
         .describe("Array of edge IDs to delete"),
+      changeset_id: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          "Optional changeset ID (for remote mode). Auto-generated if omitted.",
+        ),
     },
     async ({ board_id, edge_ids }) => {
       try {
+        const { client } = getContext();
         const now = new Date().toISOString();
 
-        const { error } = await supabase
+        const { error } = await client
           .from("edges")
           .update({ deleted_at: now, updated_at: now })
           .eq("board_id", board_id)

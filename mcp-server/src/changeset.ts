@@ -14,3 +14,9 @@ export function newChangeset(): string {
   currentChangesetId = randomUUID();
   return currentChangesetId;
 }
+
+/** Remote mode: use explicit param; stdio fallback: module-level state */
+export function resolveChangesetId(paramId?: string): string {
+  if (paramId) return paramId;
+  return getChangesetId();
+}

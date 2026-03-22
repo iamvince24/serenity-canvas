@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "build:mcp": "tsc -p mcp-server/tsconfig.json",
     "mcp:dev": "tsx mcp-server/src/index.ts",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p e2e/tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p e2e/tsconfig.json --noEmit && tsc -p api/tsconfig.json --noEmit",
     "lint": "eslint . && pnpm typecheck",
     "preview": "vite preview",
     "prepare": "husky",
@@ -72,7 +72,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "tsc-alias": "^1.8.15",
     "tsx": "^4.19.4",
     "@eslint/js": "^9.39.1",

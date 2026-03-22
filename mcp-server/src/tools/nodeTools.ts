@@ -1,12 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { supabase, isServiceRoleMode } from "../supabaseClient.js";
-import { fromDbNode } from "@/shared/serializers.js";
-import { getChangesetId } from "../changeset.js";
+import { fromDbNode } from "../../../src/shared/serializers.js";
+import { resolveChangesetId } from "../changeset.js";
 import { ok, fail } from "../helpers.js";
+import type { McpContext } from "../types.js";
 
-export function registerNodeTools(server: McpServer) {
+export function registerNodeTools(
+  server: McpServer,
+  getContext: () => McpContext,
+) {
   server.tool(
     "create_node",
     "Create a new text node on a whiteboard. IMPORTANT: Provide x and y coordinates to position the card — without coordinates, cards stack at the default position (100, 100). For multiple cards, space them out (e.g., increment y by 200 for each card).",
@@ -37,15 +40,32 @@ export function registerNodeTools(server: McpServer) {
         .describe(
           "Card color (null=white, or numeric preset like '1','2','3','4','5','6')",
         ),
+      changeset_id: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          "Optional changeset ID (for remote mode). Auto-generated if omitted.",
+        ),
     },
-    async ({ board_id, content_markdown, x, y, width, height, color }) => {
+    async ({
+      board_id,
+      content_markdown,
+      x,
+      y,
+      width,
+      height,
+      color,
+      changeset_id,
+    }) => {
       try {
+        const { client, isServiceRole } = getContext();
         const nodeId = randomUUID();
         const now = new Date().toISOString();
-        const changesetId = getChangesetId();
+        const changesetId = resolveChangesetId(changeset_id);
 
         // Get board owner for user_id
-        const { data: board, error: boardErr } = await supabase
+        const { data: board, error: boardErr } = await client
           .from("boards")
           .select("user_id")
           .eq("id", board_id)
@@ -69,17 +89,17 @@ export function registerNodeTools(server: McpServer) {
           updated_at: now,
           changeset_id: changesetId,
           change_status: "pending",
-          ...(isServiceRoleMode() ? { user_id: board.user_id } : {}),
+          ...(isServiceRole ? { user_id: board.user_id } : {}),
         };
 
-        const { error: insertErr } = await supabase
+        const { error: insertErr } = await client
           .from("nodes")
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .insert(insertData as any);
         if (insertErr) return fail(insertErr.message);
 
         // Append to node_order (select-then-update with optimistic lock)
-        const { data: boardData, error: fetchErr } = await supabase
+        const { data: boardData, error: fetchErr } = await client
           .from("boards")
           .select("node_order, updated_at")
           .eq("id", board_id)
@@ -91,7 +111,7 @@ export function registerNodeTools(server: McpServer) {
           : [];
         const newOrder = [...currentOrder, nodeId];
 
-        const { error: updateErr } = await supabase
+        const { error: updateErr } = await client
           .from("boards")
           .update({
             node_order: newOrder,
@@ -132,6 +152,13 @@ export function registerNodeTools(server: McpServer) {
         .nullable()
         .optional()
         .describe("New color (null=white)"),
+      changeset_id: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          "Optional changeset ID (for remote mode). Auto-generated if omitted.",
+        ),
     },
     async ({
       node_id,
@@ -142,13 +169,15 @@ export function registerNodeTools(server: McpServer) {
       width,
       height,
       color,
+      changeset_id,
     }) => {
       try {
+        const { client } = getContext();
         const now = new Date().toISOString();
-        const changesetId = getChangesetId();
+        const changesetId = resolveChangesetId(changeset_id);
 
         // Fetch current node to merge content
-        const { data: current, error: fetchErr } = await supabase
+        const { data: current, error: fetchErr } = await client
           .from("nodes")
           .select("*")
           .eq("id", node_id)
@@ -180,7 +209,7 @@ export function registerNodeTools(server: McpServer) {
           };
         }
 
-        const { error: updateErr } = await supabase
+        const { error: updateErr } = await client
           .from("nodes")
           .update(updates)
           .eq("id", node_id)
@@ -209,13 +238,21 @@ export function registerNodeTools(server: McpServer) {
         .array(z.string().uuid())
         .min(1)
         .describe("Array of node IDs to delete"),
+      changeset_id: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          "Optional changeset ID (for remote mode). Auto-generated if omitted.",
+        ),
     },
     async ({ board_id, node_ids }) => {
       try {
+        const { client } = getContext();
         const now = new Date().toISOString();
 
         // Soft delete nodes
-        const { error: nodeErr } = await supabase
+        const { error: nodeErr } = await client
           .from("nodes")
           .update({ deleted_at: now, updated_at: now })
           .eq("board_id", board_id)
@@ -223,14 +260,14 @@ export function registerNodeTools(server: McpServer) {
         if (nodeErr) return fail(nodeErr.message);
 
         // Soft delete associated edges (where source or target is a deleted node)
-        const { error: edgeErr1 } = await supabase
+        const { error: edgeErr1 } = await client
           .from("edges")
           .update({ deleted_at: now, updated_at: now })
           .eq("board_id", board_id)
           .in("from_node", node_ids);
         if (edgeErr1) return fail(edgeErr1.message);
 
-        const { error: edgeErr2 } = await supabase
+        const { error: edgeErr2 } = await client
           .from("edges")
           .update({ deleted_at: now, updated_at: now })
           .eq("board_id", board_id)
@@ -238,7 +275,7 @@ export function registerNodeTools(server: McpServer) {
         if (edgeErr2) return fail(edgeErr2.message);
 
         // Remove from node_order
-        const { data: boardData, error: fetchErr } = await supabase
+        const { data: boardData, error: fetchErr } = await client
           .from("boards")
           .select("node_order")
           .eq("id", board_id)
@@ -249,7 +286,7 @@ export function registerNodeTools(server: McpServer) {
             : [];
           const deletedSet = new Set(node_ids);
           const newOrder = currentOrder.filter((id) => !deletedSet.has(id));
-          await supabase
+          await client
             .from("boards")
             .update({ node_order: newOrder, updated_at: now })
             .eq("id", board_id);
@@ -280,8 +317,9 @@ export function registerNodeTools(server: McpServer) {
     },
     async ({ query, board_id }) => {
       try {
+        const { client } = getContext();
         // Use ilike on the JSONB content field for text search
-        let dbQuery = supabase
+        let dbQuery = client
           .from("nodes")
           .select("*")
           .is("deleted_at", null)

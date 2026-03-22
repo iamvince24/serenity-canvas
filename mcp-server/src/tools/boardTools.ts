@@ -1,11 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { supabase } from "../supabaseClient.js";
-import { fromDbNode } from "@/shared/serializers.js";
-import { fromDbEdge } from "@/shared/serializers.js";
+import { fromDbNode, fromDbEdge } from "../../../src/shared/serializers.js";
 import { ok, fail } from "../helpers.js";
+import type { McpContext } from "../types.js";
 
-export function registerBoardTools(server: McpServer) {
+export function registerBoardTools(
+  server: McpServer,
+  getContext: () => McpContext,
+) {
   server.tool(
     "list_boards",
     "List all whiteboards. Returns board id, title, node count, and last updated time.",
@@ -18,7 +20,8 @@ export function registerBoardTools(server: McpServer) {
     },
     async ({ owner_id }) => {
       try {
-        let query = supabase
+        const { client } = getContext();
+        let query = client
           .from("boards")
           .select("id, title, node_order, created_at, updated_at")
           .order("updated_at", { ascending: false });
@@ -55,19 +58,20 @@ export function registerBoardTools(server: McpServer) {
     },
     async ({ board_id }) => {
       try {
+        const { client } = getContext();
         const [boardRes, nodesRes, edgesRes] = await Promise.all([
-          supabase
+          client
             .from("boards")
             .select("id, title, node_order, created_at, updated_at")
             .eq("id", board_id)
             .single(),
-          supabase
+          client
             .from("nodes")
             .select("*")
             .eq("board_id", board_id)
             .is("deleted_at", null)
             .eq("change_status", "accepted"),
-          supabase
+          client
             .from("edges")
             .select("*")
             .eq("board_id", board_id)
