@@ -13,10 +13,15 @@ async function callbackHandler(req: Request): Promise<Response> {
 
   const url = new URL(req.url);
   const supabaseCode = url.searchParams.get("code");
-  const sessionKey = url.searchParams.get("state");
+  // session_key is passed via the redirect_to URL query param (set in authorize.ts),
+  // NOT via Supabase's state param (which Supabase uses for its own CSRF protection).
+  const sessionKey = url.searchParams.get("session_key");
 
   if (!supabaseCode || !sessionKey) {
-    return oauthError("invalid_request", "Missing code or state parameter");
+    return oauthError(
+      "invalid_request",
+      "Missing code or session_key parameter",
+    );
   }
 
   // Look up our OAuth session

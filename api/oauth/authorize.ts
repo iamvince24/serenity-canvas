@@ -109,13 +109,15 @@ async function authorizeHandler(req: Request): Promise<Response> {
   // Redirect to Supabase Google OAuth
   const supabaseUrl = process.env.SUPABASE_URL!;
   const mcpServerUrl = process.env.MCP_SERVER_URL!;
-  const callbackUrl = `${mcpServerUrl}/api/oauth/callback`;
+  // Encode session_key in the redirect_to URL so we can retrieve it in callback.
+  // We must NOT use Supabase's `state` param — Supabase uses it internally for
+  // CSRF protection and overwriting it causes `bad_oauth_state` errors.
+  const callbackUrl = new URL(`${mcpServerUrl}/api/oauth/callback`);
+  callbackUrl.searchParams.set("session_key", sessionKey);
 
   const supabaseAuthUrl = new URL(`${supabaseUrl}/auth/v1/authorize`);
   supabaseAuthUrl.searchParams.set("provider", "google");
-  supabaseAuthUrl.searchParams.set("redirect_to", callbackUrl);
-  // Pass our session_key as state to Supabase so we can retrieve it in callback
-  supabaseAuthUrl.searchParams.set("state", sessionKey);
+  supabaseAuthUrl.searchParams.set("redirect_to", callbackUrl.toString());
   // Request PKCE flow from Supabase with our generated challenge
   supabaseAuthUrl.searchParams.set("flow_type", "pkce");
   supabaseAuthUrl.searchParams.set("code_challenge", supabaseCodeChallenge);
