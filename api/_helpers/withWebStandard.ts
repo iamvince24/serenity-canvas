@@ -34,22 +34,22 @@ async function toWebRequest(nodeReq: IncomingMessage): Promise<Request> {
   const method = nodeReq.method ?? "GET";
   const hasBody = method !== "GET" && method !== "HEAD";
 
-  let body: ArrayBuffer | null = null;
+  let body: Uint8Array | null = null;
   if (hasBody) {
-    body = await new Promise<ArrayBuffer>((resolve, reject) => {
+    const buf = await new Promise<Buffer>((resolve, reject) => {
       const chunks: Buffer[] = [];
       nodeReq.on("data", (chunk: Buffer) => chunks.push(chunk));
-      nodeReq.on("end", () =>
-        resolve(Buffer.concat(chunks).buffer as ArrayBuffer),
-      );
+      nodeReq.on("end", () => resolve(Buffer.concat(chunks)));
       nodeReq.on("error", reject);
     });
+    // Use Uint8Array.from() to avoid ArrayBuffer offset issues with Node.js Buffer
+    body = new Uint8Array(buf);
   }
 
   return new Request(url.toString(), {
     method,
     headers,
-    body,
+    body: body as BodyInit | null,
   });
 }
 
