@@ -3,6 +3,7 @@ import "../_helpers/loadEnv.js";
 import { adminClient } from "../_helpers/supabaseAdmin.js";
 import { oauthError } from "../_helpers/oauthError.js";
 import { getClientIp, checkRateLimit } from "../_helpers/rateLimit.js";
+import { withWebStandard } from "../_helpers/withWebStandard.js";
 
 /** Base64url encode a buffer (no padding). */
 function base64url(buf: Buffer): string {
@@ -14,7 +15,7 @@ function base64url(buf: Buffer): string {
 }
 
 /** OAuth 2.1 Authorization Endpoint — redirects to Supabase Google OAuth */
-export default async function handler(req: Request): Promise<Response> {
+async function authorizeHandler(req: Request): Promise<Response> {
   if (req.method !== "GET") {
     return oauthError("invalid_request", "GET only", 405);
   }
@@ -122,3 +123,5 @@ export default async function handler(req: Request): Promise<Response> {
 
   return Response.redirect(supabaseAuthUrl.toString(), 302);
 }
+
+export default withWebStandard(authorizeHandler);

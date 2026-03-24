@@ -5,10 +5,11 @@ import { createSupabaseForUser } from "../mcp-server/src/supabaseClient.js";
 import { adminClient } from "./_helpers/supabaseAdmin.js";
 import { oauthError } from "./_helpers/oauthError.js";
 import { getClientIp, checkRateLimit } from "./_helpers/rateLimit.js";
+import { withWebStandard } from "./_helpers/withWebStandard.js";
 
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "";
 
-export default async function handler(req: Request): Promise<Response> {
+async function mcpHandler(req: Request): Promise<Response> {
   try {
     // OPTIONS preflight
     if (req.method === "OPTIONS") {
@@ -85,3 +86,5 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 }
+
+export default withWebStandard(mcpHandler);

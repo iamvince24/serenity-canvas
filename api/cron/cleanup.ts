@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import "../_helpers/loadEnv.js";
 import { adminClient } from "../_helpers/supabaseAdmin.js";
+import { withWebStandard } from "../_helpers/withWebStandard.js";
 
 function verifySecret(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -13,7 +14,7 @@ function verifySecret(req: Request): boolean {
 }
 
 /** Vercel Cron — cleanup expired OAuth data and old rate limit entries */
-export default async function handler(req: Request): Promise<Response> {
+async function cleanupHandler(req: Request): Promise<Response> {
   if (!verifySecret(req)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
@@ -70,3 +71,5 @@ export default async function handler(req: Request): Promise<Response> {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+export default withWebStandard(cleanupHandler);

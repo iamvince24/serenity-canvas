@@ -3,9 +3,10 @@ import "../_helpers/loadEnv.js";
 import { adminClient } from "../_helpers/supabaseAdmin.js";
 import { oauthError } from "../_helpers/oauthError.js";
 import { encrypt } from "../_helpers/encryption.js";
+import { withWebStandard } from "../_helpers/withWebStandard.js";
 
 /** OAuth Callback — exchanges Supabase auth code for session, issues MCP auth code */
-export default async function handler(req: Request): Promise<Response> {
+async function callbackHandler(req: Request): Promise<Response> {
   if (req.method !== "GET") {
     return oauthError("invalid_request", "GET only", 405);
   }
@@ -127,3 +128,5 @@ export default async function handler(req: Request): Promise<Response> {
 
   return Response.redirect(redirectUrl.toString(), 302);
 }
+
+export default withWebStandard(callbackHandler);

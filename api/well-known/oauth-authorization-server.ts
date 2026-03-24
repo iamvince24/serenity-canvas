@@ -1,8 +1,9 @@
 import "../_helpers/loadEnv.js";
+import { withWebStandard } from "../_helpers/withWebStandard.js";
 
 /** RFC 8414 — OAuth Authorization Server Metadata */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function handler(_req: Request): Response {
+function oauthServerMetadata(_req: Request): Response {
   const baseUrl = process.env.MCP_SERVER_URL!;
 
   return new Response(
@@ -25,3 +26,5 @@ export default function handler(_req: Request): Response {
     },
   );
 }
+
+export default withWebStandard(oauthServerMetadata);

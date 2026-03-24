@@ -2,9 +2,10 @@ import "../_helpers/loadEnv.js";
 import { adminClient } from "../_helpers/supabaseAdmin.js";
 import { oauthError } from "../_helpers/oauthError.js";
 import { getClientIp, checkRateLimit } from "../_helpers/rateLimit.js";
+import { withWebStandard } from "../_helpers/withWebStandard.js";
 
 /** RFC 7591 — Dynamic Client Registration */
-export default async function handler(req: Request): Promise<Response> {
+async function registerHandler(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return oauthError("invalid_request", "POST only", 405);
   }
@@ -87,3 +88,5 @@ export default async function handler(req: Request): Promise<Response> {
     },
   );
 }
+
+export default withWebStandard(registerHandler);

@@ -1,8 +1,9 @@
 import "../_helpers/loadEnv.js";
+import { withWebStandard } from "../_helpers/withWebStandard.js";
 
 /** RFC 9728 — OAuth Protected Resource Metadata */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function handler(_req: Request): Response {
+function oauthResourceMetadata(_req: Request): Response {
   const baseUrl = process.env.MCP_SERVER_URL!;
 
   return new Response(
@@ -20,3 +21,5 @@ export default function handler(_req: Request): Response {
     },
   );
 }
+
+export default withWebStandard(oauthResourceMetadata);

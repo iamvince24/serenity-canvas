@@ -5,6 +5,7 @@ import { adminClient } from "../_helpers/supabaseAdmin.js";
 import { oauthError } from "../_helpers/oauthError.js";
 import { getClientIp, checkRateLimit } from "../_helpers/rateLimit.js";
 import { decrypt } from "../_helpers/encryption.js";
+import { withWebStandard } from "../_helpers/withWebStandard.js";
 
 /** Parse request body from either application/x-www-form-urlencoded or application/json */
 async function parseBody(req: Request): Promise<Record<string, string>> {
@@ -35,7 +36,7 @@ function verifyPkce(codeVerifier: string, codeChallenge: string): boolean {
 }
 
 /** OAuth 2.1 Token Endpoint */
-export default async function handler(req: Request): Promise<Response> {
+async function tokenHandler(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return oauthError("invalid_request", "POST only", 405);
   }
@@ -68,6 +69,8 @@ export default async function handler(req: Request): Promise<Response> {
     "Supported: authorization_code, refresh_token",
   );
 }
+
+export default withWebStandard(tokenHandler);
 
 async function handleAuthorizationCode(
   body: Record<string, string>,
