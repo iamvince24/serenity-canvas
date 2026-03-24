@@ -47,7 +47,6 @@ import { useImageUpload } from "./images/useImageUpload";
 import { type ContextMenuNodeType } from "./nodes/NodeContextMenu";
 import { resolveOrderedNodeIds } from "./nodes/orderUtils";
 import { buildSpatialGrid, queryTopNodeAt } from "./core/spatialIndex";
-import { ChangesetReviewPanel } from "./changeset/ChangesetReviewPanel";
 import { PendingNodeOverlay } from "./changeset/PendingNodeOverlay";
 
 type StageSize = {
@@ -128,7 +127,6 @@ export function Canvas() {
     canvasMode,
   } = useCanvasData();
   const stageRef = useRef<Konva.Stage | null>(null);
-  const currentBoardId = useCanvasStore((s) => s.currentBoardId);
   const { selectNode, selectEdge, selectGroup, addNode, addFile } =
     useCanvasActions();
   const { uploadImageFile } = useImageUpload();
@@ -796,9 +794,6 @@ export function Canvas() {
       />
 
       <PendingNodeOverlay />
-      {currentBoardId ? (
-        <ChangesetReviewPanel boardId={currentBoardId} />
-      ) : null}
     </div>
   );
 }

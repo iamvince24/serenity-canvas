@@ -80,7 +80,7 @@ export function ChangesetReviewPanel({ boardId }: ChangesetReviewPanelProps) {
   if (changesets.length === 0) return null;
 
   return (
-    <div className="pointer-events-auto absolute right-4 top-4 z-50 flex w-64 flex-col gap-2">
+    <div className="pointer-events-auto fixed right-4 top-4 z-50 flex w-64 flex-col gap-2">
       {changesets.map((cs) => (
         <ChangesetItem key={cs.changesetId} changeset={cs} boardId={boardId} />
       ))}

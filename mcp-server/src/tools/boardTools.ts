@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 import { fromDbNode, fromDbEdge } from "../../../src/shared/serializers.js";
 import { ok, fail } from "../helpers.js";
 import type { McpContext } from "../types.js";
@@ -45,6 +46,58 @@ export function registerBoardTools(
       } catch (err) {
         return fail(
           err instanceof Error ? err.message : "Unknown error in list_boards",
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "create_board",
+    "Create a new whiteboard. Returns the created board's id, title, node_order, and timestamps.",
+    {
+      title: z.string().min(1).describe("Title for the new whiteboard"),
+    },
+    async ({ title }) => {
+      try {
+        const { client, isServiceRole } = getContext();
+
+        if (isServiceRole) {
+          return fail(
+            "create_board requires an authenticated user. Service role cannot determine the owner.",
+          );
+        }
+
+        const {
+          data: { user },
+          error: userErr,
+        } = await client.auth.getUser();
+        if (userErr || !user)
+          return fail("Unable to determine authenticated user");
+
+        const id = randomUUID();
+        const now = new Date().toISOString();
+
+        const { error } = await client.from("boards").insert({
+          id,
+          user_id: user.id,
+          title,
+          node_order: [],
+          created_at: now,
+          updated_at: now,
+        });
+
+        if (error) return fail(error.message);
+
+        return ok({
+          id,
+          title,
+          node_order: [],
+          created_at: now,
+          updated_at: now,
+        });
+      } catch (err) {
+        return fail(
+          err instanceof Error ? err.message : "Unknown error in create_board",
         );
       }
     },

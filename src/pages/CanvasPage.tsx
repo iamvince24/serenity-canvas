@@ -11,6 +11,7 @@ import { flushCanvasPersistence, useCanvasStore } from "../stores/canvasStore";
 import "../stores/canvasStoreSideEffects";
 import { useAuthStore } from "../stores/authStore";
 import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
+import { ChangesetReviewPanel } from "../features/canvas/changeset/ChangesetReviewPanel";
 import { MobileWarningDialog } from "../components/MobileWarningDialog";
 
 interface CanvasPageProps {
@@ -113,6 +114,8 @@ export function CanvasPage({ boardId, sidebarOpen }: CanvasPageProps) {
             onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
             sidebarOpen={sidebarOpen}
           />
+
+          <ChangesetReviewPanel boardId={boardId} />
 
           {import.meta.env.DEV && showFpsOverlay ? (
             <FpsOverlay visible />
