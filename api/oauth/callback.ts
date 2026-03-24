@@ -1,5 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
 import "../_helpers/loadEnv.js";
 import { adminClient } from "../_helpers/supabaseAdmin.js";
 import { oauthError } from "../_helpers/oauthError.js";
@@ -39,29 +38,33 @@ export default async function handler(req: Request): Promise<Response> {
     return oauthError("invalid_request", "Session expired");
   }
 
-  // Exchange Supabase auth code for session tokens
-  // Use a temporary client with PKCE code exchange
-  const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        flowType: "pkce",
-      },
+  // Exchange Supabase auth code for session tokens using direct API call.
+  // We can't use the Supabase SDK here because exchangeCodeForSession()
+  // requires a stored code_verifier in local storage, which doesn't exist
+  // in a stateless serverless environment.
+  const supabaseUrl = process.env.SUPABASE_URL!;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+
+  const tokenRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=pkce`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
     },
-  );
+    body: JSON.stringify({
+      auth_code: supabaseCode,
+      code_verifier: session.supabase_code_verifier,
+    }),
+  });
 
-  const { data: authData, error: authError } =
-    await supabase.auth.exchangeCodeForSession(supabaseCode);
-
-  if (authError || !authData.session) {
+  if (!tokenRes.ok) {
+    const errBody = await tokenRes.text();
     console.error(
       "[oauth/callback] Supabase code exchange error:",
-      authError?.message,
+      tokenRes.status,
+      errBody,
     );
-    // Redirect to client with error
     const errorRedirect = new URL(session.redirect_uri);
     errorRedirect.searchParams.set("error", "server_error");
     errorRedirect.searchParams.set(
@@ -72,7 +75,13 @@ export default async function handler(req: Request): Promise<Response> {
     return Response.redirect(errorRedirect.toString(), 302);
   }
 
-  const { access_token, refresh_token, user } = authData.session;
+  const tokenData = (await tokenRes.json()) as {
+    access_token: string;
+    refresh_token: string;
+    user: { id: string };
+  };
+
+  const { access_token, refresh_token, user } = tokenData;
 
   // Encrypt Supabase tokens for storage
   const encryptedTokens = encrypt(

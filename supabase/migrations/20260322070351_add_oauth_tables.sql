@@ -1,8 +1,11 @@
 -- OAuth 2.1 Authorization Server tables
 
+-- Enable pgcrypto for gen_random_bytes()
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
 -- oauth_clients: Dynamic Client Registration (RFC 7591)
 CREATE TABLE oauth_clients (
-  client_id TEXT PRIMARY KEY DEFAULT encode(gen_random_bytes(32), 'hex'),
+  client_id TEXT PRIMARY KEY DEFAULT encode(extensions.gen_random_bytes(32), 'hex'),
   client_name TEXT,
   redirect_uris TEXT[] NOT NULL,
   last_used_at TIMESTAMPTZ,

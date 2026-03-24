@@ -1,8 +1,17 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import "../_helpers/loadEnv.js";
 import { adminClient } from "../_helpers/supabaseAdmin.js";
 import { oauthError } from "../_helpers/oauthError.js";
 import { getClientIp, checkRateLimit } from "../_helpers/rateLimit.js";
+
+/** Base64url encode a buffer (no padding). */
+function base64url(buf: Buffer): string {
+  return buf
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
 
 /** OAuth 2.1 Authorization Endpoint — redirects to Supabase Google OAuth */
 export default async function handler(req: Request): Promise<Response> {
@@ -68,6 +77,14 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
+  // Generate PKCE pair for the Supabase leg of the OAuth flow.
+  // We store the code_verifier in the session so the serverless callback
+  // can exchange the Supabase auth code (no persistent storage in serverless).
+  const supabaseCodeVerifier = base64url(randomBytes(32));
+  const supabaseCodeChallenge = base64url(
+    createHash("sha256").update(supabaseCodeVerifier).digest(),
+  );
+
   // Create session for PKCE state
   const sessionKey = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
@@ -80,6 +97,7 @@ export default async function handler(req: Request): Promise<Response> {
     code_challenge_method: codeChallengeMethod,
     state,
     expires_at: expiresAt,
+    supabase_code_verifier: supabaseCodeVerifier,
   });
 
   if (insertErr) {
@@ -97,8 +115,10 @@ export default async function handler(req: Request): Promise<Response> {
   supabaseAuthUrl.searchParams.set("redirect_to", callbackUrl);
   // Pass our session_key as state to Supabase so we can retrieve it in callback
   supabaseAuthUrl.searchParams.set("state", sessionKey);
-  // Request PKCE flow from Supabase
+  // Request PKCE flow from Supabase with our generated challenge
   supabaseAuthUrl.searchParams.set("flow_type", "pkce");
+  supabaseAuthUrl.searchParams.set("code_challenge", supabaseCodeChallenge);
+  supabaseAuthUrl.searchParams.set("code_challenge_method", "S256");
 
   return Response.redirect(supabaseAuthUrl.toString(), 302);
 }

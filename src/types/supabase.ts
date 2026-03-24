@@ -434,6 +434,7 @@ export type Database = {
           redirect_uri: string;
           session_key: string;
           state: string | null;
+          supabase_code_verifier: string | null;
         };
         Insert: {
           client_id: string;
@@ -444,6 +445,7 @@ export type Database = {
           redirect_uri: string;
           session_key: string;
           state?: string | null;
+          supabase_code_verifier?: string | null;
         };
         Update: {
           client_id?: string;
@@ -454,6 +456,7 @@ export type Database = {
           redirect_uri?: string;
           session_key?: string;
           state?: string | null;
+          supabase_code_verifier?: string | null;
         };
         Relationships: [
           {
