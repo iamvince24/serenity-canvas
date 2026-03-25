@@ -7,6 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
+import { useChangesetStore } from "../../../stores/changesetStore";
 import type { CanvasMode, CanvasNode } from "../../../types/canvas";
 import { toCanvasPoint } from "../core/canvasCoordinates";
 import {
@@ -162,8 +163,13 @@ export function useMarqueeSelect({
         deselectAll();
       } else {
         const marqueeBounds = getMarqueeBounds(activeMarquee.start, finalPoint);
+        const pendingNodeIds = useChangesetStore.getState().pendingNodeIds;
         const hitNodeIds = Object.values(nodes)
-          .filter((node) => intersects(marqueeBounds, getNodeBounds(node)))
+          .filter(
+            (node) =>
+              intersects(marqueeBounds, getNodeBounds(node)) &&
+              pendingNodeIds[node.id] !== true,
+          )
           .map((node) => node.id);
 
         if (isShiftHeld) {

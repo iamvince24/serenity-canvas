@@ -47,7 +47,10 @@ import { useImageUpload } from "./images/useImageUpload";
 import { type ContextMenuNodeType } from "./nodes/NodeContextMenu";
 import { resolveOrderedNodeIds } from "./nodes/orderUtils";
 import { buildSpatialGrid, queryTopNodeAt } from "./core/spatialIndex";
-import { PendingNodeOverlay } from "./changeset/PendingNodeOverlay";
+import {
+  usePendingEdgeIds,
+  usePendingNodeIds,
+} from "./changeset/usePendingStatus";
 
 type StageSize = {
   width: number;
@@ -133,6 +136,8 @@ export function Canvas() {
   const visibleNodeIds = useVisibleNodeIds();
   const visibleEdgeIds = useVisibleEdgeIds();
   const visibleGroupIds = useVisibleGroupIds();
+  const pendingNodeIds = usePendingNodeIds();
+  const pendingEdgeIds = usePendingEdgeIds();
 
   const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
   const [overlayContainer, setOverlayContainer] =
@@ -692,6 +697,7 @@ export function Canvas() {
                 edge={edge}
                 nodes={nodes}
                 isSelected={selectedEdgeIdSet.has(edge.id)}
+                isPending={pendingEdgeIds[edge.id] === true}
                 onSelect={selectEdge}
                 onContextMenu={openEdgeContextMenu}
                 onDblClick={openEdgeLabelEditor}
@@ -745,6 +751,7 @@ export function Canvas() {
                 node={node}
                 zoom={zoom}
                 isSelected={selectedNodeIdSet.has(node.id)}
+                isPending={pendingNodeIds[node.id] === true}
                 onOpenContextMenu={openNodeContextMenu}
               />
             </ShapeErrorBoundary>
@@ -792,8 +799,6 @@ export function Canvas() {
         onEdgeLabelDraftChange={handleEdgeLabelDraftChange}
         onCloseEdgeLabelEditor={closeEdgeLabelEditor}
       />
-
-      <PendingNodeOverlay />
     </div>
   );
 }

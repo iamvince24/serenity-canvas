@@ -6,6 +6,10 @@ import { resolveChangesetId } from "../changeset.js";
 import { ok, fail } from "../helpers.js";
 import type { McpContext } from "../types.js";
 
+function normalizeMarkdown(raw: string): string {
+  return raw.replace(/\\n/g, "\n").replace(/\\t/g, "\t").trim();
+}
+
 export function registerNodeTools(
   server: McpServer,
   getContext: () => McpContext,
@@ -32,7 +36,9 @@ export function registerNodeTools(
       height: z
         .number()
         .default(160)
-        .describe("Height of the card in canvas units"),
+        .describe(
+          "Height of the card in canvas units. Height Estimation Guide: title-only card ~80, 1–3 lines of text ~120–160, 4–8 lines ~180–260, 9–15 lines ~280–400, code block or long list ~350–520. Always add at least 100 px vertical gap between cards to prevent overlap.",
+        ),
       color: z
         .string()
         .nullable()
@@ -82,7 +88,7 @@ export function registerNodeTools(
           height,
           color,
           content: {
-            content_markdown,
+            content_markdown: normalizeMarkdown(content_markdown),
             height_mode: "auto",
           },
           created_at: now,
@@ -205,7 +211,7 @@ export function registerNodeTools(
               : {};
           updates.content = {
             ...existingContent,
-            content_markdown,
+            content_markdown: normalizeMarkdown(content_markdown),
           };
         }
 

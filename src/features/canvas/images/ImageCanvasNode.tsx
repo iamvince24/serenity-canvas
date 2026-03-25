@@ -19,6 +19,7 @@ import { useImageResize } from "./useImageResize";
 type ImageCanvasNodeProps = {
   node: ImageNode;
   isSelected: boolean;
+  isPending?: boolean;
   zoom: number;
   onOpenContextMenu: (payload: {
     nodeId: string;
@@ -34,6 +35,7 @@ const IMAGE_PLACEHOLDER_TEXT = "#8A8780";
 function ImageCanvasNodeComponent({
   node,
   isSelected,
+  isPending = false,
   zoom,
   onOpenContextMenu,
 }: ImageCanvasNodeProps) {
@@ -187,20 +189,24 @@ function ImageCanvasNodeComponent({
     <Group
       x={node.x}
       y={node.y}
-      draggable={!isResizing}
-      onMouseDown={handleGroupPointerDown}
-      onTouchStart={handleGroupPointerDown}
-      onContextMenu={handleGroupContextMenu}
-      onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
-      onDragEnd={handleDragEnd}
+      draggable={!isResizing && !isPending}
+      listening={!isPending}
+      onMouseDown={!isPending ? handleGroupPointerDown : undefined}
+      onTouchStart={!isPending ? handleGroupPointerDown : undefined}
+      onContextMenu={!isPending ? handleGroupContextMenu : undefined}
+      onDragStart={!isPending ? handleDragStart : undefined}
+      onDragMove={!isPending ? handleDragMove : undefined}
+      onDragEnd={!isPending ? handleDragEnd : undefined}
     >
       <Rect
         width={node.width}
         height={node.height}
         fill={colorStyle.background}
-        stroke={isSelected ? "#8B9D83" : colorStyle.border}
-        strokeWidth={isSelected ? 2 : 1}
+        stroke={
+          isPending ? "#A3B29B" : isSelected ? "#8B9D83" : colorStyle.border
+        }
+        strokeWidth={isPending ? 2 : isSelected ? 2 : 1}
+        dash={isPending ? [8, 4] : undefined}
         cornerRadius={10}
       />
 
@@ -232,6 +238,18 @@ function ImageCanvasNodeComponent({
         </>
       )}
 
+      {isPending && (
+        <Rect
+          x={0}
+          y={0}
+          width={node.width}
+          height={imageHeight}
+          fill="#A3B29B"
+          opacity={0.12}
+          cornerRadius={[10, 10, 0, 0]}
+        />
+      )}
+
       <Rect
         x={0}
         y={imageHeight}
@@ -244,101 +262,115 @@ function ImageCanvasNodeComponent({
       />
 
       <>
-        <Rect
-          x={-IMAGE_RESIZE_EDGE_HIT / 2}
-          y={0}
-          width={IMAGE_RESIZE_EDGE_HIT}
-          height={node.height}
-          fill="rgba(0,0,0,0.001)"
-          onMouseDown={(event) => handleResizePointerDown("left", event)}
-          onTouchStart={(event) => handleResizePointerDown("left", event)}
-          onMouseEnter={() => handleResizeMouseEnter("left")}
-          onMouseLeave={handleResizeMouseLeave}
-        />
-        <Rect
-          x={node.width - IMAGE_RESIZE_EDGE_HIT / 2}
-          y={0}
-          width={IMAGE_RESIZE_EDGE_HIT}
-          height={node.height}
-          fill="rgba(0,0,0,0.001)"
-          onMouseDown={(event) => handleResizePointerDown("right", event)}
-          onTouchStart={(event) => handleResizePointerDown("right", event)}
-          onMouseEnter={() => handleResizeMouseEnter("right")}
-          onMouseLeave={handleResizeMouseLeave}
-        />
-        <Rect
-          x={0}
-          y={-IMAGE_RESIZE_EDGE_HIT / 2}
-          width={node.width}
-          height={IMAGE_RESIZE_EDGE_HIT}
-          fill="rgba(0,0,0,0.001)"
-          onMouseDown={(event) => handleResizePointerDown("top", event)}
-          onTouchStart={(event) => handleResizePointerDown("top", event)}
-          onMouseEnter={() => handleResizeMouseEnter("top")}
-          onMouseLeave={handleResizeMouseLeave}
-        />
-        <Rect
-          x={0}
-          y={node.height - IMAGE_RESIZE_EDGE_HIT / 2}
-          width={node.width}
-          height={IMAGE_RESIZE_EDGE_HIT}
-          fill="rgba(0,0,0,0.001)"
-          onMouseDown={(event) => handleResizePointerDown("bottom", event)}
-          onTouchStart={(event) => handleResizePointerDown("bottom", event)}
-          onMouseEnter={() => handleResizeMouseEnter("bottom")}
-          onMouseLeave={handleResizeMouseLeave}
-        />
+        {!isPending && (
+          <>
+            <Rect
+              x={-IMAGE_RESIZE_EDGE_HIT / 2}
+              y={0}
+              width={IMAGE_RESIZE_EDGE_HIT}
+              height={node.height}
+              fill="rgba(0,0,0,0.001)"
+              onMouseDown={(event) => handleResizePointerDown("left", event)}
+              onTouchStart={(event) => handleResizePointerDown("left", event)}
+              onMouseEnter={() => handleResizeMouseEnter("left")}
+              onMouseLeave={handleResizeMouseLeave}
+            />
+            <Rect
+              x={node.width - IMAGE_RESIZE_EDGE_HIT / 2}
+              y={0}
+              width={IMAGE_RESIZE_EDGE_HIT}
+              height={node.height}
+              fill="rgba(0,0,0,0.001)"
+              onMouseDown={(event) => handleResizePointerDown("right", event)}
+              onTouchStart={(event) => handleResizePointerDown("right", event)}
+              onMouseEnter={() => handleResizeMouseEnter("right")}
+              onMouseLeave={handleResizeMouseLeave}
+            />
+            <Rect
+              x={0}
+              y={-IMAGE_RESIZE_EDGE_HIT / 2}
+              width={node.width}
+              height={IMAGE_RESIZE_EDGE_HIT}
+              fill="rgba(0,0,0,0.001)"
+              onMouseDown={(event) => handleResizePointerDown("top", event)}
+              onTouchStart={(event) => handleResizePointerDown("top", event)}
+              onMouseEnter={() => handleResizeMouseEnter("top")}
+              onMouseLeave={handleResizeMouseLeave}
+            />
+            <Rect
+              x={0}
+              y={node.height - IMAGE_RESIZE_EDGE_HIT / 2}
+              width={node.width}
+              height={IMAGE_RESIZE_EDGE_HIT}
+              fill="rgba(0,0,0,0.001)"
+              onMouseDown={(event) => handleResizePointerDown("bottom", event)}
+              onTouchStart={(event) => handleResizePointerDown("bottom", event)}
+              onMouseEnter={() => handleResizeMouseEnter("bottom")}
+              onMouseLeave={handleResizeMouseLeave}
+            />
 
-        <Rect
-          x={-IMAGE_RESIZE_CORNER_HIT / 2}
-          y={-IMAGE_RESIZE_CORNER_HIT / 2}
-          width={IMAGE_RESIZE_CORNER_HIT}
-          height={IMAGE_RESIZE_CORNER_HIT}
-          fill="rgba(0,0,0,0.001)"
-          onMouseDown={(event) => handleResizePointerDown("top-left", event)}
-          onTouchStart={(event) => handleResizePointerDown("top-left", event)}
-          onMouseEnter={() => handleResizeMouseEnter("top-left")}
-          onMouseLeave={handleResizeMouseLeave}
-        />
-        <Rect
-          x={node.width - IMAGE_RESIZE_CORNER_HIT / 2}
-          y={-IMAGE_RESIZE_CORNER_HIT / 2}
-          width={IMAGE_RESIZE_CORNER_HIT}
-          height={IMAGE_RESIZE_CORNER_HIT}
-          fill="rgba(0,0,0,0.001)"
-          onMouseDown={(event) => handleResizePointerDown("top-right", event)}
-          onTouchStart={(event) => handleResizePointerDown("top-right", event)}
-          onMouseEnter={() => handleResizeMouseEnter("top-right")}
-          onMouseLeave={handleResizeMouseLeave}
-        />
-        <Rect
-          x={-IMAGE_RESIZE_CORNER_HIT / 2}
-          y={node.height - IMAGE_RESIZE_CORNER_HIT / 2}
-          width={IMAGE_RESIZE_CORNER_HIT}
-          height={IMAGE_RESIZE_CORNER_HIT}
-          fill="rgba(0,0,0,0.001)"
-          onMouseDown={(event) => handleResizePointerDown("bottom-left", event)}
-          onTouchStart={(event) =>
-            handleResizePointerDown("bottom-left", event)
-          }
-          onMouseEnter={() => handleResizeMouseEnter("bottom-left")}
-          onMouseLeave={handleResizeMouseLeave}
-        />
-        <Rect
-          x={node.width - IMAGE_RESIZE_CORNER_HIT / 2}
-          y={node.height - IMAGE_RESIZE_CORNER_HIT / 2}
-          width={IMAGE_RESIZE_CORNER_HIT}
-          height={IMAGE_RESIZE_CORNER_HIT}
-          fill="rgba(0,0,0,0.001)"
-          onMouseDown={(event) =>
-            handleResizePointerDown("bottom-right", event)
-          }
-          onTouchStart={(event) =>
-            handleResizePointerDown("bottom-right", event)
-          }
-          onMouseEnter={() => handleResizeMouseEnter("bottom-right")}
-          onMouseLeave={handleResizeMouseLeave}
-        />
+            <Rect
+              x={-IMAGE_RESIZE_CORNER_HIT / 2}
+              y={-IMAGE_RESIZE_CORNER_HIT / 2}
+              width={IMAGE_RESIZE_CORNER_HIT}
+              height={IMAGE_RESIZE_CORNER_HIT}
+              fill="rgba(0,0,0,0.001)"
+              onMouseDown={(event) =>
+                handleResizePointerDown("top-left", event)
+              }
+              onTouchStart={(event) =>
+                handleResizePointerDown("top-left", event)
+              }
+              onMouseEnter={() => handleResizeMouseEnter("top-left")}
+              onMouseLeave={handleResizeMouseLeave}
+            />
+            <Rect
+              x={node.width - IMAGE_RESIZE_CORNER_HIT / 2}
+              y={-IMAGE_RESIZE_CORNER_HIT / 2}
+              width={IMAGE_RESIZE_CORNER_HIT}
+              height={IMAGE_RESIZE_CORNER_HIT}
+              fill="rgba(0,0,0,0.001)"
+              onMouseDown={(event) =>
+                handleResizePointerDown("top-right", event)
+              }
+              onTouchStart={(event) =>
+                handleResizePointerDown("top-right", event)
+              }
+              onMouseEnter={() => handleResizeMouseEnter("top-right")}
+              onMouseLeave={handleResizeMouseLeave}
+            />
+            <Rect
+              x={-IMAGE_RESIZE_CORNER_HIT / 2}
+              y={node.height - IMAGE_RESIZE_CORNER_HIT / 2}
+              width={IMAGE_RESIZE_CORNER_HIT}
+              height={IMAGE_RESIZE_CORNER_HIT}
+              fill="rgba(0,0,0,0.001)"
+              onMouseDown={(event) =>
+                handleResizePointerDown("bottom-left", event)
+              }
+              onTouchStart={(event) =>
+                handleResizePointerDown("bottom-left", event)
+              }
+              onMouseEnter={() => handleResizeMouseEnter("bottom-left")}
+              onMouseLeave={handleResizeMouseLeave}
+            />
+            <Rect
+              x={node.width - IMAGE_RESIZE_CORNER_HIT / 2}
+              y={node.height - IMAGE_RESIZE_CORNER_HIT / 2}
+              width={IMAGE_RESIZE_CORNER_HIT}
+              height={IMAGE_RESIZE_CORNER_HIT}
+              fill="rgba(0,0,0,0.001)"
+              onMouseDown={(event) =>
+                handleResizePointerDown("bottom-right", event)
+              }
+              onTouchStart={(event) =>
+                handleResizePointerDown("bottom-right", event)
+              }
+              onMouseEnter={() => handleResizeMouseEnter("bottom-right")}
+              onMouseLeave={handleResizeMouseLeave}
+            />
+          </>
+        )}
       </>
     </Group>
   );

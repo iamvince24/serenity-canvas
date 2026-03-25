@@ -39,6 +39,7 @@ type CardWidgetProps = {
   layerIndex: number;
   isSelected: boolean;
   autoFocus?: boolean;
+  isPending?: boolean;
   onOpenContextMenu: (payload: {
     nodeId: string;
     nodeType: "text";
@@ -53,6 +54,7 @@ function CardWidgetComponent({
   layerIndex,
   isSelected,
   autoFocus = false,
+  isPending = false,
   onOpenContextMenu,
 }: CardWidgetProps) {
   const interactionState = useCanvasStore((state) => state.interactionState);
@@ -89,7 +91,7 @@ function CardWidgetComponent({
 
   const isDragging = interactionState === InteractionState.Dragging;
   const isResizing = interactionState === InteractionState.Resizing;
-  const shouldShowResizeHandles = !isEditing;
+  const shouldShowResizeHandles = !isEditing && !isPending;
   const shouldElevateForInteraction = isSelected && (isDragging || isResizing);
 
   // Sync isEditing → editor editable state
@@ -127,6 +129,25 @@ function CardWidgetComponent({
 
   const cardStyle = useMemo<CSSProperties>(() => {
     const colorStyle = getCardColorStyle(node.color);
+    if (isPending) {
+      return {
+        position: "absolute",
+        left: `${node.x}px`,
+        top: `${node.y}px`,
+        width: `${node.width}px`,
+        height: `${node.height}px`,
+        backgroundColor: `color-mix(in srgb, ${colorStyle.background} 92%, #A3B29B)`,
+        border: "2px dashed var(--sage-400, #A3B29B)",
+        borderRadius: "12px",
+        boxSizing: "border-box",
+        overflow: "hidden",
+        zIndex: layerIndex,
+        isolation: "isolate",
+        color: tokens.text,
+        cursor: "default",
+        transition: "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+      };
+    }
     return {
       position: "absolute",
       left: `${node.x}px`,
@@ -154,6 +175,7 @@ function CardWidgetComponent({
     shouldElevateForInteraction,
     tokens.text,
     isEditing,
+    isPending,
   ]);
 
   const editorShellStyle = useMemo<CSSProperties>(
@@ -199,6 +221,7 @@ function CardWidgetComponent({
 
   const handleContentPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (isPending) return;
       if (isPortalEvent(event.target, event.currentTarget)) return;
 
       if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -256,6 +279,7 @@ function CardWidgetComponent({
       }
     },
     [
+      isPending,
       node.id,
       selectNode,
       toggleNodeSelection,
@@ -268,6 +292,7 @@ function CardWidgetComponent({
 
   const handleCardDoubleClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (isPending) return;
       if (isPortalEvent(event.target, event.currentTarget)) return;
       if (isEditing) return;
       setIsEditing(true);
@@ -279,11 +304,12 @@ function CardWidgetComponent({
 
       event.preventDefault();
     },
-    [isEditing],
+    [isPending, isEditing],
   );
 
   const handleCardContextMenu = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (isPending) return;
       if (isPortalEvent(event.target, event.currentTarget)) return;
       event.preventDefault();
       event.stopPropagation();
@@ -297,11 +323,12 @@ function CardWidgetComponent({
         clientY: event.clientY,
       });
     },
-    [isSelected, node.id, onOpenContextMenu, selectNode],
+    [isPending, isSelected, node.id, onOpenContextMenu, selectNode],
   );
 
   const handleCardDragOverCapture = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
+      if (isPending) return;
       if (isPortalEvent(event.target, event.currentTarget)) return;
 
       const files = extractImageFilesFromTransfer(event.dataTransfer);
@@ -313,11 +340,12 @@ function CardWidgetComponent({
       event.stopPropagation();
       event.dataTransfer.dropEffect = "copy";
     },
-    [],
+    [isPending],
   );
 
   const handleCardDropCapture = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
+      if (isPending) return;
       if (isPortalEvent(event.target, event.currentTarget)) return;
 
       const files = extractImageFilesFromTransfer(event.dataTransfer);
@@ -347,7 +375,7 @@ function CardWidgetComponent({
           notifyImageUploadError(message);
         });
     },
-    [],
+    [isPending],
   );
 
   const handleContentClick = useCallback(
@@ -474,38 +502,40 @@ function CardWidgetComponent({
         if (!isEditing) e.preventDefault();
       }}
     >
-      <button
-        type="button"
-        className="card-widget__expand"
-        aria-label="Expand card"
-        style={{
-          backgroundColor: tokens.bgIcon,
-          color: tokens.accent,
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsModalOpen(true);
-        }}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
+      {!isPending && (
+        <button
+          type="button"
+          className="card-widget__expand"
+          aria-label="Expand card"
+          style={{
+            backgroundColor: tokens.bgIcon,
+            color: tokens.accent,
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsModalOpen(true);
+          }}
         >
-          <path
-            d="M8.5 1.5H12.5V5.5M5.5 12.5H1.5V8.5M12.5 1.5L8 6M1.5 12.5L6 8"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M8.5 1.5H12.5V5.5M5.5 12.5H1.5V8.5M12.5 1.5L8 6M1.5 12.5L6 8"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
 
       <div
         ref={editorShellRef}

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "description": "An elegant visual whiteboard tool.",
   "type": "module",
+  "packageManager": "pnpm@9.6.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

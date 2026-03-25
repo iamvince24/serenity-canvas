@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { Circle, Shape } from "react-konva";
+import { Circle, Group, Shape } from "react-konva";
 import { getEdgeStrokeColor } from "../../../constants/colors";
 import type { CanvasNode, Edge } from "../../../types/canvas";
 import { EDGE_CURVATURE } from "../core/constants";
@@ -22,6 +22,7 @@ type EdgeLineProps = {
   edge: Edge;
   nodes: Record<string, CanvasNode>;
   isSelected: boolean;
+  isPending?: boolean;
   onSelect: (edgeId: string) => void;
   onContextMenu: (edgeId: string, clientX: number, clientY: number) => void;
   onDblClick: (edgeId: string) => void;
@@ -87,6 +88,7 @@ function EdgeLineComponent({
   edge,
   nodes,
   isSelected,
+  isPending = false,
   onSelect,
   onContextMenu,
   onDblClick,
@@ -136,11 +138,13 @@ function EdgeLineComponent({
   const midpoint = hasEndpointPreview
     ? getBezierPoint(0.5, start, cp1, cp2, end)
     : route.midpoint;
-  const stroke = getEdgeStrokeColor(edge.color);
+  const stroke = isPending ? "#A3B29B" : getEdgeStrokeColor(edge.color);
   const strokeWidth = isSelected ? 3 : 2;
+  const edgeOpacity = isPending ? 0.6 : 1;
   const hasStartArrow = edge.direction === "both";
   const hasEndArrow = edge.direction === "forward" || edge.direction === "both";
   const lineDash = getLineDash(edge.lineStyle);
+  const lineDashResolved = isPending ? [8, 4] : lineDash;
   const displayLabel = labelOverride ?? edge.label;
   const labelLayout =
     getEdgeLabelLayout(displayLabel) ??
@@ -158,7 +162,7 @@ function EdgeLineComponent({
     : null;
 
   return (
-    <>
+    <Group listening={!isPending} opacity={edgeOpacity}>
       <Shape
         stroke={stroke}
         fill={stroke}
@@ -173,7 +177,7 @@ function EdgeLineComponent({
           ctx.lineWidth = lineWidth;
           ctx.lineCap = "round";
           ctx.lineJoin = "round";
-          ctx.setLineDash(lineDash);
+          ctx.setLineDash(lineDashResolved);
 
           if (labelGap) {
             const [firstHalf] = splitBezier(
@@ -367,7 +371,7 @@ function EdgeLineComponent({
           />
         </>
       ) : null}
-    </>
+    </Group>
   );
 }
 
@@ -406,6 +410,9 @@ function areEdgeLinePropsEqual(
     return false;
   }
   if (previous.onEndpointDragStart !== next.onEndpointDragStart) {
+    return false;
+  }
+  if (previous.isPending !== next.isPending) {
     return false;
   }
 

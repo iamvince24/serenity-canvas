@@ -88,6 +88,7 @@ vi.mock("react-konva", () => ({
       onMouseLeave={() => onMouseLeave?.()}
     />
   ),
+  Group: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 function createTextNode(id: string, x: number, y: number): CanvasNode {

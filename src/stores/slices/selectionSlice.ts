@@ -1,6 +1,7 @@
 import { reorderToFront } from "../../features/canvas/nodes/layerOrder";
 import { hasAnySelection } from "./selectionPolicy";
 import type { CanvasStore } from "../storeTypes";
+import { useChangesetStore } from "../changesetStore";
 
 type SetState = (
   partial:
@@ -15,8 +16,13 @@ function sanitizeNodeSelection(
   const seen = new Set<string>();
   const validNodeIds: string[] = [];
 
+  const pendingNodeIds = useChangesetStore.getState().pendingNodeIds;
   for (const nodeId of nodeIds) {
-    if (!state.nodes[nodeId] || seen.has(nodeId)) {
+    if (
+      !state.nodes[nodeId] ||
+      seen.has(nodeId) ||
+      pendingNodeIds[nodeId] === true
+    ) {
       continue;
     }
 
@@ -119,7 +125,11 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
     selectedGroupIds: [],
     selectNode: (nodeId) => {
       set((state) => {
-        if (!nodeId || !state.nodes[nodeId]) {
+        if (
+          !nodeId ||
+          !state.nodes[nodeId] ||
+          useChangesetStore.getState().pendingNodeIds[nodeId] === true
+        ) {
           return !hasAnySelection(state) ? state : clearAllSelections();
         }
 
@@ -133,7 +143,11 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
     },
     selectEdge: (edgeId) => {
       set((state) => {
-        if (!edgeId || !state.edges[edgeId]) {
+        if (
+          !edgeId ||
+          !state.edges[edgeId] ||
+          useChangesetStore.getState().pendingEdgeIds[edgeId] === true
+        ) {
           return !hasAnySelection(state) ? state : clearAllSelections();
         }
 
@@ -223,7 +237,10 @@ export function createSelectionSlice(set: SetState): SelectionSlice {
     },
     toggleNodeSelection: (nodeId) => {
       set((state) => {
-        if (!state.nodes[nodeId]) {
+        if (
+          !state.nodes[nodeId] ||
+          useChangesetStore.getState().pendingNodeIds[nodeId] === true
+        ) {
           return state;
         }
 

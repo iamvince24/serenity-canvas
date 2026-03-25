@@ -22,6 +22,7 @@ type ImageCaptionWidgetProps = {
   node: ImageNode;
   layerIndex: number;
   isSelected: boolean;
+  isPending?: boolean;
   onOpenContextMenu: (payload: {
     nodeId: string;
     nodeType: ContextMenuNodeType;
@@ -34,6 +35,7 @@ function ImageCaptionWidgetComponent({
   node,
   layerIndex,
   isSelected,
+  isPending = false,
   onOpenContextMenu,
 }: ImageCaptionWidgetProps) {
   const { t } = useTranslation();
@@ -81,6 +83,7 @@ function ImageCaptionWidgetComponent({
 
   const handleContextMenu = useCallback(
     (event: ReactMouseEvent<HTMLTextAreaElement>) => {
+      if (isPending) return;
       event.preventDefault();
       event.stopPropagation();
       if (!isSelected) {
@@ -93,11 +96,12 @@ function ImageCaptionWidgetComponent({
         clientY: event.clientY,
       });
     },
-    [isSelected, node.id, onOpenContextMenu, selectNode],
+    [isPending, isSelected, node.id, onOpenContextMenu, selectNode],
   );
 
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLTextAreaElement>) => {
+      if (isPending) return;
       if (!event.shiftKey) {
         return;
       }
@@ -106,7 +110,7 @@ function ImageCaptionWidgetComponent({
       event.stopPropagation();
       toggleNodeSelection(node.id);
     },
-    [node.id, toggleNodeSelection],
+    [isPending, node.id, toggleNodeSelection],
   );
 
   return (
@@ -116,6 +120,7 @@ function ImageCaptionWidgetComponent({
         placeholder={t("image.caption.placeholder")}
         onChange={(event) => setDraftCaption(event.target.value)}
         onFocus={() => {
+          if (isPending) return;
           setIsEditing(true);
           setDraftCaption(node.content);
           selectNode(node.id);
@@ -135,7 +140,7 @@ function ImageCaptionWidgetComponent({
           paddingBottom: `${IMAGE_NODE_CAPTION_PADDING}px`,
           paddingLeft: `${IMAGE_NODE_CAPTION_PADDING}px`,
           paddingRight: `${IMAGE_NODE_CAPTION_PADDING}px`,
-          pointerEvents: "auto",
+          pointerEvents: isPending ? "none" : "auto",
         }}
       />
     </div>

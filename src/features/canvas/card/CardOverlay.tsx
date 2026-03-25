@@ -16,6 +16,7 @@ import {
 } from "../../../types/canvas";
 import { CardWidget } from "./CardWidget";
 import { ImageCaptionWidget } from "../images/ImageCaptionWidget";
+import { usePendingNodeIds } from "../changeset/usePendingStatus";
 import type { ContextMenuNodeType } from "../nodes/NodeContextMenu";
 import { NodeAnchors } from "../nodes/NodeAnchors";
 import type { NodeAnchor } from "../edges/edgeUtils";
@@ -58,6 +59,7 @@ export function CardOverlay({
 }: CardOverlayProps) {
   const canvasMode = useCanvasStore((state) => state.canvasMode);
   const zoom = useCanvasStore((state) => state.viewport.zoom);
+  const pendingNodeIds = usePendingNodeIds();
   const overlayContentRef = useRef<HTMLDivElement>(null);
 
   const overlayContentStyle = useMemo<CSSProperties>(() => {
@@ -110,6 +112,7 @@ export function CardOverlay({
                 autoFocus={autoFocusNodeId === node.id}
                 layerIndex={layerIndex}
                 isSelected={selectedNodeIdSet.has(node.id)}
+                isPending={pendingNodeIds[node.id] === true}
                 onOpenContextMenu={onOpenContextMenu}
               />
             </ShapeErrorBoundary>
@@ -130,6 +133,7 @@ export function CardOverlay({
                 node={node}
                 layerIndex={layerIndex}
                 isSelected={selectedNodeIdSet.has(node.id)}
+                isPending={pendingNodeIds[node.id] === true}
                 onOpenContextMenu={onOpenContextMenu}
               />
             </ShapeErrorBoundary>
