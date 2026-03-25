@@ -41,6 +41,7 @@ vi.mock("../../stores/canvasStore", () => ({
       selector(mockCanvasState),
     {
       getState: () => mockCanvasState,
+      setState: vi.fn(),
     },
   ),
 }));
