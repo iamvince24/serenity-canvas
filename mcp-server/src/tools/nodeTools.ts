@@ -3,6 +3,7 @@ import { z } from "zod";
 import { randomUUID } from "crypto";
 import { fromDbNode } from "../../../src/shared/serializers.js";
 import { resolveChangesetId } from "../changeset.js";
+import { estimateContentHeight } from "../heightEstimator.js";
 import { ok, fail } from "../helpers.js";
 import type { McpContext } from "../types.js";
 
@@ -16,7 +17,7 @@ export function registerNodeTools(
 ) {
   server.tool(
     "create_node",
-    "Create a new text node on a whiteboard. IMPORTANT: Always provide explicit x, y, width, and height — cards without coordinates stack at (100,100) causing overlaps. Before calling this tool, complete the pre-flight checklist: estimate each card's height from content (h2+1line=100px, h2+2lines=120px, h2+4lines=160px), build a full position table with bounding boxes (x, y, x+width, y+height), and verify every pair of cards has at least 160px gap horizontally and vertically. Never call create_node until the position table is verified overlap-free.",
+    "Create a new text node on a whiteboard. IMPORTANT: Provide x and y coordinates to position the card — without coordinates, cards stack at the default position (100, 100). For multiple cards, space them out (e.g., increment y by 200 for each card). Height is auto-calculated from content (minimum 240px) — you do not need to estimate height manually. Use the returned `estimated_height` to compute positions for subsequent cards.",
     {
       board_id: z.string().uuid().describe("The board to add the node to"),
       type: z
@@ -37,7 +38,7 @@ export function registerNodeTools(
         .number()
         .default(160)
         .describe(
-          "Height of the card in canvas units. NEVER use the default 160 blindly — estimate from content: formula = heading(28px) + lines×20px + padding(48px). Examples: h2+1line=100, h2+2lines=120, h2+4lines=160, h2+6lines=200, h2+10lines=280. Minimum vertical gap between any two cards: 160 px.",
+          "Height of the card in canvas units. Auto-adjusted: the server applies max(height, estimatedContentHeight) with a 240px floor to match frontend rendering. You can omit this or pass a rough value — the server will correct it upward if needed.",
         ),
       color: z
         .string()
@@ -78,6 +79,10 @@ export function registerNodeTools(
           .single();
         if (boardErr || !board) return fail("Board not found: " + board_id);
 
+        const normalizedMarkdown = normalizeMarkdown(content_markdown);
+        const estimated = estimateContentHeight(normalizedMarkdown);
+        const finalHeight = Math.max(height, estimated);
+
         const insertData = {
           id: nodeId,
           board_id,
@@ -85,10 +90,10 @@ export function registerNodeTools(
           x,
           y,
           width,
-          height,
+          height: finalHeight,
           color,
           content: {
-            content_markdown: normalizeMarkdown(content_markdown),
+            content_markdown: normalizedMarkdown,
             height_mode: "auto",
           },
           created_at: now,
@@ -130,6 +135,7 @@ export function registerNodeTools(
           node_id: nodeId,
           changeset_id: changesetId,
           change_status: "pending",
+          estimated_height: finalHeight,
         });
       } catch (err) {
         return fail(
@@ -205,14 +211,23 @@ export function registerNodeTools(
         if (color !== undefined) updates.color = color;
 
         if (content_markdown !== undefined && current.type === "text") {
+          const normalizedMarkdown = normalizeMarkdown(content_markdown);
           const existingContent =
             current.content && typeof current.content === "object"
               ? (current.content as Record<string, unknown>)
               : {};
           updates.content = {
             ...existingContent,
-            content_markdown: normalizeMarkdown(content_markdown),
+            content_markdown: normalizedMarkdown,
           };
+
+          // Re-estimate height when content changes (auto mode only)
+          const heightMode = (existingContent.height_mode as string) ?? "auto";
+          if (heightMode === "auto") {
+            const estimated = estimateContentHeight(normalizedMarkdown);
+            const currentHeight = (height ?? (current.height as number)) || 240;
+            updates.height = Math.max(currentHeight, estimated);
+          }
         }
 
         const { error: updateErr } = await client
@@ -222,10 +237,15 @@ export function registerNodeTools(
           .eq("board_id", board_id);
         if (updateErr) return fail(updateErr.message);
 
+        const finalHeight = (updates.height as number) ?? undefined;
+
         return ok({
           node_id,
           changeset_id: changesetId,
           change_status: "pending",
+          ...(finalHeight !== undefined
+            ? { estimated_height: finalHeight }
+            : {}),
         });
       } catch (err) {
         return fail(

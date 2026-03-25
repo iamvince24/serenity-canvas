@@ -101,3 +101,21 @@ mcp-server/            # MCP Stdio server (tools: boardTools, nodeTools, edgeToo
 ```
 
 Architecture specs: `docs/spec/` (Traditional Chinese).
+
+## Serenity Canvas MCP — Card Layout Rules
+
+When creating cards via MCP (`create_node` / `update_node`), follow these rules to prevent overlap.
+
+### Height — Server Auto-calculated
+
+`create_node` and `update_node` now auto-compute height from content via `estimateContentHeight()` (`mcp-server/src/heightEstimator.ts`). Every card is at least **240px** (matching frontend `DEFAULT_NODE_HEIGHT`). Longer content grows beyond 240px. The response includes `estimated_height` — use it to position subsequent cards.
+
+### Position Calculation Rules
+
+1. **Use `estimated_height` from the response** (or 240px minimum if planning ahead).
+2. **Formula:** `next_y = current_y + estimated_height + gap`
+3. **Minimum gaps:**
+   - Same section (header → content): **40px**
+   - Between logical sections: **200px**
+4. **For rows with multiple cards**, use the tallest card's height to compute the next row Y.
+5. **Verify bounding boxes** `(x, x+w, y, y+h)` don't overlap before calling MCP.
