@@ -119,3 +119,11 @@ When creating cards via MCP (`create_node` / `update_node`), follow these rules 
    - Between logical sections: **200px**
 4. **For rows with multiple cards**, use the tallest card's height to compute the next row Y.
 5. **Verify bounding boxes** `(x, x+w, y, y+h)` don't overlap before calling MCP.
+
+### Edge Label Spacing
+
+`create_edge` returns `estimated_label_width` and `estimated_label_height` when a label is provided (`mcp-server/src/labelWidthEstimator.ts`). Use these to ensure connected cards are spaced far enough apart:
+
+- **Horizontal edges** (right → left): gap ≥ `estimated_label_width + 40px`
+- **Vertical edges** (bottom → top): gap ≥ `estimated_label_height + 40px`
+- **Pre-estimate** when planning: `char_count × 7.5 + 16px` (min 40px)

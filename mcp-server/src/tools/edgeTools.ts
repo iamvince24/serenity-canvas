@@ -3,6 +3,7 @@ import { z } from "zod";
 import { randomUUID } from "crypto";
 import { resolveChangesetId } from "../changeset.js";
 import { ok, fail } from "../helpers.js";
+import { estimateLabelDimensions } from "../labelWidthEstimator.js";
 import type { McpContext } from "../types.js";
 
 const anchorEnum = z
@@ -15,7 +16,7 @@ export function registerEdgeTools(
 ) {
   server.tool(
     "create_edge",
-    "Create a connection (edge) between two nodes on the same board.",
+    "Create a connection (edge) between two nodes on the same board. If a label is provided, the response includes `estimated_label_width` and `estimated_label_height` — use these to ensure cards are spaced far enough apart so the label is not squeezed.",
     {
       board_id: z.string().uuid().describe("The board containing both nodes"),
       source_id: z.string().uuid().describe("The source node ID (from)"),
@@ -110,10 +111,17 @@ export function registerEdgeTools(
           .insert(insertData as any);
         if (insertErr) return fail(insertErr.message);
 
+        const labelDims = estimateLabelDimensions(label);
         return ok({
           edge_id: edgeId,
           changeset_id: changesetId,
           change_status: "pending",
+          ...(labelDims
+            ? {
+                estimated_label_width: labelDims.width,
+                estimated_label_height: labelDims.height,
+              }
+            : {}),
         });
       } catch (err) {
         return fail(
@@ -190,10 +198,18 @@ export function registerEdgeTools(
           .is("deleted_at", null);
         if (error) return fail(error.message);
 
+        const labelDims =
+          label !== undefined ? estimateLabelDimensions(label) : null;
         return ok({
           edge_id,
           changeset_id: changesetId,
           change_status: "pending",
+          ...(labelDims
+            ? {
+                estimated_label_width: labelDims.width,
+                estimated_label_height: labelDims.height,
+              }
+            : {}),
         });
       } catch (err) {
         return fail(

@@ -31,12 +31,12 @@ function ChangesetItem({
   const edgeCount = changeset.edges.length;
 
   return (
-    <div className="rounded-lg border border-sage-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-sage-700">
-        <Bot className="h-4 w-4 text-sage-500" />
+    <div className="rounded-lg border border-sage-light bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-sage-dark">
+        <Bot className="h-4 w-4 text-sage" />
         <span>AI Changeset</span>
       </div>
-      <p className="mb-3 text-xs text-sage-500">
+      <p className="mb-3 text-xs text-sage">
         {nodeCount > 0 && `${nodeCount} card${nodeCount > 1 ? "s" : ""}`}
         {nodeCount > 0 && edgeCount > 0 && ", "}
         {edgeCount > 0 && `${edgeCount} connection${edgeCount > 1 ? "s" : ""}`}
@@ -44,14 +44,14 @@ function ChangesetItem({
       <div className="flex gap-2">
         <button
           onClick={handleAccept}
-          className="flex flex-1 items-center justify-center gap-1 rounded-md bg-sage-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sage-700"
+          className="flex flex-1 items-center justify-center gap-1 rounded-md bg-sage px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sage-dark"
         >
           <Check className="h-3.5 w-3.5" />
           Accept
         </button>
         <button
           onClick={handleReject}
-          className="flex flex-1 items-center justify-center gap-1 rounded-md border border-sage-300 px-3 py-1.5 text-xs font-medium text-sage-600 transition-colors hover:bg-sage-50"
+          className="flex flex-1 items-center justify-center gap-1 rounded-md border border-sage-light px-3 py-1.5 text-xs font-medium text-sage transition-colors hover:bg-sage-wash"
         >
           <X className="h-3.5 w-3.5" />
           Reject
