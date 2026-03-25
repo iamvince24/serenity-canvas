@@ -35,6 +35,7 @@ vi.mock("../../stores/canvasStoreSideEffects", () => ({}));
 
 vi.mock("../../stores/canvasStore", () => ({
   flushCanvasPersistence,
+  setSyncGuard: vi.fn(),
   useCanvasStore: Object.assign(
     (selector: (state: typeof mockCanvasState) => unknown) =>
       selector(mockCanvasState),
