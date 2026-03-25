@@ -82,11 +82,16 @@ Use color sparingly — only when semantic distinction is needed. Limit to 3 col
 When edges have labels, the gap between connected cards **must be wide enough** to display the label without squeezing. \`create_edge\` returns \`estimated_label_width\` and \`estimated_label_height\` when a label is provided.
 
 **Rules:**
-- **Horizontal connections** (right → left anchors): the horizontal gap between two cards must be ≥ \`estimated_label_width + 40 px\` (label width + padding on each side).
+- **Horizontal connections** (right → left anchors): the horizontal gap between two cards must be ≥ \`estimated_label_width + 80 px\` (label width + 40 px padding on each side).
 - **Vertical connections** (bottom → top anchors): the vertical gap must be ≥ \`estimated_label_height + 40 px\`.
-- If you plan cards and edges together, **pre-estimate label width** before positioning: roughly \`character_count × 7.5 + 16 px\` (7.5 px per character + horizontal padding). The minimum label width is 40 px.
-- When label text is long, increase spacing accordingly — a 20-character label needs ~166 px horizontal gap, a 10-character label needs ~91 px.
-- If the default 40 px gap is smaller than the label requires, **increase the gap** to fit the label.
+- **CRITICAL — pre-estimate BEFORE placing cards**: Since cards must be positioned before edges are created, you must estimate label width upfront using:
+  - Latin/ASCII characters: ~7.5 px each
+  - CJK characters (Chinese, Japanese, Korean — e.g. 前置, DOM, 完成): ~12 px each
+  - Formula: \`sum(char_widths) + 16 px padding\`, minimum 40 px
+  - Example: "前置" → 2 × 12 + 16 = 40 px label → gap ≥ 40 + 80 = 120 px
+  - Example: "depends on" → 10 × 7.5 + 16 = 91 px label → gap ≥ 91 + 80 = 171 px
+- **Minimum horizontal gap for labeled horizontal edges: 160 px** (even for short labels). Never use 40 px when a label is present on a horizontal connection.
+- If multiple edges with labels exist in the same row, use the widest label's requirement for the column gap.
 
 ## Common Layout Templates
 
@@ -104,6 +109,8 @@ Position cards on a regular grid:
 ### Flow — for steps, processes
 - Arrange horizontally: [Step 1] → [Step 2] → [Step 3].
 - Connect with right → left edges.
+- **Minimum gap between cards: 200 px** (not 40 px — the edge label sits in this space).
+- If the edge label is wider, increase gap: \`gap = max(200, estimated_label_width + 80)\`.
 
 ### Cluster — for topic grouping
 - Group related cards tightly (40 px apart).

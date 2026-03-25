@@ -124,6 +124,10 @@ When creating cards via MCP (`create_node` / `update_node`), follow these rules 
 
 `create_edge` returns `estimated_label_width` and `estimated_label_height` when a label is provided (`mcp-server/src/labelWidthEstimator.ts`). Use these to ensure connected cards are spaced far enough apart:
 
-- **Horizontal edges** (right → left): gap ≥ `estimated_label_width + 40px`
+- **Horizontal edges** (right → left): gap ≥ `estimated_label_width + 80px`
 - **Vertical edges** (bottom → top): gap ≥ `estimated_label_height + 40px`
-- **Pre-estimate** when planning: `char_count × 7.5 + 16px` (min 40px)
+- **Minimum horizontal gap for any labeled horizontal edge: 160px** (never use 40px with a label)
+- **Pre-estimate** when planning (CJK-aware): Latin chars × 7.5 + CJK chars × 12 + 16px (min 40px)
+  - e.g., "前置" (2 CJK) → 2×12+16 = 40px label → gap ≥ 120px
+  - e.g., "depends on" (10 Latin) → 10×7.5+16 = 91px label → gap ≥ 171px
+- **Flow layouts**: use gap = `max(200, label_width + 80)` between horizontal cards
