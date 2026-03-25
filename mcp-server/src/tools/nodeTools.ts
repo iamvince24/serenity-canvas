@@ -16,7 +16,7 @@ export function registerNodeTools(
 ) {
   server.tool(
     "create_node",
-    "Create a new text node on a whiteboard. IMPORTANT: Provide x and y coordinates to position the card — without coordinates, cards stack at the default position (100, 100). For multiple cards, space them out (e.g., increment y by 200 for each card).",
+    "Create a new text node on a whiteboard. IMPORTANT: Always provide explicit x, y, width, and height — cards without coordinates stack at (100,100) causing overlaps. Before calling this tool, complete the pre-flight checklist: estimate each card's height from content (h2+1line=100px, h2+2lines=120px, h2+4lines=160px), build a full position table with bounding boxes (x, y, x+width, y+height), and verify every pair of cards has at least 160px gap horizontally and vertically. Never call create_node until the position table is verified overlap-free.",
     {
       board_id: z.string().uuid().describe("The board to add the node to"),
       type: z
@@ -37,7 +37,7 @@ export function registerNodeTools(
         .number()
         .default(160)
         .describe(
-          "Height of the card in canvas units. Height Estimation Guide: title-only card ~80, 1–3 lines of text ~120–160, 4–8 lines ~180–260, 9–15 lines ~280–400, code block or long list ~350–520. Always add at least 100 px vertical gap between cards to prevent overlap.",
+          "Height of the card in canvas units. NEVER use the default 160 blindly — estimate from content: formula = heading(28px) + lines×20px + padding(48px). Examples: h2+1line=100, h2+2lines=120, h2+4lines=160, h2+6lines=200, h2+10lines=280. Minimum vertical gap between any two cards: 160 px.",
         ),
       color: z
         .string()
