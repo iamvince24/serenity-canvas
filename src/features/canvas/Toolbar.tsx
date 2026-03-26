@@ -180,8 +180,9 @@ export function Toolbar({
     <div
       className={cn(
         "pointer-events-none fixed z-40",
-        // 手機：底部置中
+        // 手機：底部置中；側邊欄開啟時隱藏
         "bottom-4 left-1/2 -translate-x-1/2 pb-[env(safe-area-inset-bottom)]",
+        sidebarOpen && "max-md:hidden",
         // 桌面：左側垂直置中（覆蓋手機設定）
         "md:bottom-auto md:top-1/2 md:left-[var(--toolbar-left)] md:-translate-x-0 md:-translate-y-1/2 md:pb-0",
         "md:transition-[left] md:duration-500 md:ease-[cubic-bezier(0.16,1,0.3,1)]",

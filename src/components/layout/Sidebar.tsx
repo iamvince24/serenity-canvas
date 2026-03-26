@@ -296,117 +296,129 @@ export function Sidebar({
   const userInitial = displayName?.[0]?.toUpperCase() ?? "E";
 
   return (
-    <aside
-      className={cn(
-        "shrink-0 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden",
-        isOpen
-          ? "w-64 border-r border-[#E5E3DF] opacity-100"
-          : "w-0 border-r-0 opacity-0",
+    <>
+      {/* Mobile overlay backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/20 md:hidden"
+          onClick={() => setIsOpen(false)}
+          aria-hidden
+        />
       )}
-      aria-hidden={!isOpen}
-    >
-      <div className="relative flex h-full w-64 flex-col bg-[#FAFAF8]">
-        <div className="pointer-events-none absolute inset-0 bg-[#F3F2EF] opacity-40" />
+      <aside
+        className={cn(
+          "shrink-0 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          // Mobile: overlay mode (fixed); Desktop: push mode (relative)
+          "fixed inset-y-0 left-0 z-40 md:relative md:inset-auto md:z-auto",
+          isOpen
+            ? "w-64 border-r border-[#E5E3DF] opacity-100"
+            : "w-0 border-r-0 opacity-0 pointer-events-none md:pointer-events-auto",
+        )}
+        aria-hidden={!isOpen}
+      >
+        <div className="relative flex h-full w-64 flex-col bg-[#FAFAF8]">
+          <div className="pointer-events-none absolute inset-0 bg-[#F3F2EF] opacity-40" />
 
-        <div className="relative z-10 flex h-full flex-col">
-          <header className="flex h-14 items-center justify-between border-b border-[#F0EEEA] px-4">
-            <div className="flex items-center gap-2">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={t("sidebar.avatar.alt", { name: displayName })}
-                  className="h-5 w-5 rounded-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8B9D83] text-[12px] font-bold text-white"
-                  style={{ fontFamily: "var(--font-serif)" }}
-                >
-                  {userInitial}
-                </div>
-              )}
-              <span className="truncate text-[14px] font-medium text-[#1C1C1A]">
-                {displayName ?? t("sidebar.workspace")}
-              </span>
-            </div>
+          <div className="relative z-10 flex h-full flex-col">
+            <header className="flex h-14 items-center justify-between border-b border-[#F0EEEA] px-4">
+              <div className="flex items-center gap-2">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={t("sidebar.avatar.alt", { name: displayName })}
+                    className="h-5 w-5 rounded-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8B9D83] text-[12px] font-bold text-white"
+                    style={{ fontFamily: "var(--font-serif)" }}
+                  >
+                    {userInitial}
+                  </div>
+                )}
+                <span className="truncate text-[14px] font-medium text-[#1C1C1A]">
+                  {displayName ?? t("sidebar.workspace")}
+                </span>
+              </div>
 
-            <button
-              type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#6B6B66] transition-colors duration-300 hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
-              onClick={() => setIsOpen(false)}
-              aria-label={t("sidebar.collapse")}
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-          </header>
-
-          <div className="flex-1 overflow-y-auto px-2 py-3">
-            <div className="mb-2 flex items-center justify-between px-2">
-              <p className="text-[12px] tracking-wider text-[#A3A29D] uppercase">
-                {t("sidebar.boards")}
-              </p>
               <button
                 type="button"
-                className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[#6B6B66] transition-colors duration-300 hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
-                aria-label={t("sidebar.createBoard")}
-                onClick={() => onCreateBoard(t("sidebar.defaultBoardTitle"))}
+                className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#6B6B66] transition-colors duration-300 hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
+                onClick={() => setIsOpen(false)}
+                aria-label={t("sidebar.collapse")}
               >
-                <Plus className="h-4 w-4" />
+                <PanelLeftClose className="h-4 w-4" />
               </button>
-            </div>
+            </header>
 
-            <ul className="space-y-1">
-              {boards.map((board) => (
-                <li key={board.id}>
-                  <BoardRow
-                    board={board}
-                    activeBoardId={activeBoardId}
-                    canDelete={boards.length > 1}
-                    onSelectBoard={onSelectBoard}
-                    onRenameBoard={onRenameBoard}
-                    onDeleteBoard={onDeleteBoard}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <footer className="border-t border-[#F0EEEA] p-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <div className="flex-1 overflow-y-auto px-2 py-3">
+              <div className="mb-2 flex items-center justify-between px-2">
+                <p className="text-[12px] tracking-wider text-[#A3A29D] uppercase">
+                  {t("sidebar.boards")}
+                </p>
                 <button
                   type="button"
-                  aria-label={t("sidebar.settings")}
-                  className="flex w-full items-center gap-2 rounded-[6px] border border-transparent px-3 py-2 text-[14px] text-[#6B6B66] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
+                  className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[#6B6B66] transition-colors duration-300 hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
+                  aria-label={t("sidebar.createBoard")}
+                  onClick={() => onCreateBoard(t("sidebar.defaultBoardTitle"))}
                 >
-                  <Settings className="h-4 w-4" />
-                  <span>{t("sidebar.settings")}</span>
+                  <Plus className="h-4 w-4" />
                 </button>
-              </DropdownMenuTrigger>
+              </div>
 
-              <DropdownMenuContent
-                align="start"
-                side="top"
-                className="w-40 border-[#E5E3DF] bg-[#FFFFFF]"
-              >
-                <DropdownMenuItem
-                  disabled={isSigningOut}
-                  className="text-[#B8635A] focus:text-[#B8635A]"
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    handleSignOut();
-                  }}
+              <ul className="space-y-1">
+                {boards.map((board) => (
+                  <li key={board.id}>
+                    <BoardRow
+                      board={board}
+                      activeBoardId={activeBoardId}
+                      canDelete={boards.length > 1}
+                      onSelectBoard={onSelectBoard}
+                      onRenameBoard={onRenameBoard}
+                      onDeleteBoard={onDeleteBoard}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <footer className="border-t border-[#F0EEEA] p-2">
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t("sidebar.settings")}
+                    className="flex w-full items-center gap-2 rounded-[6px] border border-transparent px-3 py-2 text-[14px] text-[#6B6B66] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[#EBF0E9] hover:text-[#5E6E58]"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>{t("sidebar.settings")}</span>
+                  </button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  align="start"
+                  side="top"
+                  className="w-40 border-[#E5E3DF] bg-[#FFFFFF]"
                 >
-                  {isSigningOut
-                    ? t("header.button.signingOut")
-                    : t("header.button.signOut")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </footer>
+                  <DropdownMenuItem
+                    disabled={isSigningOut}
+                    className="justify-center text-[#B8635A] focus:text-[#B8635A]"
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      handleSignOut();
+                    }}
+                  >
+                    {isSigningOut
+                      ? t("header.button.signingOut")
+                      : t("header.button.signOut")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </footer>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
