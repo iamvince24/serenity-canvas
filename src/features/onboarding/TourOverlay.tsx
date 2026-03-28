@@ -92,7 +92,7 @@ function computeTooltipStyle(
       return {
         position: "fixed",
         top: targetRect.top - TOOLTIP_GAP,
-        left: targetRect.left + targetRect.width / 2,
+        left: isMobile ? "50%" : targetRect.left + targetRect.width / 2,
         transform: "translate(-50%, -100%)",
       };
     case "bottom":

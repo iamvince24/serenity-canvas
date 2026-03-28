@@ -77,6 +77,6 @@ export const TOUR_STEPS: TourStep[] = [
     target: "toolbar-help",
     i18nKey: "tourComplete",
     placement: "right",
-    mobilePlacement: "top",
+    mobilePlacement: "center",
   },
 ];
