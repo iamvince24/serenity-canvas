@@ -92,6 +92,9 @@ export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions = {}) {
           (selectedNodeId) => Boolean(state.nodes[selectedNodeId]),
         );
       } else {
+        // Use setSelectedNodes (not selectNode) to avoid reorderToFront which
+        // changes nodeOrder, triggers a visibility recalc, and can unmount the
+        // CardWidget — destroying the window drag listeners mid-drag.
         state.setSelectedNodes([nodeId]);
         draggedNodeIds = [nodeId];
       }

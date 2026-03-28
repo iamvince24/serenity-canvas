@@ -21,7 +21,7 @@ import { notifyImageUploadError } from "../../../stores/uploadNoticeStore";
 import type { TextNode } from "../../../types/canvas";
 import { CardEditor, type CardEditorHandle } from "../editor/CardEditor";
 import { CardExpandModal } from "./CardExpandModal";
-import { DEFAULT_NODE_HEIGHT } from "../core/constants";
+import { DEFAULT_NODE_HEIGHT, MIN_NODE_HEIGHT } from "../core/constants";
 import { extractImageFilesFromTransfer } from "../images/editorImageTransfer";
 import {
   CornerResizeHandle,
@@ -158,7 +158,7 @@ function CardWidgetComponent({
       border: `1px solid ${colorStyle.border}`,
       borderRadius: "12px",
       boxSizing: "border-box",
-      overflow: "hidden",
+      overflow: node.heightMode === "fixed" ? "hidden" : "visible",
       zIndex: shouldElevateForInteraction ? layerIndex + 1000 : layerIndex,
       isolation: "isolate",
       color: tokens.text,
@@ -169,6 +169,7 @@ function CardWidgetComponent({
     layerIndex,
     node.color,
     node.height,
+    node.heightMode,
     node.width,
     node.x,
     node.y,
@@ -210,14 +211,25 @@ function CardWidgetComponent({
     finishBatchDrag();
     bodyDragRef.current = { pointerId: null, isDragging: false };
     teardownWindowDragListeners();
-  }, [finishBatchDrag, teardownWindowDragListeners]);
+    // Deferred reorderToFront: during drag start we use setSelectedNodes
+    // (without reorder) to avoid unmounting the card mid-drag. Now that the
+    // drag is finished and listeners are cleaned up, call selectNode to
+    // bring the card to front in the z-order.
+    selectNode(node.id);
+  }, [finishBatchDrag, node.id, selectNode, teardownWindowDragListeners]);
 
-  // Clean up window listeners on unmount
+  // Clean up window listeners and reset drag state on unmount
   useEffect(() => {
     return () => {
       teardownWindowDragListeners();
+      // Safety: if the component unmounts mid-drag, reset interactionState
+      // so it doesn't get stuck in "dragging".
+      if (bodyDragRef.current.isDragging) {
+        bodyDragRef.current = { pointerId: null, isDragging: false };
+        finishBatchDrag();
+      }
     };
-  }, [teardownWindowDragListeners]);
+  }, [finishBatchDrag, teardownWindowDragListeners]);
 
   const handleContentPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -279,7 +291,6 @@ function CardWidgetComponent({
     [
       isPending,
       node.id,
-      selectNode,
       toggleNodeSelection,
       isEditing,
       startBatchDrag,
@@ -421,13 +432,15 @@ function CardWidgetComponent({
       return;
     }
 
-    const nextHeight = Math.max(DEFAULT_NODE_HEIGHT, measuredContentHeight);
+    const floor =
+      node.heightMode === "fit" ? MIN_NODE_HEIGHT : DEFAULT_NODE_HEIGHT;
+    const nextHeight = Math.max(floor, measuredContentHeight);
     if (Math.abs(nextHeight - currentNode.height) < 2) {
       return;
     }
 
     previewNodeSize(node.id, currentNode.width, nextHeight);
-  }, [node.id, previewNodeSize]);
+  }, [node.id, node.heightMode, previewNodeSize]);
 
   const handleEditorBlurCapture = useCallback(
     (event: FocusEvent<HTMLDivElement>) => {
@@ -445,7 +458,7 @@ function CardWidgetComponent({
   );
 
   useEffect(() => {
-    if (node.heightMode !== "auto") {
+    if (node.heightMode === "fixed") {
       return;
     }
 

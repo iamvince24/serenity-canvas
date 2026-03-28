@@ -74,7 +74,7 @@ describe("NodeContextMenu", () => {
       throw new Error("text node not found");
     }
 
-    expect(node.heightMode).toBe("auto");
+    expect(node.heightMode).toBe("fit");
     expect(onClose).toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Bring to front" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Send to back" })).toBeNull();
@@ -129,7 +129,7 @@ describe("NodeContextMenu", () => {
       if (!node || node.type !== "text") {
         throw new Error("text node not found");
       }
-      expect(node.heightMode).toBe("auto");
+      expect(node.heightMode).toBe("fit");
       expect(onClose).toHaveBeenCalled();
     } finally {
       Object.defineProperty(Event.prototype, "composedPath", {

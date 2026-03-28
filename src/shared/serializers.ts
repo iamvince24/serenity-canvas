@@ -73,8 +73,13 @@ export function fromDbNode(row: Record<string, unknown>): CanvasNode | null {
     row.content && typeof row.content === "object"
       ? (row.content as Record<string, unknown>)
       : null;
-  const fallbackHeightMode: "auto" | "fixed" =
-    content?.height_mode === "fixed" ? "fixed" : "auto";
+  const rawHeightMode = content?.height_mode;
+  const fallbackHeightMode: "auto" | "fixed" | "fit" =
+    rawHeightMode === "fixed"
+      ? "fixed"
+      : rawHeightMode === "fit"
+        ? "fit"
+        : "auto";
   const base = {
     id: String(row.id),
     x: Number(row.x ?? 0),

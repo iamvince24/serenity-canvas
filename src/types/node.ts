@@ -1,6 +1,6 @@
 import type { CanvasNodeColor } from "../constants/colors";
 
-export type NodeHeightMode = "auto" | "fixed";
+export type NodeHeightMode = "auto" | "fixed" | "fit";
 
 // Shared fields for all node variants.
 export type BaseNode = {

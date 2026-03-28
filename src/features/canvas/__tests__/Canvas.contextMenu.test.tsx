@@ -129,7 +129,7 @@ describe("Canvas node context menu actions", () => {
     if (!fittedNode || fittedNode.type !== "text") {
       throw new Error("text node not found");
     }
-    expect(fittedNode.heightMode).toBe("auto");
+    expect(fittedNode.heightMode).toBe("fit");
 
     fireEvent.contextMenu(card, { clientX: 200, clientY: 200 });
     fireEvent.click(screen.getByTitle("Red"));

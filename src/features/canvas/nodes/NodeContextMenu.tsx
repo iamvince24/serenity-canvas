@@ -61,7 +61,7 @@ export function NodeContextMenu({
       return;
     }
 
-    setNodeHeightMode(nodeId, "auto");
+    setNodeHeightMode(nodeId, "fit");
     onClose();
   }, [nodeId, nodeType, onClose, setNodeHeightMode]);
 
