@@ -257,6 +257,7 @@ export function createNodeCommandContextMethods(
   const setNodeHeightMode: NodeCommandContext["setNodeHeightMode"] = (
     id,
     mode,
+    height?,
   ) => {
     set((state) => {
       const node = state.nodes[id];
@@ -267,6 +268,7 @@ export function createNodeCommandContextMethods(
       return {
         nodes: patchNode(state.nodes, id, {
           heightMode: mode,
+          ...(height !== undefined ? { height } : {}),
           updatedAt: Date.now(),
         }),
       };

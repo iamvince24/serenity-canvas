@@ -74,4 +74,37 @@ test.describe("Multi-select", () => {
     await canvas.expectTextCardCount(1);
     await expect(canvas.card(SEED.NODE_2)).toBeVisible();
   });
+
+  test("drag unselected card directly: selects it and deselects others", async ({
+    page,
+  }) => {
+    // Start with card1 selected
+    await canvas.selectCard(SEED.NODE_1);
+    await canvas.expectSelectedCount(1);
+
+    const card1 = canvas.card(SEED.NODE_1);
+    const card3 = canvas.card(SEED.NODE_3);
+
+    const box3Before = await card3.boundingBox();
+    expect(box3Before).toBeTruthy();
+
+    // Drag card3 directly without clicking first
+    const cx = box3Before!.x + box3Before!.width / 2;
+    const cy = box3Before!.y + box3Before!.height / 2;
+
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx + 100, cy + 50, { steps: 15 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+
+    // card3 should now be selected, card1 deselected
+    await expect(card3).toHaveClass(/card-widget--selected/);
+    await expect(card1).not.toHaveClass(/card-widget--selected/);
+    await canvas.expectSelectedCount(1);
+
+    // card3 should have moved
+    const box3After = await card3.boundingBox();
+    expect(box3After!.x).not.toBeCloseTo(box3Before!.x, -1);
+  });
 });

@@ -28,7 +28,11 @@ export type NodeCommandContext = {
   setBatchNodePositions: (
     updates: Array<{ id: string; x: number; y: number }>,
   ) => void;
-  setNodeHeightMode: (id: string, mode: NodeHeightMode) => void;
+  setNodeHeightMode: (
+    id: string,
+    mode: NodeHeightMode,
+    height?: number,
+  ) => void;
   setNodeOrder: (nodeOrder: string[]) => void;
 };
 
@@ -448,6 +452,7 @@ type UpdateNodeHeightModePayload = {
 
 type UpdateNodeHeightModeInverse = {
   previousMode: NodeHeightMode;
+  previousHeight: number;
 };
 
 export class UpdateHeightModeCommand implements Command {
@@ -461,6 +466,7 @@ export class UpdateHeightModeCommand implements Command {
     context: NodeCommandContext,
     nodeId: string,
     previousMode: NodeHeightMode,
+    previousHeight: number,
     mode: NodeHeightMode,
   ) {
     this.context = context;
@@ -470,6 +476,7 @@ export class UpdateHeightModeCommand implements Command {
     };
     this.inverse = {
       previousMode,
+      previousHeight,
     };
   }
 
@@ -481,6 +488,7 @@ export class UpdateHeightModeCommand implements Command {
     this.context.setNodeHeightMode(
       this.payload.nodeId,
       this.inverse.previousMode,
+      this.inverse.previousHeight,
     );
   }
 
@@ -493,6 +501,7 @@ export class UpdateHeightModeCommand implements Command {
       },
       inverse: {
         previousMode: this.inverse.previousMode,
+        previousHeight: this.inverse.previousHeight,
       },
     };
   }

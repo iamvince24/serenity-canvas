@@ -92,7 +92,7 @@ export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions = {}) {
           (selectedNodeId) => Boolean(state.nodes[selectedNodeId]),
         );
       } else {
-        state.deselectAll();
+        state.setSelectedNodes([nodeId]);
         draggedNodeIds = [nodeId];
       }
 

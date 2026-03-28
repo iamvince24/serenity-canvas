@@ -143,15 +143,32 @@ test.describe("Card without handle bar", () => {
   test("Fit to content via context menu is undoable", async ({ page }) => {
     const card = canvas.card(SEED.NODE_1);
 
-    const beforeBox = await card.boundingBox();
-    if (!beforeBox) throw new Error("card not visible");
+    // Click card to select it (shows resize handles when not editing)
+    await card.click();
 
-    // Right-click → Fit to content
+    // Drag the height resize handle down to set heightMode="fixed"
+    const handle = card.locator(".card-widget__resize-handle--height");
+    const handleBox = await handle.boundingBox();
+    if (!handleBox) throw new Error("resize handle not visible");
+
+    const handleCx = handleBox.x + handleBox.width / 2;
+    const handleCy = handleBox.y + handleBox.height / 2;
+    await page.mouse.move(handleCx, handleCy);
+    await page.mouse.down();
+    await page.mouse.move(handleCx, handleCy + 80, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+
+    // Measure height after resize (card is now in "fixed" height mode)
+    const beforeBox = await card.boundingBox();
+    if (!beforeBox) throw new Error("card not visible after resize");
+
+    // Right-click → Fit to content (changes heightMode from "fixed" to "auto")
     await card.click({ button: "right" });
     await page.getByRole("button", { name: /fit.*content/i }).click();
     await page.waitForTimeout(300);
 
-    // Undo
+    // Undo (reverts to "fixed" height mode with previous size)
     await page.getByRole("button", { name: "Undo" }).click();
     await page.waitForTimeout(300);
 

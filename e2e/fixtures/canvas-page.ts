@@ -11,7 +11,13 @@ export class CanvasPage {
 
   // --- Navigation ---
 
-  async goto(boardId: string) {
+  async goto(boardId: string, options?: { skipOnboarding?: boolean }) {
+    const skipOnboarding = options?.skipOnboarding ?? true;
+    if (skipOnboarding) {
+      await this.page.addInitScript(() => {
+        localStorage.setItem("serenity-canvas:onboarding-completed", "true");
+      });
+    }
     await this.page.goto(`/canvas/${boardId}`);
     await this.waitForCanvasReady();
   }

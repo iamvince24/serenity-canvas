@@ -253,14 +253,14 @@ describe("UpdateHeightModeCommand", () => {
     ctx = createMockContext();
   });
 
-  it("execute 設定新 mode，undo 還原舊 mode", () => {
-    const cmd = new UpdateHeightModeCommand(ctx, "n1", "auto", "fixed");
+  it("execute 設定新 mode，undo 還原舊 mode 與 height", () => {
+    const cmd = new UpdateHeightModeCommand(ctx, "n1", "auto", 240, "fixed");
 
     cmd.execute();
     expect(ctx.setNodeHeightMode).toHaveBeenCalledWith("n1", "fixed");
 
     cmd.undo();
-    expect(ctx.setNodeHeightMode).toHaveBeenLastCalledWith("n1", "auto");
+    expect(ctx.setNodeHeightMode).toHaveBeenLastCalledWith("n1", "auto", 240);
   });
 });
 

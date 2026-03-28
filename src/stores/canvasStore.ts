@@ -468,7 +468,13 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       }
 
       executeCommand(
-        new UpdateHeightModeCommand(commandContext, id, node.heightMode, mode),
+        new UpdateHeightModeCommand(
+          commandContext,
+          id,
+          node.heightMode,
+          node.height,
+          mode,
+        ),
       );
     },
     addEdge: (edge) => {
