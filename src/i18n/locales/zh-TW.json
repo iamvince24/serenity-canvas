@@ -183,5 +183,35 @@
 
   "slashCommand.menuLabel": "命令選單",
 
-  "app.migration.fallbackError": "本地資料遷移失敗，請稍後再試。"
+  "app.migration.fallbackError": "本地資料遷移失敗，請稍後再試。",
+
+  "tour.step.canvasIntro.title": "歡迎來到 Serenity Canvas",
+  "tour.step.canvasIntro.description": "這是你的無限畫布，可以自由地排列文字與圖片卡片、建立連線來組織想法。",
+  "tour.step.createCard.title": "建立卡片",
+  "tour.step.createCard.description": "雙擊畫布空白處即可建立文字卡片，開始記錄你的想法。",
+  "tour.step.selectMode.title": "選取模式",
+  "tour.step.selectMode.description": "按 V 切換到選取模式。點擊可選取卡片，拖曳可移動卡片位置。",
+  "tour.step.selectMode.shortcut": "V",
+  "tour.step.panZoom.title": "平移與縮放",
+  "tour.step.panZoom.description": "按住 Space + 拖曳可平移畫布，使用滾輪可縮放畫布。",
+  "tour.step.panZoom.shortcut": "Space + 拖曳",
+  "tour.step.multiSelect.title": "多選操作",
+  "tour.step.multiSelect.description": "按住 Shift + 點擊可多選卡片，也可以拖曳框選多張卡片。",
+  "tour.step.connectMode.title": "連線模式",
+  "tour.step.connectMode.description": "按 C 切換到連線模式，從卡片的錨點拖曳到另一張卡片即可建立連線。",
+  "tour.step.connectMode.shortcut": "C",
+  "tour.step.createGroup.title": "建立群組",
+  "tour.step.createGroup.description": "選取多張卡片後，右鍵選擇「建立群組」可將卡片分組管理。",
+  "tour.step.textEditing.title": "編輯文字",
+  "tour.step.textEditing.description": "點擊卡片即可編輯內容。輸入 / 可開啟 Slash 命令選單，快速插入格式。",
+  "tour.step.undoRedo.title": "復原與重做",
+  "tour.step.undoRedo.description": "所有操作都可以復原。使用快捷鍵即可輕鬆回到上一步。",
+  "tour.step.undoRedo.shortcut": "Cmd/Ctrl+Z",
+  "tour.step.tourComplete.title": "準備就緒！",
+  "tour.step.tourComplete.description": "你已經掌握基本操作。隨時點擊此按鈕可重新開啟導覽。",
+  "tour.button.next": "下一步",
+  "tour.button.prev": "上一步",
+  "tour.button.skip": "不再顯示",
+  "tour.button.complete": "完成",
+  "tour.button.help": "重新導覽"
 }

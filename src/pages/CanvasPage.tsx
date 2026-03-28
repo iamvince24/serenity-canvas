@@ -13,6 +13,8 @@ import { useAuthStore } from "../stores/authStore";
 import { useUploadNoticeStore } from "../stores/uploadNoticeStore";
 import { ChangesetReviewPanel } from "../features/canvas/changeset/ChangesetReviewPanel";
 import { MobileWarningDialog } from "../components/MobileWarningDialog";
+import { TourProvider } from "../features/onboarding/TourProvider";
+import { TourOverlay } from "../features/onboarding/TourOverlay";
 
 interface CanvasPageProps {
   boardId: string;
@@ -84,72 +86,75 @@ export function CanvasPage({ boardId, sidebarOpen }: CanvasPageProps) {
 
   return (
     // Canvas fills full viewport; toolbar floats above it.
-    <main
-      className="relative min-h-screen w-full overflow-hidden bg-canvas"
-      data-board-id={boardId}
-    >
-      {isLoading ? (
-        <div
-          className="absolute inset-0 z-30 flex items-center justify-center bg-canvas"
-          role="status"
-          aria-label={t("canvas.loading")}
-        >
-          <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#C9D3C4] border-t-[#708067]" />
-        </div>
-      ) : (
-        <>
-          <Canvas />
-          {boardId === LOCAL_BOARD_ID && (
-            <Link
-              to="/"
-              className="pointer-events-auto fixed left-4 top-4 z-40 flex h-9 items-center gap-1.5 rounded-lg border border-border bg-elevated/95 px-3 text-sm font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-surface hover:text-sage-dark md:top-6"
-              aria-label={t("canvas.backHomeLabel")}
-            >
-              <ArrowLeft size={16} />
-              <span className="hidden sm:inline">{t("canvas.backHome")}</span>
-            </Link>
-          )}
-          <Toolbar
-            showFpsOverlay={showFpsOverlay}
-            onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
-            sidebarOpen={sidebarOpen}
-          />
-
-          <ChangesetReviewPanel boardId={boardId} />
-
-          {import.meta.env.DEV && showFpsOverlay ? (
-            <FpsOverlay visible />
-          ) : null}
-        </>
-      )}
-
-      {imageUploadErrorMessage ? (
-        <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4 md:top-24">
-          <div className="pointer-events-auto w-full max-w-md rounded-lg border border-destructive/45 bg-elevated shadow-lg">
-            <div className="flex items-start justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-destructive">
-                  {t("canvas.uploadError.title")}
-                </p>
-                <p className="mt-1 text-sm leading-[1.4] text-foreground">
-                  {imageUploadErrorMessage}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="btn-ghost h-7 shrink-0 px-2 text-xs"
-                onClick={dismissImageUploadError}
-                aria-label={t("canvas.uploadError.dismissLabel")}
+    <TourProvider>
+      <main
+        className="relative min-h-screen w-full overflow-hidden bg-canvas"
+        data-board-id={boardId}
+      >
+        {isLoading ? (
+          <div
+            className="absolute inset-0 z-30 flex items-center justify-center bg-canvas"
+            role="status"
+            aria-label={t("canvas.loading")}
+          >
+            <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#C9D3C4] border-t-[#708067]" />
+          </div>
+        ) : (
+          <>
+            <Canvas />
+            {boardId === LOCAL_BOARD_ID && (
+              <Link
+                to="/"
+                className="pointer-events-auto fixed left-4 top-4 z-40 flex h-9 items-center gap-1.5 rounded-lg border border-border bg-elevated/95 px-3 text-sm font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-surface hover:text-sage-dark md:top-6"
+                aria-label={t("canvas.backHomeLabel")}
               >
-                {t("canvas.uploadError.dismiss")}
-              </button>
+                <ArrowLeft size={16} />
+                <span className="hidden sm:inline">{t("canvas.backHome")}</span>
+              </Link>
+            )}
+            <Toolbar
+              showFpsOverlay={showFpsOverlay}
+              onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
+              sidebarOpen={sidebarOpen}
+            />
+
+            <ChangesetReviewPanel boardId={boardId} />
+
+            {import.meta.env.DEV && showFpsOverlay ? (
+              <FpsOverlay visible />
+            ) : null}
+          </>
+        )}
+
+        {imageUploadErrorMessage ? (
+          <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4 md:top-24">
+            <div className="pointer-events-auto w-full max-w-md rounded-lg border border-destructive/45 bg-elevated shadow-lg">
+              <div className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-destructive">
+                    {t("canvas.uploadError.title")}
+                  </p>
+                  <p className="mt-1 text-sm leading-[1.4] text-foreground">
+                    {imageUploadErrorMessage}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-ghost h-7 shrink-0 px-2 text-xs"
+                  onClick={dismissImageUploadError}
+                  aria-label={t("canvas.uploadError.dismissLabel")}
+                >
+                  {t("canvas.uploadError.dismiss")}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <MobileWarningDialog />
-    </main>
+        <MobileWarningDialog />
+        <TourOverlay />
+      </main>
+    </TourProvider>
   );
 }

@@ -668,6 +668,7 @@ export function Canvas() {
   return (
     <div
       ref={handleContainerRef}
+      data-tour="canvas-stage"
       className={`relative h-screen w-full overflow-hidden bg-canvas ${
         canvasMode === "connect" ? "cursor-crosshair" : ""
       }`}

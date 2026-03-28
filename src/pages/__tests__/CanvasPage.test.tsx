@@ -31,6 +31,10 @@ vi.mock("../../features/canvas/FpsOverlay", () => ({
   FpsOverlay: () => <div data-testid="fps-overlay" />,
 }));
 
+vi.mock("../../features/onboarding/TourOverlay", () => ({
+  TourOverlay: () => null,
+}));
+
 vi.mock("../../stores/canvasStoreSideEffects", () => ({}));
 
 vi.mock("../../stores/canvasStore", () => ({

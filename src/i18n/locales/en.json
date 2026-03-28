@@ -183,5 +183,35 @@
 
   "slashCommand.menuLabel": "Command menu",
 
-  "app.migration.fallbackError": "Local data migration failed. Please try again later."
+  "app.migration.fallbackError": "Local data migration failed. Please try again later.",
+
+  "tour.step.canvasIntro.title": "Welcome to Serenity Canvas",
+  "tour.step.canvasIntro.description": "This is your infinite canvas. Arrange text and image cards, create connections, and organize your ideas freely.",
+  "tour.step.createCard.title": "Create a Card",
+  "tour.step.createCard.description": "Double-click on an empty area of the canvas to create a text card and start capturing your thoughts.",
+  "tour.step.selectMode.title": "Select Mode",
+  "tour.step.selectMode.description": "Press V to switch to select mode. Click to select a card, drag to move it.",
+  "tour.step.selectMode.shortcut": "V",
+  "tour.step.panZoom.title": "Pan & Zoom",
+  "tour.step.panZoom.description": "Hold Space + drag to pan the canvas. Use the scroll wheel to zoom in and out.",
+  "tour.step.panZoom.shortcut": "Space + Drag",
+  "tour.step.multiSelect.title": "Multi-Select",
+  "tour.step.multiSelect.description": "Hold Shift + click to select multiple cards, or drag to marquee-select them.",
+  "tour.step.connectMode.title": "Connect Mode",
+  "tour.step.connectMode.description": "Press C to switch to connect mode. Drag from a card's anchor point to another card to create a connection.",
+  "tour.step.connectMode.shortcut": "C",
+  "tour.step.createGroup.title": "Create a Group",
+  "tour.step.createGroup.description": "Select multiple cards, then right-click and choose \"Create Group\" to organize them together.",
+  "tour.step.textEditing.title": "Edit Text",
+  "tour.step.textEditing.description": "Click a card to edit its content. Type / to open the slash command menu for quick formatting.",
+  "tour.step.undoRedo.title": "Undo & Redo",
+  "tour.step.undoRedo.description": "All actions can be undone. Use keyboard shortcuts to easily step back and forth.",
+  "tour.step.undoRedo.shortcut": "Cmd/Ctrl+Z",
+  "tour.step.tourComplete.title": "You're All Set!",
+  "tour.step.tourComplete.description": "You've learned the basics. Click this button anytime to restart the tour.",
+  "tour.button.next": "Next",
+  "tour.button.prev": "Back",
+  "tour.button.skip": "Don't show again",
+  "tour.button.complete": "Done",
+  "tour.button.help": "Restart Tour"
 }

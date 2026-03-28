@@ -1,4 +1,5 @@
 import {
+  CircleHelp,
   Download,
   Ellipsis,
   Gauge,
@@ -44,6 +45,8 @@ import { useImageUpload } from "./images/useImageUpload";
 import { ExportDialog } from "./export/ExportDialog";
 import { ImportDialog } from "./import/ImportDialog";
 import { StressFixtureDialog } from "./StressFixtureDialog";
+import { HelpButton } from "../onboarding/HelpButton";
+import { useTour } from "../onboarding/useTour";
 
 /** 圖片上傳按鈕：暫時不顯示，請勿隨意清除，之後會恢復。改為 true 即可顯示。 */
 const SHOW_IMAGE_UPLOAD_BUTTON = false;
@@ -125,6 +128,7 @@ export function Toolbar({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isDev = import.meta.env.DEV;
   const { uploadImageFile } = useImageUpload();
+  const { startTour } = useTour();
 
   const handleOpenFileDialog = useCallback(() => {
     fileInputRef.current?.click();
@@ -206,6 +210,7 @@ export function Toolbar({
         <ToolbarTooltip label={t("toolbar.mode.select")} shortcut="V">
           <button
             type="button"
+            data-tour="toolbar-select"
             className={`${iconBtn} ${canvasMode === "select" ? activeStyle : ""}`}
             aria-label={t("toolbar.mode.select")}
             aria-pressed={canvasMode === "select"}
@@ -217,6 +222,7 @@ export function Toolbar({
         <ToolbarTooltip label={t("toolbar.mode.connect")} shortcut="C">
           <button
             type="button"
+            data-tour="toolbar-connect"
             className={`${iconBtn} ${canvasMode === "connect" ? activeStyle : ""}`}
             aria-label={t("toolbar.mode.connect")}
             aria-pressed={canvasMode === "connect"}
@@ -232,6 +238,7 @@ export function Toolbar({
         >
           <button
             type="button"
+            data-tour="toolbar-undo"
             className={iconBtn}
             aria-label={t("toolbar.button.undo")}
             onClick={undo}
@@ -289,6 +296,10 @@ export function Toolbar({
                 {i18n.language.startsWith("zh")
                   ? "Switch to English"
                   : "切換至繁體中文"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={startTour}>
+                <CircleHelp size={14} className="mr-2" />
+                {t("tour.button.help")}
               </DropdownMenuItem>
               {!user && (
                 <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
@@ -396,6 +407,9 @@ export function Toolbar({
           )}
           <Divider />
           <LanguageToggle className="w-8 px-0" />
+          <ToolbarTooltip label={t("tour.button.help")}>
+            <HelpButton className={iconBtn} />
+          </ToolbarTooltip>
           {!user && (
             <ToolbarTooltip label={t("toolbar.button.signIn")}>
               <button
