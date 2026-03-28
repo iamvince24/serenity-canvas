@@ -232,7 +232,9 @@ function CardWidgetComponent({
         return;
       }
 
-      selectNode(node.id);
+      if (!useCanvasStore.getState().selectedNodeIds.includes(node.id)) {
+        selectNode(node.id);
+      }
 
       // When not editing: initiate body drag
       if (!isEditing) {

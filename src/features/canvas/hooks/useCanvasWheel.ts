@@ -155,7 +155,7 @@ export function useCanvasWheel({
     };
 
     const handleWheel = (event: WheelEvent) => {
-      const isPinchZoom = event.ctrlKey;
+      const isPinchZoom = event.ctrlKey || event.metaKey;
       const wheelGesture = wheelGestureRef.current;
       if (
         event.timeStamp - wheelGesture.lastTimestamp >

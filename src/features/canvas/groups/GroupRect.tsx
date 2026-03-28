@@ -8,6 +8,7 @@ import {
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { CanvasNode, Group as CanvasGroup } from "../../../types/canvas";
 import { GROUP_LABEL_HEIGHT, getGroupBounds } from "../core/culling";
+import { getClientPosition } from "../core/pointerUtils";
 
 type GroupRectProps = {
   group: CanvasGroup;
@@ -18,6 +19,7 @@ type GroupRectProps = {
     clientX: number;
     clientY: number;
   }) => void;
+  onDragStart: (nodeIds: string[], clientX: number, clientY: number) => void;
 };
 
 function toRgba(color: string, alpha: number): string {
@@ -58,6 +60,7 @@ function GroupRectComponent({
   nodes,
   isSelected,
   onOpenContextMenu,
+  onDragStart,
 }: GroupRectProps) {
   const selectGroup = useCanvasStore((state) => state.selectGroup);
   const bounds = useMemo(
@@ -91,6 +94,14 @@ function GroupRectComponent({
   ) => {
     event.cancelBubble = true;
     selectGroup(group.id);
+
+    const nativeEvent = event.evt;
+    if (nativeEvent instanceof MouseEvent && nativeEvent.button !== 0) return;
+    if (group.nodeIds.length > 0) {
+      const pos = getClientPosition(nativeEvent);
+      if (!pos) return;
+      onDragStart(group.nodeIds, pos.x, pos.y);
+    }
   };
 
   const handleContextMenu = (event: KonvaEventObject<PointerEvent>) => {
@@ -180,6 +191,9 @@ function areGroupRectPropsEqual(
     return false;
   }
   if (previous.onOpenContextMenu !== next.onOpenContextMenu) {
+    return false;
+  }
+  if (previous.onDragStart !== next.onDragStart) {
     return false;
   }
 

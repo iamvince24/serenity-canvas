@@ -34,7 +34,9 @@ import { toCanvasPoint } from "./core/canvasCoordinates";
 import { useEdgeOverlay } from "./edges/useEdgeOverlay";
 import { useCanvasKeyboard } from "./hooks/useCanvasKeyboard";
 import { useCanvasWheel } from "./hooks/useCanvasWheel";
+import { useGroupDrag } from "./hooks/useGroupDrag";
 import { useMarqueeSelect } from "./hooks/useMarqueeSelect";
+import { useSpacePan } from "./hooks/useSpacePan";
 import {
   useVisibleEdgeIds,
   useVisibleGroupIds,
@@ -218,6 +220,9 @@ export function Canvas() {
     [nodes, orderedNodeIds, spatialGrid],
   );
 
+  const { isSpaceHeld, isPanning } = useSpacePan({ overlayContainer });
+  const { startGroupDrag } = useGroupDrag();
+
   const {
     connectingSource,
     hoveredTarget,
@@ -277,7 +282,7 @@ export function Canvas() {
     containerRectRef,
     nodes,
     canvasMode,
-    isBlocked: edgeEndpointDragState !== null,
+    isBlocked: edgeEndpointDragState !== null || isSpaceHeld,
     onMarqueeStart: handleMarqueeStart,
   });
 
@@ -670,7 +675,13 @@ export function Canvas() {
       ref={handleContainerRef}
       data-tour="canvas-stage"
       className={`relative h-screen w-full overflow-hidden bg-canvas ${
-        canvasMode === "connect" ? "cursor-crosshair" : ""
+        isPanning
+          ? "cursor-grabbing"
+          : isSpaceHeld
+            ? "cursor-grab"
+            : canvasMode === "connect"
+              ? "cursor-crosshair"
+              : ""
       }`}
       onPointerDownCapture={handleRootPointerDownCapture}
       onPointerMoveCapture={handleRootPointerMoveCapture}
@@ -740,6 +751,7 @@ export function Canvas() {
                 nodes={nodes}
                 isSelected={selectedGroupIdSet.has(group.id)}
                 onOpenContextMenu={openNodeContextMenu}
+                onDragStart={startGroupDrag}
               />
             </ShapeErrorBoundary>
           ))}
