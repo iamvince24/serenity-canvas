@@ -39,6 +39,9 @@ export type CanvasActions = {
   removeFile: (id: string) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
   previewNodePosition: (id: string, x: number, y: number) => void;
+  previewBatchNodePositions: (
+    updates: Array<{ id: string; x: number; y: number }>,
+  ) => void;
   commitNodeMove: (
     id: string,
     from: NodePositionSnapshot,

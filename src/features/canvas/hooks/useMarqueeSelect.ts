@@ -78,6 +78,11 @@ export function useMarqueeSelect({
   const mergeSelectedNodes = useCanvasStore(
     (state) => state.mergeSelectedNodes,
   );
+  const isBlockedRef = useRef(isBlocked);
+  useEffect(() => {
+    isBlockedRef.current = isBlocked;
+  }, [isBlocked]);
+
   const [marqueeState, setMarqueeState] = useState<MarqueeState | null>(null);
   const marqueeStateRef = useRef<MarqueeState | null>(null);
   const selectionBeforeEdgesRef = useRef<string[]>([]);
@@ -223,7 +228,7 @@ export function useMarqueeSelect({
 
   const handleStagePointerDown = useCallback(
     (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
-      if (canvasMode !== "select" || isBlocked || !container) {
+      if (canvasMode !== "select" || isBlockedRef.current || !container) {
         return;
       }
 
@@ -262,14 +267,7 @@ export function useMarqueeSelect({
       event.evt.preventDefault();
       event.cancelBubble = true;
     },
-    [
-      canvasMode,
-      container,
-      dispatch,
-      isBlocked,
-      onMarqueeStart,
-      resolveCanvasPoint,
-    ],
+    [canvasMode, container, dispatch, onMarqueeStart, resolveCanvasPoint],
   );
 
   const handlePointerMove = useCallback(

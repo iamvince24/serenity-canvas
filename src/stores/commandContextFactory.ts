@@ -145,6 +145,30 @@ export function createNodeCommandContextMethods(
     });
   };
 
+  const setBatchNodePositions: NodeCommandContext["setBatchNodePositions"] = (
+    updates,
+  ) => {
+    set((state) => {
+      const now = Date.now();
+      let nextNodes = state.nodes;
+      let changed = false;
+
+      for (const { id, x, y } of updates) {
+        const node = nextNodes[id];
+        if (!node || (node.x === x && node.y === y)) continue;
+
+        if (!changed) {
+          nextNodes = { ...nextNodes };
+          changed = true;
+        }
+
+        nextNodes[id] = { ...node, x, y, updatedAt: now };
+      }
+
+      return changed ? { nodes: nextNodes } : state;
+    });
+  };
+
   const setNodeGeometry: NodeCommandContext["setNodeGeometry"] = (
     id,
     geometry,
@@ -267,6 +291,7 @@ export function createNodeCommandContextMethods(
     deleteNode,
     restoreGroups,
     setNodePosition,
+    setBatchNodePositions,
     setNodeGeometry,
     setNodeContent,
     setNodeColor,

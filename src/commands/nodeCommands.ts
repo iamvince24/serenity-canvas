@@ -25,6 +25,9 @@ export type NodeCommandContext = {
   setNodeGeometry: (id: string, geometry: NodeGeometrySnapshot) => void;
   setNodeContent: (id: string, content: string) => void;
   setNodeColor: (id: string, color: CanvasNode["color"]) => void;
+  setBatchNodePositions: (
+    updates: Array<{ id: string; x: number; y: number }>,
+  ) => void;
   setNodeHeightMode: (id: string, mode: NodeHeightMode) => void;
   setNodeOrder: (nodeOrder: string[]) => void;
 };

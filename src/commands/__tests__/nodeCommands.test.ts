@@ -27,6 +27,7 @@ function createMockContext(): NodeCommandContext {
     deleteNode: vi.fn(),
     restoreGroups: vi.fn(),
     setNodePosition: vi.fn(),
+    setBatchNodePositions: vi.fn(),
     setNodeGeometry: vi.fn(),
     setNodeContent: vi.fn(),
     setNodeColor: vi.fn(),

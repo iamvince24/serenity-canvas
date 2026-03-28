@@ -1,10 +1,10 @@
 import { useCallback, useRef } from "react";
 import { useCanvasStore } from "../../../stores/canvasStore";
-import { InteractionEvent } from "../core/stateMachine";
+import { InteractionEvent, InteractionState } from "../core/stateMachine";
 
 type UseBatchDragOptions = {
-  nodeId: string;
-  zoom: number;
+  nodeId?: string;
+  zoom?: number;
 };
 
 type StartBatchDragOptions = {
@@ -53,7 +53,7 @@ function sanitizeSelectedNodeIds(nodeIds: string[]): string[] {
   return sanitized;
 }
 
-export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions) {
+export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions = {}) {
   const dispatch = useCanvasStore((state) => state.dispatch);
   const dragStateRef = useRef<BatchDragState>(INITIAL_BATCH_DRAG_STATE);
 
@@ -64,36 +64,37 @@ export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions) {
         return;
       }
 
-      const { previewNodePosition } = useCanvasStore.getState();
-      for (const snapshot of dragState.nodeSnapshots) {
-        previewNodePosition(
-          snapshot.id,
-          snapshot.startX + deltaX,
-          snapshot.startY + deltaY,
-        );
-      }
+      const { previewBatchNodePositions } = useCanvasStore.getState();
+      previewBatchNodePositions(
+        dragState.nodeSnapshots.map((snapshot) => ({
+          id: snapshot.id,
+          x: snapshot.startX + deltaX,
+          y: snapshot.startY + deltaY,
+        })),
+      );
     },
     [],
   );
 
   const startBatchDrag = useCallback(
     (options?: StartBatchDragOptions) => {
-      let state = useCanvasStore.getState();
+      if (!nodeId) return false;
+
+      const state = useCanvasStore.getState();
       const activeNode = state.nodes[nodeId];
       if (!activeNode) {
         return false;
       }
 
-      if (!state.selectedNodeIds.includes(nodeId)) {
-        state.selectNode(nodeId);
-        state = useCanvasStore.getState();
+      let draggedNodeIds: string[];
+      if (state.selectedNodeIds.includes(nodeId)) {
+        draggedNodeIds = sanitizeSelectedNodeIds(state.selectedNodeIds).filter(
+          (selectedNodeId) => Boolean(state.nodes[selectedNodeId]),
+        );
+      } else {
+        state.deselectAll();
+        draggedNodeIds = [nodeId];
       }
-
-      const draggedNodeIds = sanitizeSelectedNodeIds(
-        state.selectedNodeIds.includes(nodeId)
-          ? state.selectedNodeIds
-          : [nodeId],
-      ).filter((selectedNodeId) => Boolean(state.nodes[selectedNodeId]));
 
       if (draggedNodeIds.length === 0) {
         return false;
@@ -108,12 +109,13 @@ export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions) {
         };
       });
 
+      const effectiveZoom = zoom && zoom > 0 ? zoom : 1;
       dragStateRef.current = {
         isDragging: true,
         pointerId: options?.pointerId ?? null,
         startPointerX: options?.clientX ?? 0,
         startPointerY: options?.clientY ?? 0,
-        zoom: zoom > 0 ? zoom : 1,
+        zoom: effectiveZoom,
         nodeSnapshots,
       };
 
@@ -121,6 +123,39 @@ export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions) {
       return true;
     },
     [dispatch, nodeId, zoom],
+  );
+
+  const startBatchDragForGroup = useCallback(
+    (nodeIds: string[], clientX: number, clientY: number) => {
+      const state = useCanvasStore.getState();
+      if (state.interactionState !== InteractionState.Idle) return false;
+
+      const validIds = sanitizeSelectedNodeIds(nodeIds).filter((id) =>
+        Boolean(state.nodes[id]),
+      );
+      if (validIds.length === 0) return false;
+
+      state.setSelectedNodes(validIds);
+
+      const nodeSnapshots = validIds.map((id) => {
+        const node = state.nodes[id];
+        return { id, startX: node.x, startY: node.y };
+      });
+
+      const currentZoom = state.viewport.zoom > 0 ? state.viewport.zoom : 1;
+      dragStateRef.current = {
+        isDragging: true,
+        pointerId: null,
+        startPointerX: clientX,
+        startPointerY: clientY,
+        zoom: currentZoom,
+        nodeSnapshots,
+      };
+
+      dispatch(InteractionEvent.NODE_DRAG_START);
+      return true;
+    },
+    [dispatch],
   );
 
   const previewBatchDragFromPointer = useCallback(
@@ -138,8 +173,23 @@ export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions) {
     [previewBatchDragFromDelta],
   );
 
+  const previewBatchDragFromClient = useCallback(
+    (clientX: number, clientY: number) => {
+      const dragState = dragStateRef.current;
+      if (!dragState.isDragging) return;
+
+      const zoomScale = dragState.zoom > 0 ? dragState.zoom : 1;
+      const deltaX = (clientX - dragState.startPointerX) / zoomScale;
+      const deltaY = (clientY - dragState.startPointerY) / zoomScale;
+      previewBatchDragFromDelta(deltaX, deltaY);
+    },
+    [previewBatchDragFromDelta],
+  );
+
   const previewBatchDragFromNodePosition = useCallback(
     (nodeX: number, nodeY: number) => {
+      if (!nodeId) return;
+
       const dragState = dragStateRef.current;
       if (!dragState.isDragging) {
         return;
@@ -208,6 +258,8 @@ export function useBatchDrag({ nodeId, zoom }: UseBatchDragOptions) {
 
   return {
     startBatchDrag,
+    startBatchDragForGroup,
+    previewBatchDragFromClient,
     previewBatchDragFromPointer,
     previewBatchDragFromNodePosition,
     previewBatchDragFromDelta,

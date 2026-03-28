@@ -232,11 +232,7 @@ function CardWidgetComponent({
         return;
       }
 
-      if (!useCanvasStore.getState().selectedNodeIds.includes(node.id)) {
-        selectNode(node.id);
-      }
-
-      // When not editing: initiate body drag
+      // When not editing: initiate body drag (startBatchDrag handles selection)
       if (!isEditing) {
         // Allow checkbox / link interactions to work normally
         const target = event.target;

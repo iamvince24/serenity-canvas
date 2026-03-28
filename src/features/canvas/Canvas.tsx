@@ -34,7 +34,8 @@ import { toCanvasPoint } from "./core/canvasCoordinates";
 import { useEdgeOverlay } from "./edges/useEdgeOverlay";
 import { useCanvasKeyboard } from "./hooks/useCanvasKeyboard";
 import { useCanvasWheel } from "./hooks/useCanvasWheel";
-import { useGroupDrag } from "./hooks/useGroupDrag";
+import { useBatchDrag } from "./hooks/useBatchDrag";
+import { usePointerCapture } from "./hooks/usePointerCapture";
 import { useMarqueeSelect } from "./hooks/useMarqueeSelect";
 import { useSpacePan } from "./hooks/useSpacePan";
 import {
@@ -220,8 +221,37 @@ export function Canvas() {
     [nodes, orderedNodeIds, spatialGrid],
   );
 
-  const { isSpaceHeld, isPanning } = useSpacePan({ overlayContainer });
-  const { startGroupDrag } = useGroupDrag();
+  const { isSpaceHeldRef } = useSpacePan({
+    overlayContainer,
+    canvasContainer: overlayContainer,
+  });
+
+  const {
+    startBatchDragForGroup,
+    previewBatchDragFromClient,
+    finishBatchDrag: finishGroupDrag,
+  } = useBatchDrag();
+  const [isGroupDragging, setIsGroupDragging] = useState(false);
+
+  const startGroupDrag = useCallback(
+    (nodeIds: string[], clientX: number, clientY: number) => {
+      if (startBatchDragForGroup(nodeIds, clientX, clientY)) {
+        setIsGroupDragging(true);
+      }
+    },
+    [startBatchDragForGroup],
+  );
+
+  const handleGroupDragFinish = useCallback(() => {
+    finishGroupDrag();
+    setIsGroupDragging(false);
+  }, [finishGroupDrag]);
+
+  usePointerCapture(isGroupDragging, {
+    onPointerMove: previewBatchDragFromClient,
+    onPointerUp: handleGroupDragFinish,
+    onPointerCancel: handleGroupDragFinish,
+  });
 
   const {
     connectingSource,
@@ -282,7 +312,7 @@ export function Canvas() {
     containerRectRef,
     nodes,
     canvasMode,
-    isBlocked: edgeEndpointDragState !== null || isSpaceHeld,
+    isBlocked: edgeEndpointDragState !== null || isSpaceHeldRef.current,
     onMarqueeStart: handleMarqueeStart,
   });
 
@@ -675,13 +705,7 @@ export function Canvas() {
       ref={handleContainerRef}
       data-tour="canvas-stage"
       className={`relative h-screen w-full overflow-hidden bg-canvas ${
-        isPanning
-          ? "cursor-grabbing"
-          : isSpaceHeld
-            ? "cursor-grab"
-            : canvasMode === "connect"
-              ? "cursor-crosshair"
-              : ""
+        canvasMode === "connect" ? "cursor-crosshair" : ""
       }`}
       onPointerDownCapture={handleRootPointerDownCapture}
       onPointerMoveCapture={handleRootPointerMoveCapture}

@@ -367,6 +367,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     previewNodePosition: (id, x, y) => {
       commandContext.setNodePosition(id, x, y);
     },
+    previewBatchNodePositions: (updates) => {
+      commandContext.setBatchNodePositions(updates);
+    },
     commitNodeMove: (id, from, to) => {
       if (isPositionEqual(from, to)) {
         return;

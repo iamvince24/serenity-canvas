@@ -6,6 +6,7 @@ import { usePointerCapture } from "./usePointerCapture";
 
 type UseSpacePanOptions = {
   overlayContainer: HTMLElement | null;
+  canvasContainer: HTMLElement | null;
 };
 
 type PanState = {
@@ -16,11 +17,13 @@ type PanState = {
   startViewportZoom: number;
 };
 
-export function useSpacePan({ overlayContainer }: UseSpacePanOptions) {
+export function useSpacePan({
+  overlayContainer,
+  canvasContainer,
+}: UseSpacePanOptions) {
   const setViewport = useCanvasStore((state) => state.setViewport);
   const dispatch = useCanvasStore((state) => state.dispatch);
 
-  const [isSpaceHeld, setIsSpaceHeld] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const spaceHeldRef = useRef(false);
   const panStateRef = useRef<PanState | null>(null);
@@ -37,14 +40,14 @@ export function useSpacePan({ overlayContainer }: UseSpacePanOptions) {
 
       event.preventDefault();
       spaceHeldRef.current = true;
-      setIsSpaceHeld(true);
+      canvasContainer?.classList.add("cursor-grab");
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
       if (event.key !== " ") return;
 
       spaceHeldRef.current = false;
-      setIsSpaceHeld(false);
+      canvasContainer?.classList.remove("cursor-grab", "cursor-grabbing");
 
       if (panStateRef.current) {
         panStateRef.current = null;
@@ -58,8 +61,9 @@ export function useSpacePan({ overlayContainer }: UseSpacePanOptions) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      canvasContainer?.classList.remove("cursor-grab", "cursor-grabbing");
     };
-  }, [dispatch]);
+  }, [canvasContainer, dispatch]);
 
   useEffect(() => {
     if (!overlayContainer) return;
@@ -82,6 +86,8 @@ export function useSpacePan({ overlayContainer }: UseSpacePanOptions) {
         startViewportY: viewport.y,
         startViewportZoom: viewport.zoom,
       };
+      canvasContainer?.classList.remove("cursor-grab");
+      canvasContainer?.classList.add("cursor-grabbing");
       setIsPanning(true);
       dispatch(InteractionEvent.PAN_START);
     };
@@ -94,7 +100,7 @@ export function useSpacePan({ overlayContainer }: UseSpacePanOptions) {
         true,
       );
     };
-  }, [dispatch, overlayContainer]);
+  }, [canvasContainer, dispatch, overlayContainer]);
 
   const handlePanMove = useCallback(
     (clientX: number, clientY: number) => {
@@ -114,8 +120,12 @@ export function useSpacePan({ overlayContainer }: UseSpacePanOptions) {
     if (!panStateRef.current) return;
     panStateRef.current = null;
     setIsPanning(false);
+    canvasContainer?.classList.remove("cursor-grabbing");
+    if (spaceHeldRef.current) {
+      canvasContainer?.classList.add("cursor-grab");
+    }
     dispatch(InteractionEvent.PAN_END);
-  }, [dispatch]);
+  }, [canvasContainer, dispatch]);
 
   usePointerCapture(isPanning, {
     onPointerMove: handlePanMove,
@@ -123,5 +133,5 @@ export function useSpacePan({ overlayContainer }: UseSpacePanOptions) {
     onPointerCancel: finishPan,
   });
 
-  return { isSpaceHeld, isPanning };
+  return { isSpaceHeldRef: spaceHeldRef, isPanning };
 }
