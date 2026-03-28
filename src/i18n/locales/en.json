@@ -203,7 +203,7 @@
   "tour.step.createGroup.title": "Create a Group",
   "tour.step.createGroup.description": "Select multiple cards, then right-click and choose \"Create Group\" to organize them together.",
   "tour.step.textEditing.title": "Edit Text",
-  "tour.step.textEditing.description": "Click a card to edit its content. Type / to open the slash command menu for quick formatting.",
+  "tour.step.textEditing.description": "Double-click a card to edit its content. Type / to open the slash command menu for quick formatting.",
   "tour.step.undoRedo.title": "Undo & Redo",
   "tour.step.undoRedo.description": "All actions can be undone. Use keyboard shortcuts to easily step back and forth.",
   "tour.step.undoRedo.shortcut": "Cmd/Ctrl+Z",

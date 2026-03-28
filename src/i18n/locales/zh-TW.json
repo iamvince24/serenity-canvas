@@ -203,7 +203,7 @@
   "tour.step.createGroup.title": "建立群組",
   "tour.step.createGroup.description": "選取多張卡片後，右鍵選擇「建立群組」可將卡片分組管理。",
   "tour.step.textEditing.title": "編輯文字",
-  "tour.step.textEditing.description": "點擊卡片即可編輯內容。輸入 / 可開啟 Slash 命令選單，快速插入格式。",
+  "tour.step.textEditing.description": "雙擊卡片即可編輯內容。輸入 / 可開啟 Slash 命令選單，快速插入格式。",
   "tour.step.undoRedo.title": "復原與重做",
   "tour.step.undoRedo.description": "所有操作都可以復原。使用快捷鍵即可輕鬆回到上一步。",
   "tour.step.undoRedo.shortcut": "Cmd/Ctrl+Z",
