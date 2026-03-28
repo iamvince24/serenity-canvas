@@ -57,6 +57,7 @@ type UseConnectionDragResult = {
 };
 
 const TARGET_ANCHOR_HIT_RADIUS = 18;
+const NODE_BOUNDARY_SNAP_MARGIN = 48;
 
 function makeEdgeId(): string {
   if (
@@ -146,6 +147,7 @@ export function useConnectionDrag({
           findClosestNodeAnchor(nodesRef.current, pointer, {
             excludeNodeId: current.source.nodeId,
             maxDistance: TARGET_ANCHOR_HIT_RADIUS,
+            boundaryPadding: NODE_BOUNDARY_SNAP_MARGIN,
           }),
         ) ?? current.hoveredTarget;
 
@@ -191,6 +193,7 @@ export function useConnectionDrag({
         findClosestNodeAnchor(nodesRef.current, pointer, {
           excludeNodeId: current.source.nodeId,
           maxDistance: TARGET_ANCHOR_HIT_RADIUS,
+          boundaryPadding: NODE_BOUNDARY_SNAP_MARGIN,
         }),
       );
 

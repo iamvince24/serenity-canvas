@@ -81,6 +81,7 @@ type UseEdgeOverlayResult = {
 };
 
 const EDGE_ENDPOINT_SNAP_DISTANCE = 24;
+const EDGE_ENDPOINT_BOUNDARY_MARGIN = 48;
 
 function isEdgeOverlaySlot(slot: OverlaySlot): boolean {
   return (
@@ -156,6 +157,7 @@ export function useEdgeOverlay({
       return findClosestNodeAnchor(state.nodes, pointer, {
         excludeNodeId,
         maxDistance: EDGE_ENDPOINT_SNAP_DISTANCE,
+        boundaryPadding: EDGE_ENDPOINT_BOUNDARY_MARGIN,
       });
     },
     [],

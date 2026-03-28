@@ -403,12 +403,36 @@ export function getEdgeRoute(
   };
 }
 
+function pointToRectBoundaryDistance(
+  px: number,
+  py: number,
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
+): number {
+  const right = rx + rw;
+  const bottom = ry + rh;
+
+  const cx = Math.max(rx, Math.min(px, right));
+  const cy = Math.max(ry, Math.min(py, bottom));
+
+  if (cx !== px || cy !== py) {
+    const dx = px - cx;
+    const dy = py - cy;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  return Math.min(px - rx, right - px, py - ry, bottom - py);
+}
+
 export function findClosestNodeAnchor(
   nodes: Record<string, CanvasNode>,
   pointer: Point,
   options?: {
     excludeNodeId?: string;
     maxDistance?: number;
+    boundaryPadding?: number;
   },
 ): AnchorCandidate | null {
   const maxDistance = options?.maxDistance ?? 18;
@@ -450,7 +474,73 @@ export function findClosestNodeAnchor(
     }
   }
 
-  return best;
+  if (best) {
+    return best;
+  }
+
+  // Tier 2: snap to closest anchor of the nearest node boundary
+  const boundaryPadding = options?.boundaryPadding;
+  if (boundaryPadding == null || boundaryPadding <= 0) {
+    return null;
+  }
+
+  let closestNode: CanvasNode | null = null;
+  let closestBoundaryDist = boundaryPadding;
+
+  for (const node of Object.values(nodes)) {
+    if (node.id === options?.excludeNodeId) {
+      continue;
+    }
+
+    if (
+      pointer.x < node.x - boundaryPadding ||
+      pointer.x > node.x + node.width + boundaryPadding ||
+      pointer.y < node.y - boundaryPadding ||
+      pointer.y > node.y + node.height + boundaryPadding
+    ) {
+      continue;
+    }
+
+    const dist = pointToRectBoundaryDistance(
+      pointer.x,
+      pointer.y,
+      node.x,
+      node.y,
+      node.width,
+      node.height,
+    );
+
+    if (dist < closestBoundaryDist) {
+      closestBoundaryDist = dist;
+      closestNode = node;
+    }
+  }
+
+  if (!closestNode) {
+    return null;
+  }
+
+  let bestAnchor: AnchorCandidate | null = null;
+  let bestAnchorDistSq = Infinity;
+
+  for (const anchor of NODE_ANCHORS) {
+    const point = getNodeAnchorPoint(closestNode, anchor);
+    const dx = point.x - pointer.x;
+    const dy = point.y - pointer.y;
+    const distSq = dx * dx + dy * dy;
+
+    if (distSq < bestAnchorDistSq) {
+      bestAnchorDistSq = distSq;
+      bestAnchor = {
+        nodeId: closestNode.id,
+        anchor,
+        point,
+        distance: Math.sqrt(distSq),
+      };
+    }
+  }
+
+  return bestAnchor;
 }
 
 // Step 10 uses this helper for edge culling.
