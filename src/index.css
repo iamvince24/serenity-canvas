@@ -83,8 +83,8 @@
   --border: #e5e3df;
   --border-strong: #d1cfc9;
   --divider: #f0eeea;
-  --resize-edge-hit: 16px;
-  --resize-corner-hit: 20px;
+  --resize-edge-hit: 24px;
+  --resize-corner-hit: 28px;
   --editor-blockquote-border: #cfd6ca;
   --editor-blockquote-text: #4f564a;
   --editor-code-bg: #f3f4f1;

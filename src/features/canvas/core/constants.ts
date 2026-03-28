@@ -11,8 +11,8 @@ export const MIN_NODE_WIDTH = 120;
 export const MIN_NODE_HEIGHT = 80;
 export const MIN_IMAGE_NODE_WIDTH = 180;
 export const MIN_IMAGE_CONTENT_HEIGHT = 120;
-export const IMAGE_RESIZE_EDGE_HIT = 16;
-export const IMAGE_RESIZE_CORNER_HIT = 20;
+export const IMAGE_RESIZE_EDGE_HIT = 24;
+export const IMAGE_RESIZE_CORNER_HIT = 28;
 
 export const DEFAULT_NODE_WIDTH = 280;
 export const DEFAULT_NODE_HEIGHT = 240;
