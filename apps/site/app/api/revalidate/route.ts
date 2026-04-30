@@ -3,19 +3,15 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-const REVALIDATE_SECRET: string = (() => {
-  const value = process.env.REVALIDATE_SECRET;
-  if (!value) {
-    throw new Error("[api/revalidate] Missing required env: REVALIDATE_SECRET");
-  }
-  return value;
-})();
-
 const RevalidateBody = z
   .object({
     tag: z.string().regex(/^board:[A-Za-z0-9_-]{10}$/),
   })
   .strict();
+
+function getRevalidateSecret(): string | null {
+  return process.env.REVALIDATE_SECRET ?? null;
+}
 
 export async function POST(request: Request) {
   // Content-Type validation
@@ -27,13 +23,21 @@ export async function POST(request: Request) {
     );
   }
 
+  const revalidateSecret = getRevalidateSecret();
+  if (!revalidateSecret) {
+    return NextResponse.json(
+      { error: "Server misconfigured" },
+      { status: 500 },
+    );
+  }
+
   // Secret verification via timing-safe comparison
   const provided = request.headers.get("x-revalidate-secret") ?? "";
 
   if (
     provided.length === 0 ||
-    provided.length !== REVALIDATE_SECRET.length ||
-    !timingSafeEqual(Buffer.from(provided), Buffer.from(REVALIDATE_SECRET))
+    provided.length !== revalidateSecret.length ||
+    !timingSafeEqual(Buffer.from(provided), Buffer.from(revalidateSecret))
   ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

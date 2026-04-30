@@ -4,20 +4,26 @@ import { adminClient } from "./_helpers/supabaseAdmin.js";
 import { withWebStandard } from "./_helpers/withWebStandard.js";
 import { createSupabaseForUser } from "./_helpers/supabaseUser.js";
 
-const { SITE_URL, REVALIDATE_SECRET } = ((): {
-  SITE_URL: string;
-  REVALIDATE_SECRET: string;
-} => {
+function getRuntimeEnv():
+  | {
+      SITE_URL: string;
+      REVALIDATE_SECRET: string;
+    }
+  | {
+      missing: string;
+    } {
   const siteUrl = process.env.SITE_URL;
   const secret = process.env.REVALIDATE_SECRET;
   const missing = [!siteUrl && "SITE_URL", !secret && "REVALIDATE_SECRET"]
     .filter(Boolean)
     .join(", ");
+
   if (!siteUrl || !secret) {
-    throw new Error(`[api/revalidate-share] Missing required env: ${missing}`);
+    return { missing };
   }
+
   return { SITE_URL: siteUrl, REVALIDATE_SECRET: secret };
-})();
+}
 
 const SHARE_ID_REGEX = /^[A-Za-z0-9_-]{10}$/;
 const isValidShareId = (value: string): boolean => SHARE_ID_REGEX.test(value);
@@ -38,6 +44,11 @@ function extractBearerToken(req: Request): string | null {
 }
 
 async function handler(req: Request): Promise<Response> {
+  const env = getRuntimeEnv();
+  if ("missing" in env) {
+    return json({ error: `Missing required env: ${env.missing}` }, 500);
+  }
+
   // 1. Method guard
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
@@ -92,11 +103,11 @@ async function handler(req: Request): Promise<Response> {
 
   // 8. Forward to site revalidate endpoint
   try {
-    const siteRes = await fetch(`${SITE_URL}/api/revalidate`, {
+    const siteRes = await fetch(`${env.SITE_URL}/api/revalidate`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-revalidate-secret": REVALIDATE_SECRET,
+        "x-revalidate-secret": env.REVALIDATE_SECRET,
       },
       body: JSON.stringify({ tag: `board:${shareId}` }),
       signal: AbortSignal.timeout(5000),
