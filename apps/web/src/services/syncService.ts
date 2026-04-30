@@ -828,6 +828,34 @@ class SyncService {
         await this.pushBoard(board, useCanvasStore.getState().nodeOrder);
       }
     }
+
+    this.maybeRevalidateBoard(boardId);
+  }
+
+  private maybeRevalidateBoard(boardId: string): void {
+    void (async () => {
+      const { data: board } = await this.client
+        .from("boards")
+        .select("share_id, share_mode")
+        .eq("id", boardId)
+        .maybeSingle();
+      if (!board || board.share_mode !== "public" || !board.share_id) return;
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return;
+
+      await fetch("/api/revalidate-share", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ shareId: board.share_id }),
+      });
+    })().catch((err) =>
+      console.warn("[sync] revalidate failed", { boardId, error: err }),
+    );
   }
 
   /**

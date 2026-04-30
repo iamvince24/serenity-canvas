@@ -21,9 +21,15 @@ type UseShareStateReturn = ShareState & {
 
 async function revalidateShare(shareId: string): Promise<void> {
   try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
     await fetch("/api/revalidate-share", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ shareId }),
     });
   } catch (err) {
