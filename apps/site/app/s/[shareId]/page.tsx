@@ -40,22 +40,61 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+const HTML_JSON_UNSAFE_CHARS = /[<>&\u2028\u2029]/g;
+
+function JsonLd({
+  board,
+  shareId,
+}: {
+  board: { title: string; created_at: string };
+  shareId: string;
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL!;
+  const ld = {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: board.title,
+    datePublished: board.created_at,
+    url: `${siteUrl}/s/${shareId}`,
+  };
+  const ldJson = JSON.stringify(ld).replace(
+    HTML_JSON_UNSAFE_CHARS,
+    (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"),
+  );
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: ldJson }}
+    />
+  );
+}
+
 export default async function Page({ params }: Props) {
   const { shareId } = await params;
   const data = await getBoardByShareId(shareId);
   if (!data) notFound();
 
+  const jsonLd = <JsonLd board={data.board} shareId={shareId} />;
+
   if (data.fallback) {
-    return <BoardPreviewFallback board={data.board} />;
+    return (
+      <>
+        {jsonLd}
+        <BoardPreviewFallback board={data.board} />
+      </>
+    );
   }
 
   return (
-    <BoardPreview
-      board={data.board}
-      nodes={data.nodes}
-      edges={data.edges}
-      groups={data.groups}
-      files={data.files}
-    />
+    <>
+      {jsonLd}
+      <BoardPreview
+        board={data.board}
+        nodes={data.nodes}
+        edges={data.edges}
+        groups={data.groups}
+        files={data.files}
+      />
+    </>
   );
 }
