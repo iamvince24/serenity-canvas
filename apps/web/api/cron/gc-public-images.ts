@@ -36,62 +36,53 @@ async function handler(req: Request): Promise<Response> {
   };
 
   const allObjects: StorageObject[] = [];
-  let invalidCount = 0;
-  let lastCreatedAt: string | null = null;
-  let hasMore = true;
 
-  type RawStorageRow = { name: string; created_at: string };
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const storageFrom = (adminClient as any)
-    .schema("storage")
-    .from("objects") as {
-    select: (cols: string) => unknown;
-  };
-
-  while (hasMore) {
-    type StorageQuery = {
-      eq: (col: string, val: string) => StorageQuery;
-      lt: (col: string, val: string) => StorageQuery;
-      gt: (col: string, val: string) => StorageQuery;
-      order: (col: string, opts: { ascending: boolean }) => StorageQuery;
-      limit: (n: number) => StorageQuery;
-      then: Promise<{ data: RawStorageRow[] | null; error: unknown }>["then"];
-    };
-
-    let query = storageFrom.select("name, created_at") as StorageQuery;
-    query = query.eq("bucket_id", "public-images");
-    query = query.lt("created_at", cutoff);
-    query = query.order("created_at", { ascending: true });
-    query = query.limit(PAGE_SIZE);
-
-    if (lastCreatedAt !== null) {
-      query = query.gt("created_at", lastCreatedAt);
-    }
-
-    const { data, error } = await (query as unknown as Promise<{
-      data: RawStorageRow[] | null;
-      error: unknown;
-    }>);
+  // Step 1: list top-level folders (boardId prefixes) via Storage API
+  const boardFolders: string[] = [];
+  let folderOffset = 0;
+  while (true) {
+    const { data, error } = await adminClient.storage
+      .from("public-images")
+      .list("", {
+        limit: PAGE_SIZE,
+        offset: folderOffset,
+        sortBy: { column: "name", order: "asc" },
+      });
     if (error) throw error;
     if (!data || data.length === 0) break;
-
-    for (const row of data) {
-      const parts = row.name.split("/");
-      if (parts.length !== 2) {
-        invalidCount++;
-        continue;
-      }
-      allObjects.push({
-        boardId: parts[0],
-        assetId: parts[1],
-        name: row.name,
-        createdAt: row.created_at,
-      });
+    for (const item of data) {
+      if (item.id === null) boardFolders.push(item.name);
     }
+    folderOffset += data.length;
+    if (data.length < PAGE_SIZE) break;
+  }
 
-    lastCreatedAt = data[data.length - 1].created_at;
-    hasMore = data.length === PAGE_SIZE;
+  // Step 2: for each folder, list files and filter by cutoff
+  for (const boardId of boardFolders) {
+    let fileOffset = 0;
+    while (true) {
+      const { data, error } = await adminClient.storage
+        .from("public-images")
+        .list(boardId, {
+          limit: PAGE_SIZE,
+          offset: fileOffset,
+        });
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const file of data) {
+        if (!file.id) continue;
+        const createdAt = file.created_at ?? "";
+        if (createdAt >= cutoff) continue;
+        allObjects.push({
+          boardId,
+          assetId: file.name,
+          name: `${boardId}/${file.name}`,
+          createdAt,
+        });
+      }
+      fileOffset += data.length;
+      if (data.length < PAGE_SIZE) break;
+    }
   }
 
   const uniqueBoardIds = [...new Set(allObjects.map((o) => o.boardId))];
@@ -171,7 +162,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   console.log(
-    `[gc-public-images] dryRun=${dryRun} scanned=${allObjects.length} toDelete=${toDelete.length} deleted=${deleted} skipped=${skipped} invalid=${invalidCount}`,
+    `[gc-public-images] dryRun=${dryRun} scanned=${allObjects.length} toDelete=${toDelete.length} deleted=${deleted} skipped=${skipped}`,
   );
 
   return new Response(
@@ -182,7 +173,6 @@ async function handler(req: Request): Promise<Response> {
       toDelete: toDelete.length,
       deleted,
       skipped,
-      invalid: invalidCount,
     }),
     {
       status: 200,
