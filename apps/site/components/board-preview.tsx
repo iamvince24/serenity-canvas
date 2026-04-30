@@ -1,4 +1,5 @@
 import "@/styles/card-prose.css";
+import Image from "next/image";
 import { renderCardMarkdown } from "@/lib/markdown";
 import {
   computeEdgePath,
@@ -411,10 +412,12 @@ export default function BoardPreview({
                 }}
               >
                 {showImage ? (
-                  <img
+                  <Image
                     src={getPublicImageUrl(file.public_image_path)}
                     alt={node.content || "Image"}
-                    loading="lazy"
+                    width={Math.round(node.width)}
+                    height={Math.round(node.height)}
+                    sizes="(max-width: 768px) 50vw, 400px"
                     style={{
                       width: "100%",
                       height: "100%",
