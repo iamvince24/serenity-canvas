@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -15,10 +16,15 @@ const CSP = [
 ].join("; ");
 
 const config: NextConfig = {
+  turbopack: {
+    root: path.resolve(__dirname, "../.."),
+  },
+  outputFileTracingRoot: path.resolve(__dirname, "../.."),
   serverExternalPackages: ["isomorphic-dompurify", "jsdom", "dompurify"],
   transpilePackages: ["@serenity/shared"],
   typedRoutes: true,
   images: {
+    minimumCacheTTL: 60,
     remotePatterns: [
       {
         protocol: "https",

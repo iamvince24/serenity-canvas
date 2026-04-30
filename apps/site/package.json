@@ -6,19 +6,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@serenity/shared": "workspace:*",
-    "zod": "^3.25.67",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.98.0",
     "isomorphic-dompurify": "^2.0.0",
     "markdown-it": "^14.0.0",
     "nanoid": "^5.0.0",
-    "next": "15.5.15",
+    "next": "16.2.4",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -27,7 +28,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.15",
+    "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

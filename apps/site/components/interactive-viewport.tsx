@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useReducer,
   useRef,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
@@ -49,12 +48,18 @@ export default function InteractiveViewport({
   children,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const transformRef = useRef<HTMLDivElement>(null);
   const vpRef = useRef<Viewport>({
     scale: initialScale,
     offsetX: initialOffsetX,
     offsetY: initialOffsetY,
   });
-  const [, rerender] = useReducer((c: number) => c + 1, 0);
+
+  const applyTransform = useCallback((vp: Viewport) => {
+    const el = transformRef.current;
+    if (!el) return;
+    el.style.transform = `scale(${vp.scale}) translate(${vp.offsetX}px, ${vp.offsetY}px)`;
+  }, []);
 
   const viewportSizeRef = useRef({ width: 0, height: 0 });
   const activePointersRef = useRef<PointerEntry[]>([]);
@@ -95,9 +100,9 @@ export default function InteractiveViewport({
       const raw = { ...vpRef.current, ...next };
       const clamped = clampOffset(raw);
       vpRef.current = clamped;
-      rerender();
+      applyTransform(clamped);
     },
-    [clampOffset],
+    [clampOffset, applyTransform],
   );
 
   // ResizeObserver to track container size
@@ -309,8 +314,6 @@ export default function InteractiveViewport({
     };
   }, [minScale, maxScale, updateViewport]);
 
-  const { scale, offsetX, offsetY } = vpRef.current;
-
   return (
     <div
       ref={containerRef}
@@ -331,6 +334,7 @@ export default function InteractiveViewport({
       }}
     >
       <div
+        ref={transformRef}
         style={{
           position: "absolute",
           top: 0,
@@ -338,7 +342,7 @@ export default function InteractiveViewport({
           width: "100%",
           height: "100%",
           transformOrigin: "0 0",
-          transform: `scale(${scale}) translate(${offsetX}px, ${offsetY}px)`,
+          transform: `scale(${initialScale}) translate(${initialOffsetX}px, ${initialOffsetY}px)`,
           willChange: "transform",
         }}
       >
