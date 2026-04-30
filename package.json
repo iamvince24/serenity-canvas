@@ -39,6 +39,11 @@
       "prettier --write"
     ]
   },
+  "pnpm": {
+    "overrides": {
+      "html-encoding-sniffer": "^4.0.0"
+    }
+  },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "husky": "^9.1.7",
