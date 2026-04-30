@@ -113,6 +113,7 @@ export function CanvasPage({ boardId, sidebarOpen }: CanvasPageProps) {
               </Link>
             )}
             <Toolbar
+              boardId={boardId}
               showFpsOverlay={showFpsOverlay}
               onFpsOverlayToggle={() => setShowFpsOverlay((v) => !v)}
               sidebarOpen={sidebarOpen}

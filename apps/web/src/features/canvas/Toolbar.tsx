@@ -7,6 +7,7 @@ import {
   LogIn,
   MousePointer2,
   Redo2,
+  Share2,
   Spline,
   TestTube2,
   Trash2,
@@ -44,6 +45,8 @@ import { createImageNodeCenteredAt } from "./nodes/nodeFactory";
 import { useImageUpload } from "./images/useImageUpload";
 import { ExportDialog } from "./export/ExportDialog";
 import { ImportDialog } from "./import/ImportDialog";
+import { ShareButton } from "./toolbar/ShareButton";
+import { ShareDialog } from "./share/ShareDialog";
 import { StressFixtureDialog } from "./StressFixtureDialog";
 import { HelpButton } from "../onboarding/HelpButton";
 import { useTour } from "../onboarding/useTour";
@@ -97,12 +100,14 @@ function ToolbarTooltip({
 }
 
 type ToolbarProps = {
+  boardId?: string;
   showFpsOverlay?: boolean;
   onFpsOverlayToggle?: () => void;
   sidebarOpen?: boolean;
 };
 
 export function Toolbar({
+  boardId,
   showFpsOverlay = false,
   onFpsOverlayToggle,
   sidebarOpen = false,
@@ -112,6 +117,7 @@ export function Toolbar({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
   const canvasMode = useCanvasStore((state) => state.canvasMode);
   const interactionState = useCanvasStore((state) => state.interactionState);
@@ -284,6 +290,12 @@ export function Toolbar({
                 <Upload size={14} className="mr-2" />
                 {t("toolbar.button.import")}
               </DropdownMenuItem>
+              {boardId && user && (
+                <DropdownMenuItem onSelect={() => setIsShareDialogOpen(true)}>
+                  <Share2 size={14} className="mr-2" />
+                  {t("share.button.tooltip")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onSelect={() => {
                   const isZh = i18n.language.startsWith("zh");
@@ -328,6 +340,7 @@ export function Toolbar({
 
         {/* --- 桌面專屬區域 --- */}
         <div className="hidden md:contents">
+          {boardId && user && <ShareButton boardId={boardId} />}
           <Divider />
           <ToolbarTooltip label={t("toolbar.button.export")}>
             <button
@@ -434,6 +447,13 @@ export function Toolbar({
         open={isImportDialogOpen}
         onOpenChange={setIsImportDialogOpen}
       />
+      {boardId && (
+        <ShareDialog
+          open={isShareDialogOpen}
+          onOpenChange={setIsShareDialogOpen}
+          boardId={boardId}
+        />
+      )}
 
       {SHOW_IMAGE_UPLOAD_BUTTON && (
         <input
