@@ -15,6 +15,9 @@ const {
   mockUpdate,
   mockGetSession,
   mockSyncImages,
+  mockGetPendingChanges,
+  mockClearChanges,
+  mockPushPendingChanges,
 } = vi.hoisted(() => {
   const mockSingle = vi.fn();
   const mockSelectEq = vi.fn(() => ({ single: mockSingle }));
@@ -23,6 +26,9 @@ const {
   const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
   const mockGetSession = vi.fn();
   const mockSyncImages = vi.fn(() => Promise.resolve());
+  const mockGetPendingChanges = vi.fn(() => Promise.resolve([] as unknown[]));
+  const mockClearChanges = vi.fn(() => Promise.resolve());
+  const mockPushPendingChanges = vi.fn(() => Promise.resolve());
 
   return {
     mockGenerateShareId: vi.fn(() => "SHARE_ID_01"),
@@ -33,6 +39,9 @@ const {
     mockUpdate,
     mockGetSession,
     mockSyncImages,
+    mockGetPendingChanges,
+    mockClearChanges,
+    mockPushPendingChanges,
   };
 });
 
@@ -55,6 +64,19 @@ vi.mock("@/lib/supabase", () => ({
 vi.mock("@/services/imageSyncService", () => ({
   imageSyncService: {
     syncImages: mockSyncImages,
+  },
+}));
+
+vi.mock("@/db/changeTracker", () => ({
+  changeTracker: {
+    getPendingChanges: mockGetPendingChanges,
+    clearChanges: mockClearChanges,
+  },
+}));
+
+vi.mock("@/services/syncService", () => ({
+  syncService: {
+    pushPendingChanges: mockPushPendingChanges,
   },
 }));
 
@@ -88,6 +110,9 @@ function resetSupabase() {
   mockUpdate.mockReset().mockReturnValue({ eq: mockUpdateEq });
   mockGetSession.mockReset().mockResolvedValue(buildSessionData());
   mockSyncImages.mockReset().mockResolvedValue(undefined);
+  mockGetPendingChanges.mockReset().mockResolvedValue([]);
+  mockClearChanges.mockReset().mockResolvedValue(undefined);
+  mockPushPendingChanges.mockReset().mockResolvedValue(undefined);
 }
 
 // ---------------------------------------------------------------------------
@@ -361,6 +386,73 @@ describe("useShareState", () => {
       expect(callOrder).toEqual(["syncImages", "publishAssets"]);
     });
 
+    it("有 pending changes 時先 push 再 syncImages 再 publish-assets", async () => {
+      mockUpdateEq.mockResolvedValue({ error: null });
+      mockGetPendingChanges.mockResolvedValue([{ entityType: "file" }]);
+
+      const callOrder: string[] = [];
+      mockPushPendingChanges.mockImplementation(async () => {
+        callOrder.push("pushPendingChanges");
+      });
+      mockClearChanges.mockImplementation(async () => {
+        callOrder.push("clearChanges");
+      });
+      mockSyncImages.mockImplementation(async () => {
+        callOrder.push("syncImages");
+      });
+
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url === "/api/share-publish-assets") {
+          callOrder.push("publishAssets");
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ share_assets_status: "ready" }),
+        };
+      });
+      globalThis.fetch = fetchMock;
+
+      const { result } = renderHook(() => useShareState());
+
+      await act(async () => {
+        await result.current.enableShare("board-1");
+      });
+
+      expect(mockPushPendingChanges).toHaveBeenCalledWith("board-1", [
+        { entityType: "file" },
+      ]);
+      expect(mockClearChanges).toHaveBeenCalledWith("board-1");
+      expect(callOrder).toEqual([
+        "pushPendingChanges",
+        "clearChanges",
+        "syncImages",
+        "publishAssets",
+      ]);
+    });
+
+    it("pushPendingChanges 失敗時不阻擋後續流程，且不清 dirty flag", async () => {
+      mockUpdateEq.mockResolvedValue({ error: null });
+      mockGetPendingChanges.mockResolvedValue([{ entityType: "file" }]);
+      mockPushPendingChanges.mockRejectedValue(new Error("network"));
+
+      const fetchMock = mockFetchOk({ share_assets_status: "ready" });
+      globalThis.fetch = fetchMock;
+
+      const { result } = renderHook(() => useShareState());
+
+      await act(async () => {
+        await result.current.enableShare("board-1");
+      });
+
+      expect(mockClearChanges).not.toHaveBeenCalled();
+      expect(mockSyncImages).toHaveBeenCalledWith("board-1");
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/share-publish-assets",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
     it("publish-assets 回傳 too_many_assets 時設定對應 error", async () => {
       mockUpdateEq.mockResolvedValue({ error: null });
       globalThis.fetch = vi.fn().mockResolvedValue({
@@ -624,6 +716,97 @@ describe("useShareState", () => {
 
       expect(mockSyncImages).toHaveBeenCalledWith("board-1");
       expect(callOrder).toEqual(["syncImages", "publishAssets"]);
+    });
+
+    it("有 pending changes 時先 push 再 syncImages 再 publish-assets", async () => {
+      mockSingle.mockResolvedValue({
+        data: {
+          share_mode: "public",
+          share_id: "RETRY_ID",
+          share_assets_status: "failed",
+        },
+        error: null,
+      });
+      mockUpdateEq.mockResolvedValue({ error: null });
+      mockGetPendingChanges.mockResolvedValue([{ entityType: "file" }]);
+
+      const callOrder: string[] = [];
+      mockPushPendingChanges.mockImplementation(async () => {
+        callOrder.push("pushPendingChanges");
+      });
+      mockClearChanges.mockImplementation(async () => {
+        callOrder.push("clearChanges");
+      });
+      mockSyncImages.mockImplementation(async () => {
+        callOrder.push("syncImages");
+      });
+
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url === "/api/share-publish-assets") {
+          callOrder.push("publishAssets");
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ share_assets_status: "ready" }),
+        };
+      });
+      globalThis.fetch = fetchMock;
+
+      const { result } = renderHook(() => useShareState());
+
+      await act(async () => {
+        await result.current.load("board-1");
+      });
+
+      await act(async () => {
+        await result.current.retryPublishAssets("board-1");
+      });
+
+      expect(mockPushPendingChanges).toHaveBeenCalledWith("board-1", [
+        { entityType: "file" },
+      ]);
+      expect(mockClearChanges).toHaveBeenCalledWith("board-1");
+      expect(callOrder).toEqual([
+        "pushPendingChanges",
+        "clearChanges",
+        "syncImages",
+        "publishAssets",
+      ]);
+    });
+
+    it("pushPendingChanges 失敗時不阻擋後續流程，且不清 dirty flag", async () => {
+      mockSingle.mockResolvedValue({
+        data: {
+          share_mode: "public",
+          share_id: "RETRY_ID",
+          share_assets_status: "failed",
+        },
+        error: null,
+      });
+      mockUpdateEq.mockResolvedValue({ error: null });
+      mockGetPendingChanges.mockResolvedValue([{ entityType: "file" }]);
+      mockPushPendingChanges.mockRejectedValue(new Error("network"));
+
+      const fetchMock = mockFetchOk({ share_assets_status: "ready" });
+      globalThis.fetch = fetchMock;
+
+      const { result } = renderHook(() => useShareState());
+
+      await act(async () => {
+        await result.current.load("board-1");
+      });
+
+      await act(async () => {
+        await result.current.retryPublishAssets("board-1");
+      });
+
+      expect(mockClearChanges).not.toHaveBeenCalled();
+      expect(mockSyncImages).toHaveBeenCalledWith("board-1");
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/share-publish-assets",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
 
     it("DB update 失敗時設定 error 並不呼叫 publish-assets", async () => {

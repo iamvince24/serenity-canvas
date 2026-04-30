@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
+import { changeTracker } from "@/db/changeTracker";
 import { supabase } from "@/lib/supabase";
 import { imageSyncService } from "@/services/imageSyncService";
+import { syncService } from "@/services/syncService";
 import { useShareStore } from "@/stores/shareStore";
 import { generateShareId } from "@serenity/shared/share";
 
@@ -20,6 +22,22 @@ type UseShareStateReturn = ShareState & {
   disableShare: (boardId: string) => Promise<void>;
   retryPublishAssets: (boardId: string) => Promise<void>;
 };
+
+// Flush local dirtyChanges (esp. new files rows) to Supabase before
+// running syncImages — otherwise syncImages.updateRemoteImagePath uses
+// .update().eq() which silently no-ops when the remote row doesn't exist
+// yet, and /api/share-publish-assets ends up seeing missing rows or null
+// image_path on first publish.
+async function flushPendingChanges(boardId: string): Promise<void> {
+  try {
+    const changes = await changeTracker.getPendingChanges(boardId);
+    if (changes.length === 0) return;
+    await syncService.pushPendingChanges(boardId, changes);
+    await changeTracker.clearChanges(boardId);
+  } catch (err) {
+    console.warn("[useShareState] flushPendingChanges failed:", err);
+  }
+}
 
 async function revalidateShare(shareId: string): Promise<void> {
   try {
@@ -178,9 +196,10 @@ export function useShareState(): UseShareStateReturn {
         setShareModeState("public");
         setShareId(newShareId);
         setAssetsStatus("pending");
-        // Ensure local images are uploaded and files.image_path is written
-        // remotely before publishing — otherwise share-publish-assets sees
-        // null image_path and marks the asset as failed.
+        // Push pending file rows first so syncImages can write image_path,
+        // then upload blobs — both must complete before publish-assets,
+        // otherwise the endpoint sees missing rows or null image_path.
+        await flushPendingChanges(boardId);
         await imageSyncService.syncImages(boardId);
         await publishAssets(boardId, newShareId);
       } finally {
@@ -248,6 +267,7 @@ export function useShareState(): UseShareStateReturn {
         }
 
         setAssetsStatus("pending");
+        await flushPendingChanges(boardId);
         await imageSyncService.syncImages(boardId);
         await publishAssets(boardId, shareId);
       } finally {
