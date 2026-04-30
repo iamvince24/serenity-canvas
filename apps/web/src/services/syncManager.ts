@@ -124,10 +124,19 @@ class SyncManager {
           });
           await syncService.pushPendingChanges(boardId, changes);
           await changeTracker.clearChanges(boardId);
-          // 圖片上傳在背景執行，不阻塞 dirty record 的 push 流程
-          void imageSyncService.syncImages(boardId).catch((error) => {
-            console.warn("[sync] push:image:error", { boardId, error });
-          });
+          const hasFileUpserts = changes.some(
+            (c) => c.entityType === "file" && c.action === "upsert",
+          );
+          void imageSyncService
+            .syncImages(boardId)
+            .then(() => {
+              if (hasFileUpserts) {
+                return syncService.maybeRepublishAssets(boardId);
+              }
+            })
+            .catch((error) => {
+              console.warn("[sync] push:image:error", { boardId, error });
+            });
           console.info("[sync] push:success", {
             boardId,
             changes: changes.length,

@@ -858,6 +858,39 @@ class SyncService {
     );
   }
 
+  async maybeRepublishAssets(boardId: string): Promise<void> {
+    const { data: board } = await this.client
+      .from("boards")
+      .select("share_id, share_mode")
+      .eq("id", boardId)
+      .maybeSingle();
+    if (!board || board.share_mode !== "public" || !board.share_id) return;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+
+    const res = await fetch("/api/share-publish-assets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ boardId }),
+    });
+
+    if (res.ok) {
+      await fetch("/api/revalidate-share", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ shareId: board.share_id }),
+      });
+    }
+  }
+
   /**
    * 過濾掉過時的 upsert dirty flags。
    * 只保留本地 updatedAt 嚴格大於遠端的變更；delete / board / group 一律保留。
