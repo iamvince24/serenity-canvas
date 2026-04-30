@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { estimateContentHeight } from "../../../mcp-server/src/heightEstimator";
+import { estimateContentHeight } from "../../../../../mcp-server/src/heightEstimator";
 
 describe("estimateContentHeight", () => {
   it("returns 240 (DEFAULT_NODE_HEIGHT) for empty content", () => {

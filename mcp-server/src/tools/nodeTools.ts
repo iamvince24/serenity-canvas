@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { fromDbNode } from "../../../src/shared/serializers.js";
+import { fromDbNode } from "../../../apps/web/src/shared/serializers.js";
 import { resolveChangesetId } from "../changeset.js";
 import { estimateContentHeight } from "../heightEstimator.js";
 import { ok, fail } from "../helpers.js";

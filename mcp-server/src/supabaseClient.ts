@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../../src/types/supabase.js";
+import type { Database } from "../../apps/web/src/types/supabase.js";
 
 /** Create a per-request Supabase client authenticated via Bearer token. */
 export function createSupabaseForUser(

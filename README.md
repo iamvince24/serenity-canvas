@@ -47,6 +47,19 @@ graph TB
 
 &nbsp;&nbsp;
 
+## Local Development
+
+- Monorepo workspaces:
+  - `apps/web` — current Vite SPA + Vercel API routes
+  - `apps/site` — reserved for the future Next.js site app
+- Default local ports:
+  - `apps/web`: `http://localhost:5173`
+  - `apps/site`: `http://localhost:3000`
+- Root commands proxy into the web app where needed:
+  - `pnpm dev`, `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm lint`
+  - `pnpm db:reset`, `pnpm db:push`, `pnpm db:types`
+- Until later phases, local `.env*` files remain at the repo root. `apps/web` is configured to read them from there during local development.
+
 ## Phase 0 — Core Canvas
 
 ### Canvas Functionality

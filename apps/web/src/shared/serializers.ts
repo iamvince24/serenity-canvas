@@ -3,7 +3,7 @@
  * Shared by both the frontend syncService and the MCP server.
  */
 
-import type { CanvasNode, Edge, FileRecord } from "@/types/canvas";
+import type { CanvasNode, Edge, FileRecord } from "../types/canvas";
 
 export function normalizeTimestamp(input: unknown): number {
   if (typeof input === "number") {

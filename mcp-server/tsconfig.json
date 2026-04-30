@@ -8,15 +8,15 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "verbatimModuleSyntax": true,
-    "baseUrl": "..",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./apps/web/src/*"]
     }
   },
   "include": [
     "src/**/*.ts",
-    "../src/shared/**/*.ts",
-    "../src/types/**/*.ts",
-    "../src/constants/**/*.ts"
+    "apps/web/src/shared/**/*.ts",
+    "apps/web/src/types/**/*.ts",
+    "apps/web/src/constants/**/*.ts"
   ]
 }
