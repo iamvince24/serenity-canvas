@@ -241,5 +241,10 @@
   "share.toast.clipboardFallback": "請按 ⌘+C 複製",
   "share.error.updateFailed": "更新分享設定失敗，請再試一次。",
   "share.error.offline": "需要連線才能變更分享設定",
-  "share.error.tooManyAssets": "此白板的圖片數量超過上限（最多 50 張），無法發佈。"
+  "share.error.tooManyAssets": "此白板的圖片數量超過上限（最多 50 張），無法發佈。",
+  "share.action.enableLink": "建立連結",
+  "share.action.reactivateLink": "重新啟用連結",
+  "share.action.disableLink": "停用連結",
+  "share.public.empty.description": "建立分享連結後，任何取得連結的人都能查看此白板。",
+  "share.public.reactivateNote": "重新啟用後將沿用先前的連結。"
 }

@@ -15,7 +15,8 @@ type ShareState = {
 
 type UseShareStateReturn = ShareState & {
   load: (boardId: string) => Promise<void>;
-  setShareMode: (boardId: string, mode: ShareMode) => Promise<void>;
+  enableShare: (boardId: string) => Promise<void>;
+  disableShare: (boardId: string) => Promise<void>;
   retryPublishAssets: (boardId: string) => Promise<void>;
 };
 
@@ -124,76 +125,59 @@ export function useShareState(): UseShareStateReturn {
     [setError],
   );
 
-  const setShareMode = useCallback(
-    async (boardId: string, mode: ShareMode): Promise<void> => {
+  const enableShare = useCallback(
+    async (boardId: string): Promise<void> => {
       const prevMode = shareMode;
       const prevShareId = shareId;
       const prevAssetsStatus = assetsStatus;
 
-      setShareModeState(mode);
       setUpdating(true);
       clearError();
 
       try {
-        if (mode === "public") {
-          let newShareId = shareId ?? generateShareId();
+        let newShareId = shareId ?? generateShareId();
 
-          const { error } = await supabase
-            .from("boards")
-            .update({
-              share_mode: "public",
-              share_id: newShareId,
-              share_assets_status: "pending",
-            })
-            .eq("id", boardId);
+        const { error } = await supabase
+          .from("boards")
+          .update({
+            share_mode: "public",
+            share_id: newShareId,
+            share_assets_status: "pending",
+          })
+          .eq("id", boardId);
 
-          if (error) {
-            if (error.code === "23505") {
-              newShareId = generateShareId();
-              const { error: retryError } = await supabase
-                .from("boards")
-                .update({
-                  share_mode: "public",
-                  share_id: newShareId,
-                  share_assets_status: "pending",
-                })
-                .eq("id", boardId);
+        if (error) {
+          if (error.code === "23505") {
+            newShareId = generateShareId();
+            const { error: retryError } = await supabase
+              .from("boards")
+              .update({
+                share_mode: "public",
+                share_id: newShareId,
+                share_assets_status: "pending",
+              })
+              .eq("id", boardId);
 
-              if (retryError) {
-                setShareModeState(prevMode);
-                setShareId(prevShareId);
-                setAssetsStatus(prevAssetsStatus);
-                setError("share.error.updateFailed");
-                return;
-              }
-            } else {
+            if (retryError) {
               setShareModeState(prevMode);
               setShareId(prevShareId);
               setAssetsStatus(prevAssetsStatus);
               setError("share.error.updateFailed");
               return;
             }
-          }
-
-          setShareId(newShareId);
-          setAssetsStatus("pending");
-          await publishAssets(boardId, newShareId);
-        } else {
-          const { error } = await supabase
-            .from("boards")
-            .update({ share_mode: "private" })
-            .eq("id", boardId);
-
-          if (error) {
+          } else {
             setShareModeState(prevMode);
+            setShareId(prevShareId);
+            setAssetsStatus(prevAssetsStatus);
             setError("share.error.updateFailed");
             return;
           }
-
-          if (shareId) {
-            void revalidateShare(shareId);
-          }
         }
+
+        setShareModeState("public");
+        setShareId(newShareId);
+        setAssetsStatus("pending");
+        await publishAssets(boardId, newShareId);
       } finally {
         setUpdating(false);
       }
@@ -207,6 +191,37 @@ export function useShareState(): UseShareStateReturn {
       setError,
       publishAssets,
     ],
+  );
+
+  const disableShare = useCallback(
+    async (boardId: string): Promise<void> => {
+      const prevMode = shareMode;
+
+      setUpdating(true);
+      clearError();
+
+      try {
+        const { error } = await supabase
+          .from("boards")
+          .update({ share_mode: "private" })
+          .eq("id", boardId);
+
+        if (error) {
+          setShareModeState(prevMode);
+          setError("share.error.updateFailed");
+          return;
+        }
+
+        setShareModeState("private");
+
+        if (shareId) {
+          void revalidateShare(shareId);
+        }
+      } finally {
+        setUpdating(false);
+      }
+    },
+    [shareMode, shareId, setUpdating, clearError, setError],
   );
 
   const retryPublishAssets = useCallback(
@@ -242,7 +257,8 @@ export function useShareState(): UseShareStateReturn {
     assetsStatus,
     isLoading,
     load,
-    setShareMode,
+    enableShare,
+    disableShare,
     retryPublishAssets,
   };
 }

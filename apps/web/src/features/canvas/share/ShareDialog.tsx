@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
 import {
@@ -13,6 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useShareStore } from "@/stores/shareStore";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
@@ -27,6 +28,7 @@ type ShareDialogProps = {
   boardId: string;
 };
 
+type ShareMode = "private" | "public";
 type AssetsStatus = "pending" | "ready" | "partial" | "failed" | null;
 
 function AssetsStatusBadge({
@@ -92,20 +94,35 @@ function ShareDialogBody({ boardId }: { boardId: string }) {
     assetsStatus,
     isLoading,
     load,
-    setShareMode,
+    enableShare,
+    disableShare,
     retryPublishAssets,
   } = useShareState();
+
+  // Tab selection is local UI state, decoupled from DB share_mode.
+  // Switching tabs no longer publishes — that requires the explicit action button.
+  const [selectedTab, setSelectedTab] = useState<ShareMode>("private");
 
   useEffect(() => {
     void load(boardId);
   }, [boardId, load]);
+
+  // After load (or after enable/disable updates DB state), sync the tab so an
+  // already-public board opens on the public tab. User tab clicks update
+  // selectedTab directly and don't need this sync.
+  useEffect(() => {
+    setSelectedTab(shareMode);
+  }, [shareMode]);
 
   const shareUrl =
     shareId != null
       ? `${import.meta.env.VITE_SHARE_BASE_URL ?? window.location.origin}/s/${shareId}`
       : null;
 
-  const isPublic = shareMode === "public";
+  const isPublicTab = selectedTab === "public";
+  const isActive = shareMode === "public";
+  const hasExistingShareId = shareId != null;
+  const actionsDisabled = isUpdating || isLoading || !isOnline;
 
   return (
     <div className="space-y-4 py-2">
@@ -123,36 +140,69 @@ function ShareDialogBody({ boardId }: { boardId: string }) {
         </div>
       )}
 
-      {/* Share mode toggle */}
+      {/* Share mode tab — UI only, does NOT write DB */}
       <ShareModeSegmented
-        value={shareMode}
-        onChange={(mode) => void setShareMode(boardId, mode)}
-        disabled={isUpdating || isLoading || !isOnline}
+        value={selectedTab}
+        onChange={setSelectedTab}
+        disabled={isLoading}
       />
 
       {/* Public-only sections with animated reveal */}
       <div
         className={[
           "grid transition-all duration-200",
-          isPublic
+          isPublicTab
             ? "grid-rows-[1fr] opacity-100"
             : "grid-rows-[0fr] opacity-0",
         ].join(" ")}
       >
         <div className="overflow-hidden">
           <div className="space-y-3 pt-1">
-            <ShareLinkField
-              shareUrl={shareUrl}
-              isGenerating={isLoading || isUpdating}
-            />
+            {isActive ? (
+              <>
+                <ShareLinkField
+                  shareUrl={shareUrl}
+                  isGenerating={isLoading || isUpdating}
+                />
 
-            <AssetsStatusBadge
-              status={assetsStatus}
-              boardId={boardId}
-              onRetry={retryPublishAssets}
-            />
+                <AssetsStatusBadge
+                  status={assetsStatus}
+                  boardId={boardId}
+                  onRetry={retryPublishAssets}
+                />
 
-            <ShareSecurityNote />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => void disableShare(boardId)}
+                  disabled={actionsDisabled}
+                >
+                  {t("share.action.disableLink")}
+                </Button>
+
+                <ShareSecurityNote />
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {hasExistingShareId
+                    ? t("share.public.reactivateNote")
+                    : t("share.public.empty.description")}
+                </p>
+
+                <Button
+                  type="button"
+                  onClick={() => void enableShare(boardId)}
+                  disabled={actionsDisabled}
+                >
+                  {hasExistingShareId
+                    ? t("share.action.reactivateLink")
+                    : t("share.action.enableLink")}
+                </Button>
+
+                <ShareSecurityNote />
+              </>
+            )}
           </div>
         </div>
       </div>

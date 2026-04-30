@@ -192,10 +192,10 @@ describe("useShareState", () => {
   });
 
   // -------------------------------------------------------------------------
-  // setShareMode("public")
+  // enableShare
   // -------------------------------------------------------------------------
 
-  describe("setShareMode('public')", () => {
+  describe("enableShare", () => {
     it("產生 shareId、更新 DB、呼叫 publish-assets", async () => {
       mockUpdateEq.mockResolvedValue({ error: null });
 
@@ -205,7 +205,7 @@ describe("useShareState", () => {
       const { result } = renderHook(() => useShareState());
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "public");
+        await result.current.enableShare("board-1");
       });
 
       // shareId 由 generateShareId 產生
@@ -249,12 +249,12 @@ describe("useShareState", () => {
         await result.current.load("board-1");
       });
 
-      // 在 load 完成後才清除計數，確保只計算 setShareMode 期間的呼叫
+      // 在 load 完成後才清除計數，確保只計算 enableShare 期間的呼叫
       mockGenerateShareId.mockClear();
 
-      // 切換為 public
+      // 啟用分享連結
       await act(async () => {
-        await result.current.setShareMode("board-1", "public");
+        await result.current.enableShare("board-1");
       });
 
       expect(result.current.shareId).toBe("EXISTING_SHARE");
@@ -275,7 +275,7 @@ describe("useShareState", () => {
       const { result } = renderHook(() => useShareState());
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "public");
+        await result.current.enableShare("board-1");
       });
 
       // 第二次嘗試的 shareId
@@ -294,7 +294,7 @@ describe("useShareState", () => {
       expect(result.current.shareMode).toBe("private");
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "public");
+        await result.current.enableShare("board-1");
       });
 
       expect(result.current.shareMode).toBe("private");
@@ -312,7 +312,7 @@ describe("useShareState", () => {
       const { result } = renderHook(() => useShareState());
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "public");
+        await result.current.enableShare("board-1");
       });
 
       await waitFor(() => {
@@ -332,7 +332,7 @@ describe("useShareState", () => {
       const { result } = renderHook(() => useShareState());
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "public");
+        await result.current.enableShare("board-1");
       });
 
       await waitFor(() => {
@@ -345,10 +345,10 @@ describe("useShareState", () => {
   });
 
   // -------------------------------------------------------------------------
-  // setShareMode("private")
+  // disableShare
   // -------------------------------------------------------------------------
 
-  describe("setShareMode('private')", () => {
+  describe("disableShare", () => {
     it("只更新 share_mode，不觸發 publish-assets", async () => {
       mockSingle.mockResolvedValue({
         data: {
@@ -370,7 +370,7 @@ describe("useShareState", () => {
       });
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "private");
+        await result.current.disableShare("board-1");
       });
 
       expect(result.current.shareMode).toBe("private");
@@ -408,7 +408,7 @@ describe("useShareState", () => {
       });
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "private");
+        await result.current.disableShare("board-1");
       });
 
       // shareId 應保留
@@ -435,11 +435,49 @@ describe("useShareState", () => {
       });
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "private");
+        await result.current.disableShare("board-1");
       });
 
       expect(result.current.shareMode).toBe("public");
       expect(useShareStore.getState().error).toBe("share.error.updateFailed");
+    });
+
+    it("disable 後再 enable 應沿用同一個 shareId", async () => {
+      mockSingle.mockResolvedValue({
+        data: {
+          share_mode: "public",
+          share_id: "STABLE_ID",
+          share_assets_status: "ready",
+        },
+        error: null,
+      });
+      mockUpdateEq.mockResolvedValue({ error: null });
+      globalThis.fetch = mockFetchOk({ share_assets_status: "ready" });
+
+      const { result } = renderHook(() => useShareState());
+
+      await act(async () => {
+        await result.current.load("board-1");
+      });
+
+      // Disable
+      await act(async () => {
+        await result.current.disableShare("board-1");
+      });
+
+      expect(result.current.shareMode).toBe("private");
+      expect(result.current.shareId).toBe("STABLE_ID");
+
+      mockGenerateShareId.mockClear();
+
+      // Re-enable — 不應產生新 ID
+      await act(async () => {
+        await result.current.enableShare("board-1");
+      });
+
+      expect(result.current.shareMode).toBe("public");
+      expect(result.current.shareId).toBe("STABLE_ID");
+      expect(mockGenerateShareId).not.toHaveBeenCalled();
     });
   });
 
@@ -546,7 +584,7 @@ describe("useShareState", () => {
   // -------------------------------------------------------------------------
 
   describe("isUpdating lifecycle", () => {
-    it("setShareMode 開始時設 isUpdating=true，結束後設回 false", async () => {
+    it("enableShare 開始時設 isUpdating=true，結束後設回 false", async () => {
       const isUpdatingStates: boolean[] = [];
       mockUpdateEq.mockImplementation(async () => {
         isUpdatingStates.push(useShareStore.getState().isUpdating);
@@ -556,7 +594,7 @@ describe("useShareState", () => {
       const { result } = renderHook(() => useShareState());
 
       await act(async () => {
-        await result.current.setShareMode("board-1", "public");
+        await result.current.enableShare("board-1");
       });
 
       // 在 DB update 執行期間 isUpdating 應為 true

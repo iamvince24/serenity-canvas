@@ -241,5 +241,10 @@
   "share.toast.clipboardFallback": "Press ⌘+C to copy",
   "share.error.updateFailed": "Failed to update sharing settings. Please try again.",
   "share.error.offline": "You are offline. Sharing settings require an internet connection.",
-  "share.error.tooManyAssets": "This board has too many images to publish (max 50)."
+  "share.error.tooManyAssets": "This board has too many images to publish (max 50).",
+  "share.action.enableLink": "Create link",
+  "share.action.reactivateLink": "Reactivate link",
+  "share.action.disableLink": "Disable link",
+  "share.public.empty.description": "Create a share link to let anyone with the link view this board.",
+  "share.public.reactivateNote": "Reactivating will reuse the previous link."
 }
