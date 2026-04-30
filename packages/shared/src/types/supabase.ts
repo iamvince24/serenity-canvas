@@ -39,6 +39,9 @@ export type Database = {
           created_at: string;
           id: string;
           node_order: Json;
+          share_assets_status: string;
+          share_id: string | null;
+          share_mode: string;
           title: string;
           updated_at: string;
           user_id: string;
@@ -47,6 +50,9 @@ export type Database = {
           created_at?: string;
           id?: string;
           node_order?: Json;
+          share_assets_status?: string;
+          share_id?: string | null;
+          share_mode?: string;
           title?: string;
           updated_at?: string;
           user_id?: string;
@@ -55,6 +61,9 @@ export type Database = {
           created_at?: string;
           id?: string;
           node_order?: Json;
+          share_assets_status?: string;
+          share_id?: string | null;
+          share_mode?: string;
           title?: string;
           updated_at?: string;
           user_id?: string;
@@ -503,6 +512,33 @@ export type Database = {
         };
         Returns: boolean;
       };
+      get_public_board_by_share_id: {
+        Args: { p_share_id: string };
+        Returns: {
+          created_at: string;
+          id: string;
+          node_count: number;
+          public_version: number;
+          share_assets_status: string;
+          share_id: string;
+          share_mode: string;
+          title: string;
+          updated_at: string;
+        }[];
+      };
+      get_public_files_by_board_id: {
+        Args: { p_board_id: string };
+        Returns: {
+          asset_id: string;
+          board_id: string;
+          id: string;
+          mime_type: string;
+          original_height: number;
+          original_width: number;
+          public_image_path: string;
+        }[];
+      };
+      is_public_board: { Args: { p_board_id: string }; Returns: boolean };
       sync_group_members: {
         Args: { p_group_ids: string[]; p_members: Json };
         Returns: undefined;
