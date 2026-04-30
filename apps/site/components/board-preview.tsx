@@ -13,6 +13,7 @@ import {
 import { isTextNode, isImageNode } from "@serenity/shared/types";
 import type { CanvasNode, Edge, Group } from "@serenity/shared/types";
 import type { BoardRow, PublicFileRow } from "@/lib/board";
+import InteractiveViewport from "./interactive-viewport";
 
 type Props = {
   board: BoardRow;
@@ -199,16 +200,11 @@ export default function BoardPreview({
         </div>
       )}
 
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          transformOrigin: "0 0",
-          transform: `scale(${scale}) translate(${offsetX}px, ${offsetY}px)`,
-        }}
+      <InteractiveViewport
+        initialScale={scale}
+        initialOffsetX={offsetX}
+        initialOffsetY={offsetY}
+        contentBounds={bounds}
       >
         {groupList.map((group) => {
           const memberNodes = group.nodeIds
@@ -448,7 +444,7 @@ export default function BoardPreview({
 
           return null;
         })}
-      </div>
+      </InteractiveViewport>
     </main>
   );
 }
