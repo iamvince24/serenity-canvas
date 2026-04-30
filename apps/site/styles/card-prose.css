@@ -1,0 +1,99 @@
+.card-prose {
+  min-height: 1.6em;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.card-prose p,
+.card-prose h1,
+.card-prose h2,
+.card-prose h3,
+.card-prose h4,
+.card-prose h5,
+.card-prose h6,
+.card-prose ul,
+.card-prose ol,
+.card-prose li,
+.card-prose blockquote,
+.card-prose code,
+.card-prose pre {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  line-height: 1.6;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+.card-prose > * + * {
+  margin-top: 0.75em;
+}
+
+.card-prose ul,
+.card-prose ol {
+  padding-left: 1.25em;
+}
+
+.card-prose ul {
+  list-style: disc;
+}
+
+.card-prose ol {
+  list-style: decimal;
+}
+
+.card-prose h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45em;
+  font-weight: 600;
+}
+
+.card-prose h2 {
+  font-size: 1.25em;
+  font-weight: 700;
+}
+
+.card-prose h3,
+.card-prose h4,
+.card-prose h5,
+.card-prose h6 {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.card-prose blockquote {
+  border-left: 3px solid #cfd6ca;
+  padding-left: 0.75em;
+  color: #4f564a;
+}
+
+.card-prose code {
+  font: inherit;
+  border-radius: 4px;
+  background: #f3f4f1;
+  padding: 0.05em 0.3em;
+}
+
+.card-prose pre {
+  border-radius: 6px;
+  background: #f3f4f1;
+  padding: 0.6em 0.75em;
+  white-space: pre-wrap;
+}
+
+.card-prose pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.card-prose a {
+  color: #8b9d83;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.card-prose a:hover {
+  color: #6b7d63;
+}

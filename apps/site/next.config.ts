@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === "development";
+
 const CSP = [
   "default-src 'self'",
   "img-src 'self' https://*.supabase.co data:",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "connect-src 'self' https://*.supabase.co",
+  `connect-src 'self' https://*.supabase.co${isDev ? " ws://localhost:*" : ""}`,
   "font-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -13,6 +15,7 @@ const CSP = [
 ].join("; ");
 
 const config: NextConfig = {
+  serverExternalPackages: ["isomorphic-dompurify", "jsdom", "dompurify"],
   transpilePackages: ["@serenity/shared"],
   typedRoutes: true,
   images: {
