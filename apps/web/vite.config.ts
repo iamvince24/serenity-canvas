@@ -9,6 +9,30 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@serenity/shared/serializers": path.resolve(
+        __dirname,
+        "../../packages/shared/src/serializers.ts",
+      ),
+      "@serenity/shared/supabase": path.resolve(
+        __dirname,
+        "../../packages/shared/src/supabase/index.ts",
+      ),
+      "@serenity/shared/types": path.resolve(
+        __dirname,
+        "../../packages/shared/src/types/index.ts",
+      ),
+      "@serenity/shared/share": path.resolve(
+        __dirname,
+        "../../packages/shared/src/share/index.ts",
+      ),
+      "@serenity/shared/edgeUtils": path.resolve(
+        __dirname,
+        "../../packages/shared/src/edgeUtils/index.ts",
+      ),
+      "@serenity/shared": path.resolve(
+        __dirname,
+        "../../packages/shared/src/index.ts",
+      ),
     },
   },
   esbuild: {

@@ -3,27 +3,50 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json --noEmit",
+    "build": "tsup",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./serializers": "./src/serializers.ts",
-    "./supabase": "./src/supabase/index.ts",
-    "./types": "./src/types/index.ts",
-    "./share": "./src/share/index.ts",
-    "./edgeUtils": "./src/edgeUtils/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./serializers": {
+      "types": "./dist/serializers.d.ts",
+      "import": "./dist/serializers.js"
+    },
+    "./supabase": {
+      "types": "./dist/supabase.d.ts",
+      "import": "./dist/supabase.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./share": {
+      "types": "./dist/share.d.ts",
+      "import": "./dist/share.js"
+    },
+    "./edgeUtils": {
+      "types": "./dist/edgeUtils.d.ts",
+      "import": "./dist/edgeUtils.js"
+    }
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
     "nanoid": "^5.0.0"
   },
   "devDependencies": {
+    "tsup": "^8.3.5",
     "vitest": "^4.0.0"
   }
 }

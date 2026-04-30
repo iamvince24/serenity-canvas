@@ -3,15 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./src/server.ts",
-  "types": "./src/server.ts",
+  "main": "./dist/server.js",
+  "types": "./dist/server.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
-    ".": "./src/server.ts",
-    "./heightEstimator": "./src/heightEstimator.ts"
+    ".": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./heightEstimator": {
+      "types": "./dist/heightEstimator.d.ts",
+      "import": "./dist/heightEstimator.js"
+    }
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
