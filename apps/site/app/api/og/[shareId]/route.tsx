@@ -1,14 +1,15 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { getBoardByShareId } from "@/lib/board";
 import { isValidShareId } from "@serenity/shared/share";
 import { BoardOg } from "./BoardOg";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
-// Module-level font promise — fetched once on cold start, reused across requests
-const fontPromise = fetch(
-  new URL("./NotoSansTC-Regular.ttf", import.meta.url),
-).then((r) => r.arrayBuffer());
+const fontPromise = readFile(
+  join(process.cwd(), "app/api/og/[shareId]/NotoSansTC-Regular.ttf"),
+);
 
 export async function GET(
   request: Request,
