@@ -18,7 +18,7 @@
   },
   "include": [
     "./**/*.ts",
-    "../../../mcp-server/src/**/*.ts",
+    "../../mcp-server/src/**/*.ts",
     "../../../packages/shared/src/**/*.ts",
     "../src/shared/**/*.ts",
     "../src/types/**/*.ts"

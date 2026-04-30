@@ -10,10 +10,9 @@
     "verbatimModuleSyntax": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./apps/web/src/*"],
-      "@serenity/shared": ["../packages/shared/src/index.ts"],
-      "@serenity/shared/*": ["../packages/shared/src/*"]
+      "@serenity/shared": ["../../packages/shared/src/index.ts"],
+      "@serenity/shared/*": ["../../packages/shared/src/*"]
     }
   },
-  "include": ["src/**/*.ts", "../packages/shared/src/**/*.ts"]
+  "include": ["src/**/*.ts", "../../packages/shared/src/**/*.ts"]
 }

@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "build:mcp": "tsc -p mcp-server/tsconfig.json",
-    "mcp:dev": "tsx mcp-server/src/index.ts",
+    "build:mcp": "pnpm -C apps/mcp-server typecheck",
+    "mcp:dev": "pnpm -C apps/mcp-server dev",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "preview": "pnpm -C apps/web preview",
@@ -40,16 +40,11 @@
     ]
   },
   "devDependencies": {
-    "@serenity/shared": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.26.0",
     "@types/node": "^24.10.1",
-    "@supabase/supabase-js": "^2.98.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
     "turbo": "^2.0.0",
-    "tsx": "^4.19.4",
-    "typescript": "~5.9.3",
-    "zod": "^3.25.67"
+    "typescript": "~5.9.3"
   }
 }

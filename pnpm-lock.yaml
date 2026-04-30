@@ -8,15 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.26.0
-        version: 1.26.0(zod@3.25.76)
-      '@serenity/shared':
-        specifier: workspace:*
-        version: link:packages/shared
-      '@supabase/supabase-js':
-        specifier: ^2.98.0
-        version: 2.98.0
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.13
@@ -29,18 +20,37 @@ importers:
       prettier:
         specifier: ^3.8.1
         version: 3.8.1
-      tsx:
-        specifier: ^4.19.4
-        version: 4.21.0
       turbo:
         specifier: ^2.0.0
         version: 2.9.6
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
+
+  apps/mcp-server:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.26.0
+        version: 1.26.0(zod@3.25.76)
+      '@serenity/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@supabase/supabase-js':
+        specifier: ^2.98.0
+        version: 2.98.0
       zod:
         specifier: ^3.25.67
         version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.10.13
+      tsx:
+        specifier: ^4.19.4
+        version: 4.21.0
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   apps/web:
     dependencies:
@@ -141,6 +151,9 @@ importers:
       '@eslint/js':
         specifier: ^9.39.1
         version: 9.39.2
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.26.0
+        version: 1.26.0(zod@3.25.76)
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.58.2
