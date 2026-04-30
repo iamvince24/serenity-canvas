@@ -10,7 +10,6 @@ import { toNodeGeometrySnapshot } from "../../../commands/nodeCommands";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import type { FileRecord, ImageNode } from "../../../types/canvas";
 import {
-  IMAGE_NODE_CAPTION_HEIGHT,
   MIN_IMAGE_CONTENT_HEIGHT,
   MIN_IMAGE_NODE_WIDTH,
 } from "../core/constants";
@@ -342,7 +341,7 @@ export function useImageResize({
         x: nextSnapshot.x,
         y: nextSnapshot.y,
         width: nextSnapshot.width,
-        height: nextSnapshot.imageHeight + IMAGE_NODE_CAPTION_HEIGHT,
+        height: nextSnapshot.imageHeight,
         heightMode: node.heightMode,
       });
     },
@@ -460,10 +459,7 @@ export function useImageResize({
       setBodyCursor(getResizeCursor(handle));
       isResizingRef.current = true;
 
-      const startImageHeight = Math.max(
-        MIN_IMAGE_CONTENT_HEIGHT,
-        node.height - IMAGE_NODE_CAPTION_HEIGHT,
-      );
+      const startImageHeight = Math.max(MIN_IMAGE_CONTENT_HEIGHT, node.height);
       resizeStartGeometryRef.current = toNodeGeometrySnapshot(node);
       const aspectRatio =
         file && file.original_width > 0 && file.original_height > 0

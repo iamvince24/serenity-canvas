@@ -9,10 +9,6 @@ vi.mock("../card/CardWidget", () => ({
   CardWidget: () => null,
 }));
 
-vi.mock("../images/ImageCaptionWidget", () => ({
-  ImageCaptionWidget: () => null,
-}));
-
 const textNode: TextNode = {
   id: "text-1",
   type: "text",

@@ -1,5 +1,4 @@
 export { ImageCanvasNode } from "./ImageCanvasNode";
-export { ImageCaptionWidget } from "./ImageCaptionWidget";
 export { ImageBlockExtension } from "./imageBlockExtension";
 export {
   acquireImage,

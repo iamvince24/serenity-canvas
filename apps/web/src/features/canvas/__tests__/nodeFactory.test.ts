@@ -7,11 +7,7 @@ import {
   getImageNodeHeightForWidth,
 } from "../nodes/nodeFactory";
 import type { ImageNodeUploadPayload } from "../nodes/nodeFactory";
-import {
-  DEFAULT_NODE_HEIGHT,
-  DEFAULT_NODE_WIDTH,
-  IMAGE_NODE_CAPTION_HEIGHT,
-} from "../core/constants";
+import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "../core/constants";
 
 describe("createNodeId", () => {
   it("回傳非空字串", () => {
@@ -124,7 +120,7 @@ describe("createImageNodeCenteredAt", () => {
     expect(node.width).toBe(420);
   });
 
-  it("高度依 aspect ratio 計算並加上 caption height", () => {
+  it("高度依 aspect ratio 計算", () => {
     const node = createImageNodeCenteredAt(
       0,
       0,
@@ -132,8 +128,7 @@ describe("createImageNodeCenteredAt", () => {
       createFileRecord({ original_width: 400, original_height: 300 }),
     );
 
-    const expectedTotalHeight = IMAGE_NODE_CAPTION_HEIGHT + 300;
-    expect(node.height).toBe(expectedTotalHeight);
+    expect(node.height).toBe(300);
   });
 
   it("僅保留 asset_id 到 image node", () => {
@@ -153,7 +148,7 @@ describe("createImageNodeCenteredAt", () => {
 });
 
 describe("getImageNodeHeightForWidth", () => {
-  it("依 aspect ratio 計算高度並加上 caption", () => {
+  it("依 aspect ratio 計算高度", () => {
     const width = 320;
     const originalWidth = 800;
     const originalHeight = 600;
@@ -165,6 +160,6 @@ describe("getImageNodeHeightForWidth", () => {
     );
 
     const expectedImageHeight = Math.round((320 * 600) / 800);
-    expect(height).toBe(IMAGE_NODE_CAPTION_HEIGHT + expectedImageHeight);
+    expect(height).toBe(expectedImageHeight);
   });
 });

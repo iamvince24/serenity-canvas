@@ -6,7 +6,6 @@ import { useCanvasStore } from "../../../stores/canvasStore";
 import { getFileByAssetId } from "../../../stores/slices/fileSlice";
 import type { ImageNode } from "../../../types/canvas";
 import {
-  IMAGE_NODE_CAPTION_HEIGHT,
   IMAGE_RESIZE_CORNER_HIT,
   IMAGE_RESIZE_EDGE_HIT,
   MIN_IMAGE_CONTENT_HEIGHT,
@@ -69,10 +68,7 @@ function ImageCanvasNodeComponent({
   });
 
   const colorStyle = useMemo(() => getCardColorStyle(node.color), [node.color]);
-  const imageHeight = Math.max(
-    MIN_IMAGE_CONTENT_HEIGHT,
-    node.height - IMAGE_NODE_CAPTION_HEIGHT,
-  );
+  const imageHeight = Math.max(MIN_IMAGE_CONTENT_HEIGHT, node.height);
 
   useEffect(() => {
     let disposed = false;
@@ -217,7 +213,7 @@ function ImageCanvasNodeComponent({
           y={0}
           width={node.width}
           height={imageHeight}
-          cornerRadius={[10, 10, 0, 0]}
+          cornerRadius={10}
         />
       ) : (
         <>
@@ -246,20 +242,9 @@ function ImageCanvasNodeComponent({
           height={imageHeight}
           fill="#A3B29B"
           opacity={0.12}
-          cornerRadius={[10, 10, 0, 0]}
+          cornerRadius={10}
         />
       )}
-
-      <Rect
-        x={0}
-        y={imageHeight}
-        width={node.width}
-        height={IMAGE_NODE_CAPTION_HEIGHT}
-        fill={colorStyle.background}
-        stroke={colorStyle.border}
-        strokeWidth={1}
-        cornerRadius={[0, 0, 10, 10]}
-      />
 
       <>
         {!isPending && (

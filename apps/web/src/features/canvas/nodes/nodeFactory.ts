@@ -4,7 +4,6 @@ import {
   DEFAULT_NODE_CONTENT,
   DEFAULT_NODE_HEIGHT,
   DEFAULT_NODE_WIDTH,
-  IMAGE_NODE_CAPTION_HEIGHT,
   MIN_IMAGE_CONTENT_HEIGHT,
   MIN_IMAGE_NODE_WIDTH,
 } from "../core/constants";
@@ -63,7 +62,7 @@ export function getImageNodeHeightForWidth(
     Math.round((safeWidth * safeOriginalHeight) / safeOriginalWidth),
   );
 
-  return IMAGE_NODE_CAPTION_HEIGHT + imageHeight;
+  return imageHeight;
 }
 
 export function createImageNodeCenteredAt(

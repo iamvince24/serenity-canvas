@@ -8,14 +8,11 @@ import {
 import { createPortal } from "react-dom";
 import { useCanvasStore } from "../../../stores/canvasStore";
 import {
-  isImageNode,
   isTextNode,
   type CanvasNode,
-  type ImageNode,
   type TextNode,
 } from "../../../types/canvas";
 import { CardWidget } from "./CardWidget";
-import { ImageCaptionWidget } from "../images/ImageCaptionWidget";
 import { usePendingNodeIds } from "../changeset/usePendingStatus";
 import type { ContextMenuNodeType } from "../nodes/NodeContextMenu";
 import { NodeAnchors } from "../nodes/NodeAnchors";
@@ -110,27 +107,6 @@ export function CardOverlay({
                 node={node}
                 zoom={zoom}
                 autoFocus={autoFocusNodeId === node.id}
-                layerIndex={layerIndex}
-                isSelected={selectedNodeIdSet.has(node.id)}
-                isPending={pendingNodeIds[node.id] === true}
-                onOpenContextMenu={onOpenContextMenu}
-              />
-            </ShapeErrorBoundary>
-          ))}
-
-        {orderedNodeEntries
-          .filter(
-            (
-              entry,
-            ): entry is {
-              node: ImageNode;
-              layerIndex: number;
-            } => isImageNode(entry.node),
-          )
-          .map(({ node, layerIndex }) => (
-            <ShapeErrorBoundary key={node.id} shapeId={node.id}>
-              <ImageCaptionWidget
-                node={node}
                 layerIndex={layerIndex}
                 isSelected={selectedNodeIdSet.has(node.id)}
                 isPending={pendingNodeIds[node.id] === true}

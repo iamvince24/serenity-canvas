@@ -15,8 +15,6 @@ export {
   DEFAULT_NODE_HEIGHT,
   DEFAULT_NODE_CONTENT,
   DEFAULT_NODE_COLOR,
-  IMAGE_NODE_CAPTION_HEIGHT,
-  IMAGE_NODE_CAPTION_PADDING,
 } from "./constants";
 export type {
   OverlaySlot,
