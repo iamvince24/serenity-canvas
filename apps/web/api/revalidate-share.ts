@@ -2,7 +2,7 @@ import "./_helpers/loadEnv.js";
 import { z } from "zod";
 import { adminClient } from "./_helpers/supabaseAdmin.js";
 import { withWebStandard } from "./_helpers/withWebStandard.js";
-import { createSupabaseForUser } from "../../mcp-server/src/supabaseClient.js";
+import { createSupabaseForUser } from "@serenity/shared/supabase";
 import { isValidShareId } from "@serenity/shared/share";
 
 const BodySchema = z.object({ shareId: z.string() }).strict();

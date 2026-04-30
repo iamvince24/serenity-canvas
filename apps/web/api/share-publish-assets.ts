@@ -3,7 +3,7 @@ import { z } from "zod";
 import { adminClient } from "./_helpers/supabaseAdmin.js";
 import { checkRateLimit, getClientIp } from "./_helpers/rateLimit.js";
 import { withWebStandard } from "./_helpers/withWebStandard.js";
-import { createSupabaseForUser } from "../../mcp-server/src/supabaseClient.js";
+import { createSupabaseForUser } from "@serenity/shared/supabase";
 
 const MAX_ASSETS = 50;
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
