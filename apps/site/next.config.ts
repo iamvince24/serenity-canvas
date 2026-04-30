@@ -30,6 +30,15 @@ const config: NextConfig = {
   async headers() {
     return [
       {
+        source: "/og-fallback.png",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           { key: "Content-Security-Policy", value: CSP },
