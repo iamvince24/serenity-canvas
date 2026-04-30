@@ -3,6 +3,14 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+const REVALIDATE_SECRET: string = (() => {
+  const value = process.env.REVALIDATE_SECRET;
+  if (!value) {
+    throw new Error("[api/revalidate] Missing required env: REVALIDATE_SECRET");
+  }
+  return value;
+})();
+
 const RevalidateBody = z
   .object({
     tag: z.string().regex(/^board:[A-Za-z0-9_-]{10}$/),
@@ -20,14 +28,12 @@ export async function POST(request: Request) {
   }
 
   // Secret verification via timing-safe comparison
-  const secret = process.env.REVALIDATE_SECRET;
   const provided = request.headers.get("x-revalidate-secret") ?? "";
 
   if (
-    !secret ||
     provided.length === 0 ||
-    provided.length !== secret.length ||
-    !timingSafeEqual(Buffer.from(provided), Buffer.from(secret))
+    provided.length !== REVALIDATE_SECRET.length ||
+    !timingSafeEqual(Buffer.from(provided), Buffer.from(REVALIDATE_SECRET))
   ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

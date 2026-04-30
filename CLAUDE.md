@@ -89,6 +89,8 @@ Single test: `pnpm -C apps/web vitest run src/features/canvas/__tests__/layerOrd
 
 **Vercel API** (all under `apps/web/api/`): `mcp.ts`, `oauth/` (authorize/callback/register/token), `well-known/`, `cron/`, `share-publish-assets.ts`.
 
+**Share Revalidate**: 2-stage trust chain — `apps/web/api/revalidate-share.ts` 驗 user (Bearer + RLS owner check)，再以 `REVALIDATE_SECRET` server-to-server 觸發 `apps/site/app/api/revalidate/route.ts` 呼叫 `revalidateTag`。兩端 env 在 module 載入時 fail-loud。完整設計見 `docs/nextjs/phase1/執行計劃/Step11-stages/12-revalidate-tag.md`。
+
 **i18n**: zh-TW (default) + en. All UI text via `t()`. Keys in `apps/web/src/i18n/locales/{zh-TW,en}.json`.
 
 ## Key Conventions
