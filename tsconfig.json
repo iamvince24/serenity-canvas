@@ -4,6 +4,7 @@
     { "path": "./packages/shared/tsconfig.json" },
     { "path": "./apps/web/tsconfig.app.json" },
     { "path": "./apps/web/tsconfig.node.json" },
+    { "path": "./apps/mcp-server/tsconfig.json" },
     { "path": "./apps/site/tsconfig.json" }
   ],
   "compilerOptions": {
@@ -11,7 +12,9 @@
     "paths": {
       "@/*": ["./apps/web/src/*"],
       "@serenity/shared": ["./packages/shared/src/index.ts"],
-      "@serenity/shared/*": ["./packages/shared/src/*"]
+      "@serenity/shared/*": ["./packages/shared/src/*"],
+      "@serenity/mcp-server": ["./apps/mcp-server/src/server.ts"],
+      "@serenity/mcp-server/*": ["./apps/mcp-server/src/*"]
     }
   }
 }

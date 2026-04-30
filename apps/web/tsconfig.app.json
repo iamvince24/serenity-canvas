@@ -27,7 +27,9 @@
     "paths": {
       "@/*": ["./src/*"],
       "@serenity/shared": ["../../packages/shared/src/index.ts"],
-      "@serenity/shared/*": ["../../packages/shared/src/*"]
+      "@serenity/shared/*": ["../../packages/shared/src/*"],
+      "@serenity/mcp-server": ["../mcp-server/src/server.ts"],
+      "@serenity/mcp-server/*": ["../mcp-server/src/*"]
     }
   },
   "include": ["src"]
