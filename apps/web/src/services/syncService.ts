@@ -27,6 +27,12 @@ import {
 } from "@/shared/serializers";
 
 const BATCH_SIZE = 500;
+type BoardListRow = {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
 
 type RemoteBundle = {
   nodes: CanvasNode[];
@@ -248,7 +254,7 @@ class SyncService {
       throw error;
     }
 
-    return (data ?? []).map((row) => ({
+    return (data ?? []).map((row: BoardListRow) => ({
       id: row.id,
       title: row.title,
       createdAt: normalizeTimestamp(row.created_at),
@@ -537,7 +543,7 @@ class SyncService {
     }
 
     const nodeOrder = Array.isArray(data.node_order)
-      ? data.node_order.map((item) => String(item))
+      ? data.node_order.map((item: unknown) => String(item))
       : [];
     return {
       nodeOrder,

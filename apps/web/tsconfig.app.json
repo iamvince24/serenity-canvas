@@ -25,7 +25,9 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@serenity/shared": ["../../packages/shared/src/index.ts"],
+      "@serenity/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": ["src"]

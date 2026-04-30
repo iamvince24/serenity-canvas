@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { CanvasNode, Edge } from "@/types/canvas";
+import type { Tables } from "@/types/supabase";
 import { supabase } from "@/lib/supabase";
 import { fromDbNode, fromDbEdge } from "@/shared/serializers";
 import { useCanvasStore, setSyncGuard } from "./canvasStore";
@@ -24,6 +25,9 @@ type ChangesetState = {
   rejectChangeset: (boardId: string, changesetId: string) => Promise<void>;
   clearPending: () => void;
 };
+
+type NodeRow = Tables<"nodes">;
+type EdgeRow = Tables<"edges">;
 
 function buildPendingLookups(grouped: Record<string, PendingChangeset>): {
   pendingNodeIds: Record<string, true>;
@@ -75,17 +79,22 @@ export const useChangesetStore = create<ChangesetState>((set, get) => ({
       ]);
 
       const pendingNodes = (nodesRes.data ?? [])
-        .map((row) => ({
+        .map((row: NodeRow) => ({
           node: fromDbNode(row as unknown as Record<string, unknown>),
           changesetId: (row as Record<string, unknown>).changeset_id as string,
           createdAt: row.created_at,
         }))
         .filter(
-          (item): item is typeof item & { node: CanvasNode } =>
-            item.node !== null,
+          (
+            item,
+          ): item is {
+            node: CanvasNode;
+            changesetId: string;
+            createdAt: string;
+          } => item.node !== null,
         );
 
-      const pendingEdges = (edgesRes.data ?? []).map((row) => ({
+      const pendingEdges = (edgesRes.data ?? []).map((row: EdgeRow) => ({
         edge: fromDbEdge(row as unknown as Record<string, unknown>),
         changesetId: (row as Record<string, unknown>).changeset_id as string,
         createdAt: row.created_at,

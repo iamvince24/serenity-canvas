@@ -23,10 +23,11 @@
     "db:push": "supabase db push",
     "db:pull": "supabase db pull",
     "db:migration:new": "supabase migration new",
-    "db:types": "supabase gen types typescript --local > src/types/supabase.ts",
-    "db:types:remote": "supabase gen types typescript --project-id nsxvydduqdpeedrfdyuz > src/types/supabase.ts"
+    "db:types": "supabase gen types typescript --local > ../../packages/shared/src/types/supabase.ts",
+    "db:types:remote": "supabase gen types typescript --project-id nsxvydduqdpeedrfdyuz > ../../packages/shared/src/types/supabase.ts"
   },
   "dependencies": {
+    "@serenity/shared": "workspace:*",
     "@supabase/supabase-js": "^2.98.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tiptap/core": "^2.14.0",

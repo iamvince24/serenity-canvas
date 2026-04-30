@@ -1,7 +1,1 @@
-export type Board = {
-  id: string;
-  title: string;
-  createdAt: number;
-  updatedAt: number;
-  nodeCount: number;
-};
+export type { Board } from "@serenity/shared/types";

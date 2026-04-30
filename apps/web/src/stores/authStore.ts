@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
 type SignUpResult = {
@@ -44,12 +44,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
       set({ loading: true });
 
       if (!authSubscription) {
-        const { data } = supabase.auth.onAuthStateChange((_, session) => {
-          set({
-            user: session?.user ?? null,
-            loading: false,
-          });
-        });
+        const { data } = supabase.auth.onAuthStateChange(
+          (_event: AuthChangeEvent, session: Session | null) => {
+            set({
+              user: session?.user ?? null,
+              loading: false,
+            });
+          },
+        );
         authSubscription = data.subscription;
       }
 

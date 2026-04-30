@@ -40,6 +40,7 @@
     ]
   },
   "devDependencies": {
+    "@serenity/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@types/node": "^24.10.1",
     "@supabase/supabase-js": "^2.98.0",

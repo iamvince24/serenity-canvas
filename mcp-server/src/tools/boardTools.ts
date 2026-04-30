@@ -1,10 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import {
-  fromDbNode,
-  fromDbEdge,
-} from "../../../apps/web/src/shared/serializers.js";
+import { fromDbNode, fromDbEdge } from "@serenity/shared/serializers";
 import { ok, fail } from "../helpers.js";
 import type { McpContext } from "../types.js";
 

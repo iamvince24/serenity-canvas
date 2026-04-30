@@ -1,5 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import { createBrowserClient } from "@serenity/shared/supabase";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -11,7 +10,8 @@ if ((!supabaseUrl || !supabaseAnonKey) && !isTestMode) {
   );
 }
 
-export const supabase = createClient<Database>(
+export const supabase = createBrowserClient(
   supabaseUrl ?? "http://127.0.0.1:54321",
   supabaseAnonKey ?? "test-anon-key",
+  { isSingleton: true },
 );

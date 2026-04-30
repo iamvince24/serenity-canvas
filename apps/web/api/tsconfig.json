@@ -10,13 +10,16 @@
     "verbatimModuleSyntax": true,
     "baseUrl": "..",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@serenity/shared": ["../../packages/shared/src/index.ts"],
+      "@serenity/shared/*": ["../../packages/shared/src/*"]
     },
     "types": ["node"]
   },
   "include": [
     "./**/*.ts",
     "../../../mcp-server/src/**/*.ts",
+    "../../../packages/shared/src/**/*.ts",
     "../src/shared/**/*.ts",
     "../src/types/**/*.ts"
   ]

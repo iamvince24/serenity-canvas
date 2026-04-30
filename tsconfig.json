@@ -1,13 +1,16 @@
 {
   "files": [],
   "references": [
+    { "path": "./packages/shared/tsconfig.json" },
     { "path": "./apps/web/tsconfig.app.json" },
     { "path": "./apps/web/tsconfig.node.json" }
   ],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./apps/web/src/*"]
+      "@/*": ["./apps/web/src/*"],
+      "@serenity/shared": ["./packages/shared/src/index.ts"],
+      "@serenity/shared/*": ["./packages/shared/src/*"]
     }
   }
 }

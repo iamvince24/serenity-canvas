@@ -20,4 +20,28 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/api/_helpers/supabaseAdmin*'],
+              message:
+                'service-role client 嚴禁在 SPA src/ 中 import；只能在 apps/web/api/ 內使用。',
+            },
+          ],
+          paths: [
+            {
+              name: '@serenity/shared/supabase/service',
+              message:
+                'createServiceClient 已從 @serenity/shared 移除；service-role 僅限 apps/web/api/_helpers/supabaseAdmin.ts。',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ])
