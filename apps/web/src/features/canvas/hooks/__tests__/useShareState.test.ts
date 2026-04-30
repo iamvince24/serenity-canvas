@@ -14,6 +14,7 @@ const {
   mockUpdateEq,
   mockUpdate,
   mockGetSession,
+  mockSyncImages,
 } = vi.hoisted(() => {
   const mockSingle = vi.fn();
   const mockSelectEq = vi.fn(() => ({ single: mockSingle }));
@@ -21,6 +22,7 @@ const {
   const mockUpdateEq = vi.fn();
   const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
   const mockGetSession = vi.fn();
+  const mockSyncImages = vi.fn(() => Promise.resolve());
 
   return {
     mockGenerateShareId: vi.fn(() => "SHARE_ID_01"),
@@ -30,6 +32,7 @@ const {
     mockUpdateEq,
     mockUpdate,
     mockGetSession,
+    mockSyncImages,
   };
 });
 
@@ -46,6 +49,12 @@ vi.mock("@/lib/supabase", () => ({
     auth: {
       getSession: mockGetSession,
     },
+  },
+}));
+
+vi.mock("@/services/imageSyncService", () => ({
+  imageSyncService: {
+    syncImages: mockSyncImages,
   },
 }));
 
@@ -78,6 +87,7 @@ function resetSupabase() {
   mockUpdateEq.mockReset();
   mockUpdate.mockReset().mockReturnValue({ eq: mockUpdateEq });
   mockGetSession.mockReset().mockResolvedValue(buildSessionData());
+  mockSyncImages.mockReset().mockResolvedValue(undefined);
 }
 
 // ---------------------------------------------------------------------------
@@ -321,6 +331,36 @@ describe("useShareState", () => {
       });
     });
 
+    it("先 await syncImages 上傳本地圖片，再呼叫 publish-assets", async () => {
+      mockUpdateEq.mockResolvedValue({ error: null });
+
+      const callOrder: string[] = [];
+      mockSyncImages.mockImplementation(async () => {
+        callOrder.push("syncImages");
+      });
+
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url === "/api/share-publish-assets") {
+          callOrder.push("publishAssets");
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ share_assets_status: "ready" }),
+        };
+      });
+      globalThis.fetch = fetchMock;
+
+      const { result } = renderHook(() => useShareState());
+
+      await act(async () => {
+        await result.current.enableShare("board-1");
+      });
+
+      expect(mockSyncImages).toHaveBeenCalledWith("board-1");
+      expect(callOrder).toEqual(["syncImages", "publishAssets"]);
+    });
+
     it("publish-assets 回傳 too_many_assets 時設定對應 error", async () => {
       mockUpdateEq.mockResolvedValue({ error: null });
       globalThis.fetch = vi.fn().mockResolvedValue({
@@ -542,6 +582,48 @@ describe("useShareState", () => {
       });
 
       expect(useShareStore.getState().isUpdating).toBe(false);
+    });
+
+    it("先 await syncImages 再 publish-assets", async () => {
+      mockSingle.mockResolvedValue({
+        data: {
+          share_mode: "public",
+          share_id: "RETRY_ID",
+          share_assets_status: "failed",
+        },
+        error: null,
+      });
+      mockUpdateEq.mockResolvedValue({ error: null });
+
+      const callOrder: string[] = [];
+      mockSyncImages.mockImplementation(async () => {
+        callOrder.push("syncImages");
+      });
+
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url === "/api/share-publish-assets") {
+          callOrder.push("publishAssets");
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ share_assets_status: "ready" }),
+        };
+      });
+      globalThis.fetch = fetchMock;
+
+      const { result } = renderHook(() => useShareState());
+
+      await act(async () => {
+        await result.current.load("board-1");
+      });
+
+      await act(async () => {
+        await result.current.retryPublishAssets("board-1");
+      });
+
+      expect(mockSyncImages).toHaveBeenCalledWith("board-1");
+      expect(callOrder).toEqual(["syncImages", "publishAssets"]);
     });
 
     it("DB update 失敗時設定 error 並不呼叫 publish-assets", async () => {

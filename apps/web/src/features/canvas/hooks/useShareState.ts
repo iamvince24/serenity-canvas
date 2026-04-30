@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { imageSyncService } from "@/services/imageSyncService";
 import { useShareStore } from "@/stores/shareStore";
 import { generateShareId } from "@serenity/shared/share";
 
@@ -177,6 +178,10 @@ export function useShareState(): UseShareStateReturn {
         setShareModeState("public");
         setShareId(newShareId);
         setAssetsStatus("pending");
+        // Ensure local images are uploaded and files.image_path is written
+        // remotely before publishing — otherwise share-publish-assets sees
+        // null image_path and marks the asset as failed.
+        await imageSyncService.syncImages(boardId);
         await publishAssets(boardId, newShareId);
       } finally {
         setUpdating(false);
@@ -243,6 +248,7 @@ export function useShareState(): UseShareStateReturn {
         }
 
         setAssetsStatus("pending");
+        await imageSyncService.syncImages(boardId);
         await publishAssets(boardId, shareId);
       } finally {
         setUpdating(false);
