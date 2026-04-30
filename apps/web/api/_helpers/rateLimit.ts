@@ -15,6 +15,7 @@ export async function checkRateLimit(
   endpoint: string,
   maxRequests: number,
   windowSeconds: number,
+  options?: { failOpen?: boolean },
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc("check_rate_limit", {
     p_key: key,
@@ -24,6 +25,9 @@ export async function checkRateLimit(
   });
   if (error) {
     console.error("[rateLimit] RPC error:", error.message);
+    if (options?.failOpen === false) {
+      throw new Error(`Rate limit check unavailable: ${error.message}`);
+    }
     return true; // fail open
   }
   return data as boolean;
