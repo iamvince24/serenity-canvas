@@ -2,8 +2,9 @@ import "./_helpers/loadEnv.js";
 import { z } from "zod";
 import { adminClient } from "./_helpers/supabaseAdmin.js";
 import { withWebStandard } from "./_helpers/withWebStandard.js";
-import { createSupabaseForUser } from "@serenity/shared/supabase";
-import { isValidShareId } from "@serenity/shared/share";
+import { createSupabaseForUser } from "./_helpers/supabaseUser.js";
+const SHARE_ID_REGEX = /^[A-Za-z0-9_-]{10}$/;
+const isValidShareId = (value: string): boolean => SHARE_ID_REGEX.test(value);
 
 const BodySchema = z.object({ shareId: z.string() }).strict();
 
