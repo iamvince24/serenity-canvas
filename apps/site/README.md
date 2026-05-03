@@ -1,4 +1,20 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Serenity Canvas Site
+
+This Next.js app renders public Serenity Canvas share pages and OG images.
+
+## Public Share Preview Architecture
+
+Public board previews live at `/s/[shareId]`.
+
+- The page is rendered with React Server Components. Server-side data loading happens in `app/s/[shareId]/page.tsx` through `getBoardByShareId`.
+- The Supabase client used by the site is created with the anon key only. The site app must not use a service-role key.
+- Authorization is enforced by database gates, not by client code:
+  - `get_public_board_by_share_id(p_share_id)` only returns boards whose `share_mode` is `public`.
+  - `get_public_files_by_board_id(p_board_id)` only returns files for public boards.
+  - `nodes`, `edges`, `groups`, and `group_members` remain protected by public-board RLS policies.
+- `middleware.ts` is intentionally a cheap shareId format gate. It does not perform database authorization, so share revocation remains governed by the server data loader plus DB/RLS checks.
+- The preview is not a zero-JavaScript page. It uses a small client island, `components/interactive-viewport.tsx`, for whiteboard panning, wheel zoom, and pinch zoom. That client component must not fetch board data or perform authorization.
+- The share route uses Streaming SSR for perceived loading: the page shell can render a loading state while the server content awaits the board payload. Dynamic metadata is still retained for share titles, card counts, and OG image URLs.
 
 ## Getting Started
 

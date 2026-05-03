@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { getBoardByShareId } from "@/lib/board";
 import BoardPreview from "@/components/board-preview";
 import BoardPreviewFallback from "@/components/board-preview-fallback";
+import ShareLoading from "@/components/share-loading";
 
 type Props = {
   params: Promise<{ shareId: string }>;
@@ -69,7 +71,7 @@ function JsonLd({
   );
 }
 
-export default async function Page({ params }: Props) {
+async function ShareBoardContent({ params }: Props) {
   const { shareId } = await params;
   const data = await getBoardByShareId(shareId);
   if (!data) notFound();
@@ -96,5 +98,13 @@ export default async function Page({ params }: Props) {
         files={data.files}
       />
     </>
+  );
+}
+
+export default function Page({ params }: Props) {
+  return (
+    <Suspense fallback={<ShareLoading />}>
+      <ShareBoardContent params={params} />
+    </Suspense>
   );
 }

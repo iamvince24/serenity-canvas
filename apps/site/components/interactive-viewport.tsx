@@ -8,6 +8,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+// Client island for viewport gestures only. Board data and authorization stay
+// in the server-rendered share route.
 const ZOOM_STEP = 1.05;
 
 type ContentBounds = {
