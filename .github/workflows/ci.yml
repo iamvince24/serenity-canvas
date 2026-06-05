@@ -41,6 +41,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Dependency audit (warn-only)
+        continue-on-error: true
+        run: docker run --rm serenity-canvas-ci:latest pnpm audit --audit-level=high
+
       - name: Lint
         run: docker run --rm serenity-canvas-ci:latest pnpm lint
 
@@ -50,13 +54,36 @@ jobs:
       - name: Unit tests
         run: docker run --rm serenity-canvas-ci:latest pnpm test
 
-      - name: Build
+      - name: Build (retain container for artifacts)
+        id: ci_build
         run: |
-          docker run --rm \
-            --env VITE_SUPABASE_URL \
-            --env VITE_SUPABASE_ANON_KEY \
-            --env NEXT_PUBLIC_SUPABASE_URL \
-            --env NEXT_PUBLIC_SUPABASE_ANON_KEY \
-            --env NEXT_PUBLIC_SITE_URL \
-            --env NEXT_PUBLIC_APP_URL \
-            serenity-canvas-ci:latest pnpm build
+          CID=$(docker create \
+            -e VITE_SUPABASE_URL \
+            -e VITE_SUPABASE_ANON_KEY \
+            -e NEXT_PUBLIC_SUPABASE_URL \
+            -e NEXT_PUBLIC_SUPABASE_ANON_KEY \
+            -e NEXT_PUBLIC_SITE_URL \
+            -e NEXT_PUBLIC_APP_URL \
+            serenity-canvas-ci:latest \
+            pnpm build)
+          docker start -ai "$CID"
+          echo "container_id=$CID" >> "$GITHUB_OUTPUT"
+
+      - name: Extract required build artifacts
+        run: |
+          CID="${{ steps.ci_build.outputs.container_id }}"
+          mkdir -p artifacts/web-dist artifacts/mcp-dist
+          docker cp "$CID:/app/apps/web/dist/." artifacts/web-dist/
+          docker cp "$CID:/app/apps/mcp-server/dist/." artifacts/mcp-dist/
+          docker rm "$CID"
+          test -n "$(ls -A artifacts/web-dist)" || (echo "missing apps/web/dist" && exit 1)
+          test -n "$(ls -A artifacts/mcp-dist)" || (echo "missing apps/mcp-server/dist" && exit 1)
+
+      - name: Upload build artifacts (required web + mcp)
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: |
+            artifacts/web-dist/
+            artifacts/mcp-dist/
+          retention-days: 7
