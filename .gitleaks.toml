@@ -1,0 +1,15 @@
+title = "Serenity Canvas gitleaks config"
+
+[allowlist]
+description = "Test fixtures, docs, and CI mock values"
+paths = [
+  '''apps/web/e2e/''',
+  '''docs/''',
+  '''AGENTS.md''',
+  '''CLAUDE.md''',
+]
+regexes = [
+  '''test@example\.com''',
+  '''password123''',
+  '''ci-anon-key''',
+]
