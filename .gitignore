@@ -30,6 +30,8 @@ dist-ssr
 .env*.local
 .env.development
 .mcp.json
+.codex/
+.claude/settings.local.json
 supabase/.env
 mcp-server/build
 
