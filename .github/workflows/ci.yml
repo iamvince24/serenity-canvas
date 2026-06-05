@@ -41,8 +41,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Dependency audit (warn-only)
-        continue-on-error: true
+      - name: Dependency audit
         run: docker run --rm serenity-canvas-ci:latest pnpm audit --audit-level=high
 
       - name: Lint

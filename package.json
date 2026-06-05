@@ -42,7 +42,20 @@
   "pnpm": {
     "overrides": {
       "html-encoding-sniffer": "^4.0.0",
-      "jsdom": "^25.0.0"
+      "jsdom": "^25.0.0",
+      "minimatch@3": "3.1.4",
+      "minimatch@9": "9.0.7",
+      "minimatch@10": "10.2.3",
+      "rollup": ">=4.59.0",
+      "hono": ">=4.12.4",
+      "@hono/node-server": ">=1.19.10",
+      "express-rate-limit": ">=8.2.2",
+      "tar": ">=7.5.11",
+      "flatted": ">=3.4.2",
+      "fast-uri": ">=3.1.2",
+      "path-to-regexp": ">=8.4.0",
+      "picomatch@2": "2.3.2",
+      "picomatch": ">=4.0.4"
     }
   },
   "devDependencies": {
