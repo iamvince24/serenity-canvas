@@ -18,8 +18,23 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Taipei
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Taipei
+    ignore:
+      # CI image stays on Node 22; major bumps (e.g. 22 → 26) are intentional upgrades only
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
