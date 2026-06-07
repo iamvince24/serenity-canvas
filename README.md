@@ -31,6 +31,12 @@ Serenity Canvas is an MCP-compatible, AI-native infinite canvas built to remove 
 - **AI review flow** — MCP changes arrive as changesets that users can accept or reject before edits are applied.
 - **Public sharing** — boards can be published as read-only pages with dynamic Open Graph images and tag-based revalidation.
 
+## AI-assisted Development
+
+Serenity Canvas is developed in collaboration with AI. During the development process, AI helps clarify requirements, compare technical options, study patterns from existing open-source projects, and outline the trade-offs, risks, and situations where each approach fits.
+
+I remain responsible for the product direction, architectural trade-offs, and final decisions. AI acts as an engineering collaborator: exploring possible solutions, drafting implementations, surfacing edge cases, and helping organize documentation. This workflow makes it easier to turn ambiguous ideas into maintainable designs through iterative discussion.
+
 ## Tech Stack
 
 ![Tech Stack](https://github.com/user-attachments/assets/ed9b4f45-165f-4aa4-87e1-26a1f6581da5)
@@ -53,32 +59,6 @@ Serenity Canvas is an MCP-compatible, AI-native infinite canvas built to remove 
 | `site`                 | `apps/site/`       | Public share / marketing pages (Next.js 16) |
 | `@serenity/mcp-server` | `apps/mcp-server/` | MCP Stdio server for AI editing             |
 | `@serenity/shared`     | `packages/shared/` | Shared types, serializers, edge utils       |
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (LTS)
-- pnpm `9.6.0` (`corepack enable`)
-- Docker (for local Supabase)
-
-### Setup
-
-```bash
-pnpm install
-cp .env.example .env            # fill in local values
-pnpm db:start                   # start local Supabase (Docker)
-pnpm db:reset                   # apply migrations + seed
-pnpm dev                        # apps/web :5173 + apps/site :3000
-```
-
-Local dev login: `test@example.com` / `password123`
-
-Environment variables are grouped in `.env.example`:
-
-- `apps/web` (browser): `VITE_*`
-- `apps/web/api` (Vercel serverless, server-only): `SUPABASE_*`, `CRON_SECRET`, `REVALIDATE_SECRET`
-- `apps/site` (Next.js): `NEXT_PUBLIC_*`, `REVALIDATE_SECRET`
 
 ## System Architecture
 
@@ -110,33 +90,6 @@ flowchart TB
     Agent -->|"MCP Tools"| MCPServer
     MCPServer --> Changeset
     Changeset -->|"accept to execute"| Commands
-```
-
-## Commands
-
-```bash
-# Dev / build (Turborepo - all workspaces)
-pnpm dev          # apps/web (Vite) + apps/site (Next.js)
-pnpm build        # build all workspaces
-pnpm typecheck    # typecheck all workspaces
-pnpm lint
-pnpm test         # unit tests (Vitest)
-
-# Web-specific
-pnpm e2e          # Playwright E2E (apps/web)
-pnpm -C apps/web dev
-
-# MCP server
-pnpm mcp:dev      # run MCP server locally (tsx)
-pnpm build:mcp    # compile → apps/mcp-server/dist/
-
-# Database (delegates to apps/web Supabase CLI)
-pnpm db:start     # start local Supabase
-pnpm db:stop      # stop local Supabase
-pnpm db:reset     # apply migrations + seed
-pnpm db:migration:new <name>
-pnpm db:types     # regenerate → packages/shared/src/types/supabase.ts
-pnpm db:push      # push migrations to production
 ```
 
 ## Features
@@ -191,6 +144,59 @@ pnpm db:push      # push migrations to production
 | MCP Server (Stdio)   | Exposes board, node, edge, and changeset tools to AI agents                   |
 | MCP HTTP API         | Vercel serverless endpoint with Bearer auth and 60 req/min rate limiting      |
 | OAuth 2.0            | Full OAuth server for MCP client authorization (authorize / callback / token) |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (LTS)
+- pnpm `9.6.0` (`corepack enable`)
+- Docker (for local Supabase)
+
+### Setup
+
+```bash
+pnpm install
+cp .env.example .env            # fill in local values
+pnpm db:start                   # start local Supabase (Docker)
+pnpm db:reset                   # apply migrations + seed
+pnpm dev                        # apps/web :5173 + apps/site :3000
+```
+
+Local dev login: `test@example.com` / `password123`
+
+Environment variables are grouped in `.env.example`:
+
+- `apps/web` (browser): `VITE_*`
+- `apps/web/api` (Vercel serverless, server-only): `SUPABASE_*`, `CRON_SECRET`, `REVALIDATE_SECRET`
+- `apps/site` (Next.js): `NEXT_PUBLIC_*`, `REVALIDATE_SECRET`
+
+## Commands
+
+```bash
+# Dev / build (Turborepo - all workspaces)
+pnpm dev          # apps/web (Vite) + apps/site (Next.js)
+pnpm build        # build all workspaces
+pnpm typecheck    # typecheck all workspaces
+pnpm lint
+pnpm test         # unit tests (Vitest)
+
+# Web-specific
+pnpm e2e          # Playwright E2E (apps/web)
+pnpm -C apps/web dev
+
+# MCP server
+pnpm mcp:dev      # run MCP server locally (tsx)
+pnpm build:mcp    # compile → apps/mcp-server/dist/
+
+# Database (delegates to apps/web Supabase CLI)
+pnpm db:start     # start local Supabase
+pnpm db:stop      # stop local Supabase
+pnpm db:reset     # apply migrations + seed
+pnpm db:migration:new <name>
+pnpm db:types     # regenerate → packages/shared/src/types/supabase.ts
+pnpm db:push      # push migrations to production
+```
 
 ## Database & Migrations
 
