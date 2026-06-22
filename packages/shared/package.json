@@ -42,11 +42,11 @@
     }
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.98.0",
-    "nanoid": "^5.0.0"
+    "@supabase/supabase-js": "^2.108.2",
+    "nanoid": "^5.1.15"
   },
   "devDependencies": {
     "tsup": "^8.3.5",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   }
 }
