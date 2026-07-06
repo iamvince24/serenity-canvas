@@ -210,6 +210,8 @@
   body,
   #root {
     min-height: 100%;
+    /* 次要防線：阻擋水平 overscroll chaining；主因修正見 Canvas getContainerStageSize */
+    overscroll-behavior-x: none;
   }
 
   body {

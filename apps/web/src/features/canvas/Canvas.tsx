@@ -73,10 +73,15 @@ type ContextMenuPayload = {
     }
 );
 
-function getWindowSize(): StageSize {
+/**
+ * Stage 必須跟 overlay 容器同寬，不能用 window.innerWidth。
+ * Dashboard 有 sidebar 時容器比視窗窄；若 stage 更寬會造成頁面水平 overflow，
+ * 觸控板在側邊欄兩指左右滑會捲動整個視窗。
+ */
+function getContainerStageSize(container: HTMLElement): StageSize {
   return {
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: container.clientWidth,
+    height: container.clientHeight,
   };
 }
 
@@ -142,7 +147,10 @@ export function Canvas() {
   const pendingNodeIds = usePendingNodeIds();
   const pendingEdgeIds = usePendingEdgeIds();
 
-  const [stageSize, setStageSize] = useState<StageSize>(() => getWindowSize());
+  const [stageSize, setStageSize] = useState<StageSize>({
+    width: 0,
+    height: 0,
+  });
   const [overlayContainer, setOverlayContainer] =
     useState<HTMLDivElement | null>(null);
   const containerRectRef = useCachedContainerRect(overlayContainer);
@@ -266,6 +274,10 @@ export function Canvas() {
 
   const handleContainerRef = useCallback((element: HTMLDivElement | null) => {
     setOverlayContainer(element);
+    // 掛載當下就同步尺寸，避免首幀仍以 0×0 或錯誤寬度渲染。
+    if (element) {
+      setStageSize(getContainerStageSize(element));
+    }
   }, []);
 
   const {
@@ -548,16 +560,23 @@ export function Canvas() {
     [createImageNodeFromFile],
   );
 
+  // 跟隨容器 ResizeObserver，涵蓋視窗 resize 與 sidebar 開合（非 window.innerWidth）。
   useEffect(() => {
-    const handleResize = () => {
-      setStageSize(getWindowSize());
+    if (!overlayContainer) {
+      return;
+    }
+
+    const updateStageSize = () => {
+      setStageSize(getContainerStageSize(overlayContainer));
     };
 
-    window.addEventListener("resize", handleResize);
+    const observer = new ResizeObserver(updateStageSize);
+    observer.observe(overlayContainer);
+
     return () => {
-      window.removeEventListener("resize", handleResize);
+      observer.disconnect();
     };
-  }, []);
+  }, [overlayContainer]);
 
   useEffect(() => {
     const stage = stageRef.current;
