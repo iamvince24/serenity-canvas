@@ -125,7 +125,12 @@ function useCanvasActions() {
   };
 }
 
-export function Canvas() {
+type CanvasProps = {
+  /** Dashboard 側邊欄開合；切換時主動同步 stage，避免 flex 過渡期 stage 仍為全視窗寬。 */
+  sidebarOpen?: boolean;
+};
+
+export function Canvas({ sidebarOpen }: CanvasProps = {}) {
   const {
     zoom,
     nodes,
@@ -578,6 +583,26 @@ export function Canvas() {
     };
   }, [overlayContainer]);
 
+  // Sidebar 有 500ms 寬度過渡；切換當下與結束後各同步一次，確保 stage 不超出容器。
+  useEffect(() => {
+    if (!overlayContainer || sidebarOpen === undefined) {
+      return;
+    }
+
+    const syncStageSize = () => {
+      setStageSize(getContainerStageSize(overlayContainer));
+    };
+
+    syncStageSize();
+    const rafId = window.requestAnimationFrame(syncStageSize);
+    const timeoutId = window.setTimeout(syncStageSize, 500);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [overlayContainer, sidebarOpen]);
+
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -723,7 +748,7 @@ export function Canvas() {
     <div
       ref={handleContainerRef}
       data-tour="canvas-stage"
-      className={`relative h-screen w-full overflow-hidden bg-canvas ${
+      className={`relative h-screen w-full min-w-0 overflow-hidden bg-canvas ${
         canvasMode === "connect" ? "cursor-crosshair" : ""
       }`}
       onPointerDownCapture={handleRootPointerDownCapture}

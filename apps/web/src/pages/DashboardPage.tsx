@@ -49,7 +49,7 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-[#FAFAF8]">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-[#FAFAF8]">
       <Sidebar
         isOpen={isOpen}
         setIsOpen={handleSetIsOpen}
@@ -61,7 +61,7 @@ export function DashboardPage() {
         onDeleteBoard={handleDeleteBoard}
       />
 
-      <div className="relative min-h-screen flex-1">
+      <div className="relative min-h-screen min-w-0 flex-1 overflow-hidden">
         {!isOpen ? (
           <button
             type="button"

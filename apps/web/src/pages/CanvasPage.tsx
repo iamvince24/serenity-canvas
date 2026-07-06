@@ -88,7 +88,7 @@ export function CanvasPage({ boardId, sidebarOpen }: CanvasPageProps) {
     // Canvas fills full viewport; toolbar floats above it.
     <TourProvider>
       <main
-        className="relative min-h-screen w-full overflow-hidden bg-canvas"
+        className="relative min-h-screen w-full min-w-0 overflow-hidden bg-canvas"
         data-board-id={boardId}
       >
         {isLoading ? (
@@ -101,7 +101,7 @@ export function CanvasPage({ boardId, sidebarOpen }: CanvasPageProps) {
           </div>
         ) : (
           <>
-            <Canvas />
+            <Canvas sidebarOpen={sidebarOpen} />
             {boardId === LOCAL_BOARD_ID && (
               <Link
                 to="/"
