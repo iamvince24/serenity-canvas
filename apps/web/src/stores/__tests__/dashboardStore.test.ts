@@ -114,19 +114,51 @@ describe("dashboardStore", () => {
 
       const boards = useDashboardStore.getState().boards;
       expect(boards).toHaveLength(3);
-      expect(boards[1].id).toBe("11111111-1111-1111-1111-111111111111");
-      expect(boards[2].id).toBe("22222222-2222-2222-2222-222222222222");
-      expect(boards[1].id).not.toBe(boards[2].id);
-      expect(boards[1].nodeCount).toBe(0);
-      expect(boards[2].nodeCount).toBe(0);
 
-      expect(boards[1].createdAt).toBeGreaterThanOrEqual(before);
-      expect(boards[1].createdAt).toBeLessThanOrEqual(after);
-      expect(boards[1].updatedAt).toBeGreaterThanOrEqual(before);
-      expect(boards[1].updatedAt).toBeLessThanOrEqual(after);
+      // 兩個新建 board 的 updatedAt 最新，排在預設 board 之前；
+      // 兩者可能同毫秒，故只驗「都在最前兩位」而非嚴格順序。
+      const topTwoIds = [boards[0].id, boards[1].id];
+      expect(topTwoIds).toContain("11111111-1111-1111-1111-111111111111");
+      expect(topTwoIds).toContain("22222222-2222-2222-2222-222222222222");
+      expect(boards[0].id).not.toBe(boards[1].id);
+      expect(boards[2].id).toBe(DEFAULT_BOARD_ID);
+      expect(boards[0].nodeCount).toBe(0);
+      expect(boards[1].nodeCount).toBe(0);
+
+      expect(boards[0].createdAt).toBeGreaterThanOrEqual(before);
+      expect(boards[0].createdAt).toBeLessThanOrEqual(after);
+      expect(boards[0].updatedAt).toBeGreaterThanOrEqual(before);
+      expect(boards[0].updatedAt).toBeLessThanOrEqual(after);
     } finally {
       uuidSpy.mockRestore();
     }
+  });
+
+  it("boards 依 updatedAt 降序排列", () => {
+    useDashboardStore.setState({
+      boards: [
+        {
+          id: "board-old",
+          title: "Old",
+          createdAt: 100,
+          updatedAt: 100,
+          nodeCount: 0,
+        },
+        {
+          id: "board-new",
+          title: "New",
+          createdAt: 200,
+          updatedAt: 200,
+          nodeCount: 0,
+        },
+      ],
+    });
+
+    useDashboardStore.getState().renameBoard("board-old", "Old Renamed");
+
+    const boards = useDashboardStore.getState().boards;
+    expect(boards[0].id).toBe("board-old");
+    expect(boards[1].id).toBe("board-new");
   });
 
   it("renameBoard: 更新 title 與 updatedAt，createdAt 不變", () => {
@@ -188,6 +220,36 @@ describe("dashboardStore", () => {
       localStorage.getItem(BOARDS_STORAGE_KEY) ?? "[]",
     );
     expect(persisted[0].nodeCount).toBe(3);
+  });
+
+  it("setBoardNodeCount: 不會 bump updatedAt 或重排（點開白板不改順序）", () => {
+    useDashboardStore.setState({
+      boards: [
+        {
+          id: "board-new",
+          title: "New",
+          createdAt: 200,
+          updatedAt: 200,
+          nodeCount: 0,
+        },
+        {
+          id: "board-old",
+          title: "Old",
+          createdAt: 100,
+          updatedAt: 100,
+          nodeCount: 0,
+        },
+      ],
+    });
+
+    useDashboardStore.getState().setBoardNodeCount("board-old", 5);
+
+    const boards = useDashboardStore.getState().boards;
+    // 順序不變，被更新的 board 不會跳到最上面
+    expect(boards[0].id).toBe("board-new");
+    expect(boards[1].id).toBe("board-old");
+    expect(boards[1].nodeCount).toBe(5);
+    expect(boards[1].updatedAt).toBe(100);
   });
 
   it("deleteBoard: 會移除白板、同步 localStorage，並觸發 IDB 清理", () => {

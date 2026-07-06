@@ -25,6 +25,7 @@ const {
   fileBulkPut,
   fileBulkDelete,
   setBoardNodeCount,
+  touchBoard,
   markDirty,
   schedulePush,
 } = vi.hoisted(() => ({
@@ -38,6 +39,7 @@ const {
   fileBulkPut: vi.fn(),
   fileBulkDelete: vi.fn(),
   setBoardNodeCount: vi.fn(),
+  touchBoard: vi.fn(),
   markDirty: vi.fn(),
   schedulePush: vi.fn(),
 }));
@@ -68,6 +70,7 @@ vi.mock("../dashboardStore", () => ({
   useDashboardStore: {
     getState: () => ({
       setBoardNodeCount,
+      touchBoard,
     }),
   },
 }));
@@ -198,6 +201,7 @@ describe("persistMiddleware", () => {
     fileBulkPut.mockReset().mockResolvedValue(undefined);
     fileBulkDelete.mockReset().mockResolvedValue(undefined);
     setBoardNodeCount.mockReset();
+    touchBoard.mockReset();
     markDirty.mockReset().mockResolvedValue(undefined);
     schedulePush.mockReset();
   });
@@ -308,7 +312,23 @@ describe("persistMiddleware", () => {
         nodeCount: 2,
       }),
     );
-    expect(setBoardNodeCount).toHaveBeenCalledWith("board-a", 2);
+    expect(touchBoard).toHaveBeenCalledWith("board-a", { nodeCount: 2 });
+  });
+
+  it("edge-only 變更會觸發 touchBoard", async () => {
+    const store = createPersistStore();
+    setupPersistMiddleware(store);
+
+    store.setState({
+      edges: {
+        "edge-1": createEdge("edge-1", "node-1", "node-2"),
+        "edge-3": createEdge("edge-3", "node-2", "node-1"),
+      },
+    });
+
+    await flushDebounce();
+
+    expect(touchBoard).toHaveBeenCalledWith("board-a", undefined);
   });
 
   it("clearCanvas 後會刪除所有集合並更新 nodeCount=0", async () => {
@@ -336,7 +356,7 @@ describe("persistMiddleware", () => {
         nodeCount: 0,
       }),
     );
-    expect(setBoardNodeCount).toHaveBeenCalledWith("board-a", 0);
+    expect(touchBoard).toHaveBeenCalledWith("board-a", { nodeCount: 0 });
   });
 
   it("transient state 變更不觸發持久化寫入", async () => {
@@ -363,7 +383,7 @@ describe("persistMiddleware", () => {
     expect(fileBulkPut).not.toHaveBeenCalled();
     expect(fileBulkDelete).not.toHaveBeenCalled();
     expect(boardUpdate).not.toHaveBeenCalled();
-    expect(setBoardNodeCount).not.toHaveBeenCalled();
+    expect(touchBoard).not.toHaveBeenCalled();
   });
 
   it("board 切換前 cancel 可取消舊 board 的 pending debounce", async () => {
@@ -394,7 +414,7 @@ describe("persistMiddleware", () => {
     expect(nodeBulkPut).not.toHaveBeenCalled();
     expect(nodeBulkDelete).not.toHaveBeenCalled();
     expect(boardUpdate).not.toHaveBeenCalled();
-    expect(setBoardNodeCount).not.toHaveBeenCalled();
+    expect(touchBoard).not.toHaveBeenCalled();
   });
 
   it("flush 會立即提交 pending 寫入，不等待 debounce", async () => {

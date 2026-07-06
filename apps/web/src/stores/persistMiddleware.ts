@@ -158,7 +158,6 @@ export function setupPersistMiddleware(store: PersistMiddlewareStore): {
       const nodeCount = Object.keys(nextState.nodes).length;
       boardPatch.nodeCount = nodeCount;
       boardPatch.updatedAt = Date.now();
-      useDashboardStore.getState().setBoardNodeCount(boardId, nodeCount);
     }
 
     if (previousState.edges !== nextState.edges) {
@@ -250,8 +249,21 @@ export function setupPersistMiddleware(store: PersistMiddlewareStore): {
 
     if (previousState.nodeOrder !== nextState.nodeOrder) {
       boardPatch.nodeOrder = nextState.nodeOrder;
-      await changeTracker.markDirty(boardId, "board", boardId, "upsert");
       hasDirtyChanges = true;
+    }
+
+    if (hasDirtyChanges) {
+      const touchPatch =
+        previousState.nodes !== nextState.nodes
+          ? { nodeCount: Object.keys(nextState.nodes).length }
+          : undefined;
+      // 先 bump 記憶體的 updatedAt，push 時才會把最新時間推上 Supabase。
+      useDashboardStore.getState().touchBoard(boardId, touchPatch);
+      boardPatch.updatedAt = Date.now();
+
+      // 任何 dirty 變更（含純內容 / edge 編輯）都標記 board dirty，
+      // 讓 pushBoard 同步 boards.updated_at，避免刷新後側邊欄排序跑掉。
+      await changeTracker.markDirty(boardId, "board", boardId, "upsert");
     }
 
     if (Object.keys(boardPatch).length > 0) {

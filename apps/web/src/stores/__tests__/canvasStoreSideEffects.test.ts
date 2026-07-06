@@ -16,6 +16,7 @@ const sideEffectMocks = vi.hoisted(() => {
       return unsubscribeMock;
     }),
     setBoardNodeCount: vi.fn(),
+    touchBoard: vi.fn(),
     unsubscribeMock,
     getListener: () => listener,
     resetListener: () => {
@@ -34,6 +35,7 @@ vi.mock("../dashboardStore", () => ({
   useDashboardStore: {
     getState: () => ({
       setBoardNodeCount: sideEffectMocks.setBoardNodeCount,
+      touchBoard: sideEffectMocks.touchBoard,
     }),
   },
 }));
@@ -43,6 +45,7 @@ describe("canvasStoreSideEffects", () => {
     vi.resetModules();
     sideEffectMocks.subscribeMock.mockClear();
     sideEffectMocks.setBoardNodeCount.mockClear();
+    sideEffectMocks.touchBoard.mockClear();
     sideEffectMocks.unsubscribeMock.mockClear();
     sideEffectMocks.resetListener();
   });
@@ -94,6 +97,7 @@ describe("canvasStoreSideEffects", () => {
       "board-1",
       2,
     );
+    expect(sideEffectMocks.touchBoard).not.toHaveBeenCalled();
   });
 
   it("缺少 boardId 或仍在 loading 時不會同步", async () => {

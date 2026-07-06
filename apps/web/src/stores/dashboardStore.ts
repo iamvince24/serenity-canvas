@@ -22,6 +22,7 @@ type DashboardStore = {
   source: "local" | "remote";
   loadBoards: () => void;
   setActiveBoardId: (id: string) => void;
+  touchBoard: (id: string, patch?: { nodeCount?: number }) => void;
   setBoardNodeCount: (id: string, nodeCount: number) => void;
   createBoard: (title: string) => string;
   renameBoard: (id: string, title: string) => void;
@@ -86,8 +87,23 @@ function toFallbackBoards(now: number): Board[] {
   return [createDefaultBoard(now)];
 }
 
+function sortBoardsByUpdatedAt(boards: Board[]): Board[] {
+  return [...boards].sort((a, b) => {
+    if (b.updatedAt !== a.updatedAt) {
+      return b.updatedAt - a.updatedAt;
+    }
+    if (b.createdAt !== a.createdAt) {
+      return b.createdAt - a.createdAt;
+    }
+    return a.id.localeCompare(b.id);
+  });
+}
+
 function persistBoards(boards: Board[]): void {
-  localStorage.setItem(BOARDS_STORAGE_KEY, JSON.stringify(boards));
+  localStorage.setItem(
+    BOARDS_STORAGE_KEY,
+    JSON.stringify(sortBoardsByUpdatedAt(boards)),
+  );
 }
 
 function persistActiveBoardId(id: string | null): void {
@@ -132,7 +148,7 @@ function loadBoardsFromStorage(now: number): Board[] {
       return fallbackBoards;
     }
 
-    return boards;
+    return sortBoardsByUpdatedAt(boards);
   } catch {
     const fallbackBoards = toFallbackBoards(now);
     persistBoards(fallbackBoards);
@@ -189,7 +205,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
             : (enriched[0]?.id ?? null);
           persistActiveBoardId(nextActiveBoardId);
           return {
-            boards: enriched,
+            boards: sortBoardsByUpdatedAt(enriched),
             source: "remote",
             activeBoardId: nextActiveBoardId,
           };
@@ -222,10 +238,12 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
             if (state.source !== "remote") {
               return state;
             }
-            const updatedBoards = state.boards.map((board) => ({
-              ...board,
-              nodeCount: nodeCountByBoardId.get(board.id) ?? board.nodeCount,
-            }));
+            const updatedBoards = sortBoardsByUpdatedAt(
+              state.boards.map((board) => ({
+                ...board,
+                nodeCount: nodeCountByBoardId.get(board.id) ?? board.nodeCount,
+              })),
+            );
             return { boards: updatedBoards };
           });
         })();
@@ -244,10 +262,38 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     persistActiveBoardId(id);
     set({ activeBoardId: id });
   },
-  setBoardNodeCount: (id, nodeCount) => {
-    const nextNodeCount = Math.max(0, Math.floor(nodeCount));
+  touchBoard: (id, patch) => {
     const now = Date.now();
 
+    set((state) => {
+      const target = state.boards.find((board) => board.id === id);
+      if (!target) {
+        return state;
+      }
+
+      const nextNodeCount =
+        patch?.nodeCount !== undefined
+          ? Math.max(0, Math.floor(patch.nodeCount))
+          : target.nodeCount;
+
+      const boards = sortBoardsByUpdatedAt(
+        state.boards.map((board) =>
+          board.id === id
+            ? { ...board, nodeCount: nextNodeCount, updatedAt: now }
+            : board,
+        ),
+      );
+
+      if (state.source === "local") {
+        persistBoards(boards);
+      }
+      return { boards };
+    });
+  },
+  setBoardNodeCount: (id, nodeCount) => {
+    const nextNodeCount = Math.max(0, Math.floor(nodeCount));
+
+    // 僅同步 nodeCount，不動 updatedAt / 排序：載入或瀏覽白板不應改變順序。
     set((state) => {
       let hasChanges = false;
       const boards = state.boards.map((board) => {
@@ -256,18 +302,16 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         }
 
         hasChanges = true;
-        return {
-          ...board,
-          nodeCount: nextNodeCount,
-          updatedAt: now,
-        };
+        return { ...board, nodeCount: nextNodeCount };
       });
 
       if (!hasChanges) {
         return state;
       }
 
-      persistBoards(boards);
+      if (state.source === "local") {
+        persistBoards(boards);
+      }
       return { boards };
     });
   },
@@ -283,7 +327,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     };
 
     set((state) => {
-      const boards = [...state.boards, nextBoard];
+      const boards = sortBoardsByUpdatedAt([...state.boards, nextBoard]);
       if (state.source === "local") {
         persistBoards(boards);
       }
@@ -325,10 +369,11 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         return state;
       }
 
+      const sortedBoards = sortBoardsByUpdatedAt(boards);
       if (state.source === "local") {
-        persistBoards(boards);
+        persistBoards(sortedBoards);
       }
-      return { boards };
+      return { boards: sortedBoards };
     });
 
     const user = useAuthStore.getState().user;
@@ -346,7 +391,9 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         return state;
       }
 
-      const boards = state.boards.filter((board) => board.id !== id);
+      const boards = sortBoardsByUpdatedAt(
+        state.boards.filter((board) => board.id !== id),
+      );
       if (boards.length === state.boards.length) {
         return state;
       }

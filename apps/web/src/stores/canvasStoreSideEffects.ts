@@ -48,6 +48,7 @@ export function registerCanvasStoreSideEffects(): () => void {
       return;
     }
 
+    // 只同步 nodeCount，不 bump updatedAt：載入/瀏覽白板不應改變側邊欄排序。
     useDashboardStore
       .getState()
       .setBoardNodeCount(next.boardId, next.nodeCount);
